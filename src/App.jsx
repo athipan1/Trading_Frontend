@@ -5,8 +5,14 @@ import PositionsTable from './components/PositionsTable.jsx';
 import SignalsPanel from './components/SignalsPanel.jsx';
 import { portfolioSnapshot } from './data/mockPortfolio.js';
 import { useDashboardSnapshot } from './hooks/useDashboardSnapshot.js';
-import { isMockDataMode } from './services/api.js';
+import { getDashboardDataSource, isMockDataMode } from './services/api.js';
 import { formatCurrency } from './utils/formatters.js';
+
+const DATA_SOURCE_LABELS = {
+  mock: 'Mock data mode',
+  'public-snapshot': 'Public snapshot mode',
+  'manager-api': 'Live API mode',
+};
 
 function formatUpdatedAt(value) {
   if (!value) return 'Not updated yet';
@@ -22,6 +28,7 @@ export default function App() {
   const dashboardSnapshot = snapshot ?? portfolioSnapshot;
   const { account, positions, openOrders, curatorSignals } = dashboardSnapshot;
   const mockMode = isMockDataMode();
+  const dataSource = getDashboardDataSource();
 
   const totalPositionValue = positions.reduce((sum, position) => sum + Number(position.marketValue || 0), 0);
   const protectedPositions = positions.filter((position) =>
@@ -36,7 +43,7 @@ export default function App() {
           <h1>Portfolio Dashboard</h1>
           <p className="hero-copy">Dynamic frontend for Manager, Database, Execution, Risk, and Curator agent reports.</p>
           <div className="refresh-row">
-            <span className={`status ${mockMode ? 'warn' : 'good'}`}>{mockMode ? 'Mock data mode' : 'Live API mode'}</span>
+            <span className={`status ${mockMode ? 'warn' : 'good'}`}>{DATA_SOURCE_LABELS[dataSource] || dataSource}</span>
             <span className="sync-text">Last updated: {formatUpdatedAt(lastUpdatedAt || account.lastSyncedAt)}</span>
             <span className="sync-text">Auto refresh: {Math.round(refreshMs / 1000)}s</span>
           </div>
