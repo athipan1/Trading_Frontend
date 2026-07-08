@@ -1,0 +1,64 @@
+.top-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 999px;
+  padding: 10px 14px;
+  color: #e0f2fe;
+  background: rgba(14, 165, 233, 0.12);
+  cursor: pointer;
+  font-weight: 800;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.language-switcher:hover {
+  transform: translateY(-1px);
+  background: rgba(14, 165, 233, 0.2);
+  border-color: rgba(56, 189, 248, 0.48);
+}
+
+.language-switcher:focus-visible {
+  outline: 3px solid rgba(56, 189, 248, 0.35);
+  outline-offset: 3px;
+}
+
+.language-switcher svg {
+  width: 18px;
+  height: 18px;
+}
+
+html[lang='th'] body {
+  font-family: 'Noto Sans Thai', 'Leelawadee UI', Tahoma, Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+html[lang='th'] h1 {
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+}
+
+html[lang='th'] .eyebrow {
+  letter-spacing: 0.08em;
+  text-transform: none;
+}
+
+@media (max-width: 640px) {
+  .top-actions {
+    position: sticky;
+    top: 10px;
+    z-index: 20;
+    pointer-events: none;
+  }
+
+  .language-switcher {
+    pointer-events: auto;
+    box-shadow: 0 12px 30px rgba(2, 6, 23, 0.45);
+    backdrop-filter: blur(14px);
+  }
+}

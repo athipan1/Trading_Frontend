@@ -1,14 +1,14 @@
 import { formatPercent } from '../utils/formatters';
 
-export default function SignalsPanel({ signals }) {
+export default function SignalsPanel({ signals, t }) {
   return (
     <section className="panel">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Advisory Layer</p>
-          <h2>Curator Signals</h2>
+          <p className="eyebrow">{t.advisoryLayer}</p>
+          <h2>{t.curatorSignals}</h2>
         </div>
-        <span className="pill">Read-only</span>
+        <span className="pill">{t.readOnly}</span>
       </div>
       <div className="signals-list">
         {signals.map((signal) => (

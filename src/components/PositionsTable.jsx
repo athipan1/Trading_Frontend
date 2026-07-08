@@ -1,27 +1,27 @@
-import { formatCurrency, formatNumber, pnlClassName } from '../utils/formatters';
+import { formatCurrency, pnlClassName } from '../utils/formatters';
 
-export default function PositionsTable({ positions, openOrders }) {
+export default function PositionsTable({ positions, openOrders, t }) {
   const orderBySymbol = new Map(openOrders.map((order) => [order.symbol, order]));
 
   return (
     <section className="panel">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Live Portfolio</p>
-          <h2>Positions</h2>
+          <p className="eyebrow">{t.livePortfolio}</p>
+          <h2>{t.positions}</h2>
         </div>
-        <span className="pill">Dynamic</span>
+        <span className="pill">{t.dynamic}</span>
       </div>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Symbol</th>
-              <th>Bucket</th>
-              <th>Qty</th>
-              <th>Avg</th>
-              <th>Current</th>
-              <th>P/L</th>
+              <th>{t.symbol}</th>
+              <th>{t.bucket}</th>
+              <th>{t.qty}</th>
+              <th>{t.avg}</th>
+              <th>{t.current}</th>
+              <th>{t.pnl}</th>
               <th>TP/SL</th>
             </tr>
           </thead>
@@ -36,14 +36,14 @@ export default function PositionsTable({ positions, openOrders }) {
                   <td>{formatCurrency(position.averageCost)}</td>
                   <td>{formatCurrency(position.currentPrice)}</td>
                   <td className={pnlClassName(position.unrealizedPnL)}>{formatCurrency(position.unrealizedPnL)}</td>
-                  <td>{order?.orderClass === 'bracket' ? <span className="status good">Protected</span> : <span className="status warn">Needs review</span>}</td>
+                  <td>{order?.orderClass === 'bracket' ? <span className="status good">{t.protected}</span> : <span className="status warn">{t.needsReview}</span>}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-      <p className="hint">New positions render automatically from the latest API snapshot. Nothing is hardcoded by symbol.</p>
+      <p className="hint">{t.positionsHint}</p>
     </section>
   );
 }
