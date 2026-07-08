@@ -1,14 +1,27 @@
-import { Activity, ShieldCheck, WalletCards, Zap } from 'lucide-react';
+import { Activity, RefreshCw, ShieldCheck, WalletCards, Zap } from 'lucide-react';
 import MetricCard from './components/MetricCard.jsx';
 import OrdersTable from './components/OrdersTable.jsx';
 import PositionsTable from './components/PositionsTable.jsx';
 import SignalsPanel from './components/SignalsPanel.jsx';
 import { portfolioSnapshot } from './data/mockPortfolio.js';
+import { useDashboardSnapshot } from './hooks/useDashboardSnapshot.js';
+import { isMockDataMode } from './services/api.js';
 import { formatCurrency } from './utils/formatters.js';
 
+function formatUpdatedAt(value) {
+  if (!value) return 'Not updated yet';
+  return new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(new Date(value));
+}
+
 export default function App() {
-  const snapshot = portfolioSnapshot;
-  const { account, positions, openOrders, curatorSignals } = snapshot;
+  const { snapshot, isLoading, isRefreshing, error, lastUpdatedAt, refresh, refreshMs } = useDashboardSnapshot();
+  const dashboardSnapshot = snapshot ?? portfolioSnapshot;
+  const { account, positions, openOrders, curatorSignals } = dashboardSnapshot;
+  const mockMode = isMockDataMode();
 
   const totalPositionValue = positions.reduce((sum, position) => sum + Number(position.marketValue || 0), 0);
   const protectedPositions = positions.filter((position) =>
@@ -22,10 +35,20 @@ export default function App() {
           <p className="eyebrow">AI Trading Command Center</p>
           <h1>Portfolio Dashboard</h1>
           <p className="hero-copy">Dynamic frontend for Manager, Database, Execution, Risk, and Curator agent reports.</p>
+          <div className="refresh-row">
+            <span className={`status ${mockMode ? 'warn' : 'good'}`}>{mockMode ? 'Mock data mode' : 'Live API mode'}</span>
+            <span className="sync-text">Last updated: {formatUpdatedAt(lastUpdatedAt || account.lastSyncedAt)}</span>
+            <span className="sync-text">Auto refresh: {Math.round(refreshMs / 1000)}s</span>
+          </div>
+          {error ? <p className="error-banner">API refresh failed: {error.message}. Showing last known snapshot.</p> : null}
         </div>
         <div className="hero-status">
           <span>{account.mode}</span>
-          <strong>{account.status}</strong>
+          <strong>{isLoading ? 'LOADING' : account.status}</strong>
+          <button className="refresh-button" type="button" onClick={() => refresh()} disabled={isRefreshing}>
+            <RefreshCw className={isRefreshing ? 'spinning' : ''} />
+            Refresh
+          </button>
         </div>
       </section>
 
