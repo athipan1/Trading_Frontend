@@ -1,6 +1,8 @@
 import { portfolioSnapshot } from '../data/mockPortfolio';
 
+const DEFAULT_SNAPSHOT_URL = 'https://raw.githubusercontent.com/athipan1/Manager_Agent/main/docs/dashboard/latest-dashboard-snapshot.json';
 const API_BASE_URL = import.meta.env.VITE_MANAGER_API_URL;
+const DASHBOARD_SNAPSHOT_URL = import.meta.env.VITE_DASHBOARD_SNAPSHOT_URL || DEFAULT_SNAPSHOT_URL;
 const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA !== 'false';
 
 function cleanBaseUrl(baseUrl) {
@@ -24,8 +26,8 @@ function normalizeSnapshot(payload) {
       equity: Number(firstValue(account.equity, account.portfolio_value, portfolioSnapshot.account.equity)),
       buyingPower: Number(firstValue(account.buyingPower, account.buying_power, portfolioSnapshot.account.buyingPower)),
       status: firstValue(account.status, portfolioSnapshot.account.status),
-      mode: firstValue(account.mode, account.trading_mode, account.paper ? 'PAPER' : null, portfolioSnapshot.account.mode),
-      lastSyncedAt: firstValue(account.lastSyncedAt, account.last_synced_at, account.broker_synced_at, data.timestamp, portfolioSnapshot.account.lastSyncedAt),
+      mode: firstValue(account.mode, account.trading_mode, data.mode, account.paper ? 'PAPER' : null, portfolioSnapshot.account.mode),
+      lastSyncedAt: firstValue(account.lastSyncedAt, account.last_synced_at, account.broker_synced_at, data.generatedAt, data.timestamp, portfolioSnapshot.account.lastSyncedAt),
     },
     positions: positions.map((position) => ({
       symbol: position.symbol,
@@ -56,18 +58,37 @@ function normalizeSnapshot(payload) {
   };
 }
 
-export async function getDashboardSnapshot() {
-  if (USE_MOCK_DATA || !API_BASE_URL) {
-    return normalizeSnapshot(portfolioSnapshot);
-  }
-
-  const response = await fetch(`${cleanBaseUrl(API_BASE_URL)}/dashboard/snapshot`);
+async function fetchJson(url) {
+  const response = await fetch(url, { cache: 'no-store' });
   if (!response.ok) {
     throw new Error(`Dashboard snapshot request failed: ${response.status}`);
   }
-  return normalizeSnapshot(await response.json());
+  return response.json();
+}
+
+export async function getDashboardSnapshot() {
+  if (USE_MOCK_DATA) {
+    return normalizeSnapshot(portfolioSnapshot);
+  }
+
+  if (DASHBOARD_SNAPSHOT_URL) {
+    return normalizeSnapshot(await fetchJson(DASHBOARD_SNAPSHOT_URL));
+  }
+
+  if (API_BASE_URL) {
+    return normalizeSnapshot(await fetchJson(`${cleanBaseUrl(API_BASE_URL)}/dashboard/snapshot`));
+  }
+
+  return normalizeSnapshot(portfolioSnapshot);
 }
 
 export function isMockDataMode() {
-  return USE_MOCK_DATA || !API_BASE_URL;
+  return USE_MOCK_DATA;
+}
+
+export function getDashboardDataSource() {
+  if (USE_MOCK_DATA) return 'mock';
+  if (DASHBOARD_SNAPSHOT_URL) return 'public-snapshot';
+  if (API_BASE_URL) return 'manager-api';
+  return 'mock';
 }
