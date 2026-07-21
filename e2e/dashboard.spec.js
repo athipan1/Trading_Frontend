@@ -36,10 +36,12 @@ test('loads Manager data, refreshes, switches language, and survives API failure
   await expect.poll(() => requests).toBeGreaterThanOrEqual(2);
   await page.getByRole('button', { name: 'Switch language' }).click();
   await expect(page.getByRole('heading', { name: 'แดชบอร์ดพอร์ตลงทุน' })).toBeVisible();
+  expect(consoleErrors).toEqual([]);
 
   failRequests = true;
   await page.getByRole('button', { name: /รีเฟรช/ }).click();
   await expect(page.getByRole('alert')).toContainText('HTTP 503');
   await expect(page.getByText('AAPL').first()).toBeVisible();
-  expect(consoleErrors).toEqual([]);
+  expect(consoleErrors).toHaveLength(1);
+  expect(consoleErrors[0]).toMatch(/Failed to load resource.*503 \(Service Unavailable\)/);
 });
