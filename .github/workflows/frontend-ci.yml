@@ -7,9 +7,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  build:
-    name: Build frontend
+  quality:
+    name: Lint, test, build, and security
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -18,21 +21,75 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.17.0
+          cache: npm
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
 
-      - name: Build app
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Production build
         run: npm run build
         env:
-          VITE_USE_MOCK_DATA: true
+          VITE_DATA_SOURCE: manager-api
+          VITE_MANAGER_API_URL: /api
+          VITE_REFRESH_INTERVAL_MS: 60000
+          ALPACA_SECRET_KEY: frontend-ci-secret-must-not-leak
 
-  api-connectivity:
-    name: Agent API connectivity
+      - name: Verify secrets are absent from bundle
+        run: npm run check:bundle
+        env:
+          BUNDLE_FORBIDDEN_VALUES: frontend-ci-secret-must-not-leak
+
+      - name: Audit locked dependencies
+        run: npm audit --audit-level=high
+
+  docker:
+    name: Docker image and health check
     runs-on: ubuntu-latest
-    needs: build
-    continue-on-error: true
+    needs: quality
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build pinned multi-stage image
+        run: >-
+          docker build
+          --build-arg VITE_DATA_SOURCE=manager-api
+          --build-arg VITE_MANAGER_API_URL=/api
+          --build-arg VITE_REFRESH_INTERVAL_MS=60000
+          --tag trading-frontend:ci .
+
+      - name: Start container
+        run: docker run --detach --name trading-frontend-ci --publish 8080:8080 trading-frontend:ci
+
+      - name: Verify container health endpoint and security headers
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8080/healthz >/dev/null; then
+              break
+            fi
+            if [ "$attempt" = 30 ]; then
+              docker logs trading-frontend-ci
+              exit 1
+            fi
+            sleep 1
+          done
+          curl --fail --silent --head http://127.0.0.1:8080/ | grep -i "x-content-type-options: nosniff"
+
+      - name: Container logs
+        if: failure()
+        run: docker logs trading-frontend-ci
+
+  browser-e2e:
+    name: Browser E2E
+    runs-on: ubuntu-latest
+    needs: quality
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,16 +97,24 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.17.0
+          cache: npm
 
-      - name: Check agent APIs
-        run: node scripts/check-agent-apis.mjs
-        env:
-          API_CHECK_STRICT: false
-          API_CHECK_TIMEOUT_MS: 8000
-          MANAGER_API_URL: ${{ vars.MANAGER_API_URL }}
-          DATABASE_API_URL: ${{ vars.DATABASE_API_URL }}
-          EXECUTION_API_URL: ${{ vars.EXECUTION_API_URL }}
-          RISK_API_URL: ${{ vars.RISK_API_URL }}
-          CURATOR_API_URL: ${{ vars.CURATOR_API_URL }}
-          AGENT_API_KEY: ${{ secrets.AGENT_API_KEY }}
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install pinned Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser tests
+        run: npm run test:e2e
+
+      - name: Upload browser failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-browser-e2e-failure
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore

@@ -1,94 +1,189 @@
-import { portfolioSnapshot } from '../data/mockPortfolio';
+import { DATA_SOURCES } from '../config/dashboardConfig.js';
+import { getDashboardRuntimeConfig } from '../config/runtimeConfig.js';
+import { portfolioSnapshot } from '../data/mockPortfolio.js';
 
-const DEFAULT_SNAPSHOT_URL = 'https://raw.githubusercontent.com/athipan1/Manager_Agent/main/docs/dashboard/latest-dashboard-snapshot.json';
-const API_BASE_URL = import.meta.env.VITE_MANAGER_API_URL;
-const DASHBOARD_SNAPSHOT_URL = import.meta.env.VITE_DASHBOARD_SNAPSHOT_URL || DEFAULT_SNAPSHOT_URL;
-const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA !== 'false';
+export const DASHBOARD_SCHEMA_VERSION = 'dashboard-snapshot.v1';
+const REQUEST_TIMEOUT_MS = 10_000;
 
-function cleanBaseUrl(baseUrl) {
-  return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+function requiredObject(value, field) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`Malformed dashboard payload: ${field} must be an object.`);
+  }
+  return value;
+}
+
+function requiredArray(value, field) {
+  if (!Array.isArray(value)) {
+    throw new Error(`Malformed dashboard payload: ${field} must be an array.`);
+  }
+  return value;
 }
 
 function firstValue(...values) {
-  return values.find((value) => value !== undefined && value !== null);
+  return values.find((value) => value !== undefined && value !== null && value !== '');
 }
 
-function normalizeSnapshot(payload) {
-  const data = payload?.data ?? payload ?? {};
-  const account = data.account ?? data.broker?.account ?? portfolioSnapshot.account;
-  const positions = data.positions ?? data.broker?.positions ?? portfolioSnapshot.positions;
-  const openOrders = data.openOrders ?? data.open_orders ?? data.broker?.open_orders ?? portfolioSnapshot.openOrders;
-  const curatorSignals = data.curatorSignals ?? data.curator_signals ?? data.signals ?? portfolioSnapshot.curatorSignals;
+function numberValue(value, field, fallback = 0) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Malformed dashboard payload: ${field} must be numeric.`);
+  }
+  return parsed;
+}
+
+function booleanValue(value) {
+  if (typeof value === 'string') return ['true', '1', 'yes'].includes(value.toLowerCase());
+  return Boolean(value);
+}
+
+export function normalizeSnapshot(payload) {
+  const data = requiredObject(payload, 'root');
+  if (data.schemaVersion !== DASHBOARD_SCHEMA_VERSION) {
+    throw new Error(
+      `Unsupported dashboard schema: expected ${DASHBOARD_SCHEMA_VERSION}, received ${data.schemaVersion || '(missing)'}.`,
+    );
+  }
+
+  const account = requiredObject(data.account, 'account');
+  const positions = requiredArray(data.positions, 'positions');
+  const openOrders = requiredArray(data.openOrders, 'openOrders');
+  const curatorSignals = requiredArray(data.curatorSignals, 'curatorSignals');
 
   return {
+    schemaVersion: data.schemaVersion,
+    generatedAt: firstValue(data.generatedAt, account.lastSyncedAt, null),
+    mode: firstValue(data.mode, account.mode, 'UNKNOWN'),
+    brokerMode: firstValue(data.brokerMode, 'UNKNOWN'),
+    flow: firstValue(data.flow, 'portfolio_review'),
     account: {
-      cash: Number(firstValue(account.cash, account.cash_balance, portfolioSnapshot.account.cash)),
-      equity: Number(firstValue(account.equity, account.portfolio_value, portfolioSnapshot.account.equity)),
-      buyingPower: Number(firstValue(account.buyingPower, account.buying_power, portfolioSnapshot.account.buyingPower)),
-      status: firstValue(account.status, portfolioSnapshot.account.status),
-      mode: firstValue(account.mode, account.trading_mode, data.mode, account.paper ? 'PAPER' : null, portfolioSnapshot.account.mode),
-      lastSyncedAt: firstValue(account.lastSyncedAt, account.last_synced_at, account.broker_synced_at, data.generatedAt, data.timestamp, portfolioSnapshot.account.lastSyncedAt),
+      cash: numberValue(firstValue(account.cash, account.cash_balance), 'account.cash'),
+      equity: numberValue(firstValue(account.equity, account.portfolio_value), 'account.equity'),
+      buyingPower: numberValue(firstValue(account.buyingPower, account.buying_power), 'account.buyingPower'),
+      status: firstValue(account.status, 'UNKNOWN'),
+      mode: firstValue(account.mode, data.mode, 'UNKNOWN'),
+      lastSyncedAt: firstValue(account.lastSyncedAt, account.last_synced_at, data.generatedAt, null),
     },
-    positions: positions.map((position) => ({
-      symbol: position.symbol,
-      quantity: Number(firstValue(position.quantity, position.qty, 0)),
-      averageCost: Number(firstValue(position.averageCost, position.average_cost, position.avg_entry_price, 0)),
-      currentPrice: Number(firstValue(position.currentPrice, position.current_market_price, position.current_price, 0)),
-      marketValue: Number(firstValue(position.marketValue, position.market_value, 0)),
-      unrealizedPnL: Number(firstValue(position.unrealizedPnL, position.unrealized_pl, 0)),
-      bucket: firstValue(position.bucket, position.strategy_bucket, 'unassigned'),
-    })),
-    openOrders: openOrders.map((order) => ({
-      symbol: order.symbol,
-      side: order.side,
-      quantity: Number(firstValue(order.quantity, order.qty, 0)),
-      orderClass: firstValue(order.orderClass, order.order_class, 'unknown'),
-      type: firstValue(order.type, order.order_type, 'unknown'),
-      status: firstValue(order.status, order.broker_status, 'unknown'),
-      takeProfit: Number(firstValue(order.takeProfit, order.take_profit, order.limit_price, order.price, 0)),
-      stopLoss: Boolean(firstValue(order.stopLoss, order.stop_loss, order.stop_price, order.order_class === 'bracket')),
-    })),
-    curatorSignals: curatorSignals.map((signal) => ({
-      symbol: signal.symbol,
-      status: firstValue(signal.status, signal.execution_status, 'unknown'),
-      skill: firstValue(signal.skill, signal.skill_name, 'Curator Signal'),
-      signal: firstValue(signal.signal, signal.reason, signal.output?.signal, '-'),
-      confidence: Number(firstValue(signal.confidence, signal.confidence_score, signal.output?.confidence, 0)),
-    })),
+    positions: positions.map((position, index) => {
+      const row = requiredObject(position, `positions[${index}]`);
+      const protection = row.protection && typeof row.protection === 'object' ? row.protection : {};
+      return {
+        symbol: String(firstValue(row.symbol, 'UNKNOWN')),
+        quantity: numberValue(firstValue(row.quantity, row.qty), `positions[${index}].quantity`),
+        averageCost: numberValue(
+          firstValue(row.averageCost, row.average_cost, row.avg_entry_price),
+          `positions[${index}].averageCost`,
+        ),
+        currentPrice: numberValue(
+          firstValue(row.currentPrice, row.current_market_price, row.current_price),
+          `positions[${index}].currentPrice`,
+        ),
+        marketValue: numberValue(firstValue(row.marketValue, row.market_value), `positions[${index}].marketValue`),
+        unrealizedPnL: numberValue(
+          firstValue(row.unrealizedPnL, row.unrealized_pl),
+          `positions[${index}].unrealizedPnL`,
+        ),
+        bucket: String(firstValue(row.bucket, row.strategy_bucket, 'unassigned')),
+        protection: {
+          status: firstValue(protection.status, 'unknown'),
+          hasStopLoss: booleanValue(firstValue(protection.hasStopLoss, row.hasStopLoss, false)),
+          hasTakeProfit: booleanValue(firstValue(protection.hasTakeProfit, row.hasTakeProfit, false)),
+          hasBracket: booleanValue(firstValue(protection.hasBracket, row.hasBracket, false)),
+        },
+      };
+    }),
+    openOrders: openOrders.map((order, index) => {
+      const row = requiredObject(order, `openOrders[${index}]`);
+      return {
+        symbol: String(firstValue(row.symbol, 'UNKNOWN')),
+        side: String(firstValue(row.side, 'unknown')),
+        quantity: numberValue(firstValue(row.quantity, row.qty), `openOrders[${index}].quantity`),
+        orderClass: String(firstValue(row.orderClass, row.order_class, 'unknown')),
+        type: String(firstValue(row.type, row.order_type, 'unknown')),
+        status: String(firstValue(row.status, row.broker_status, 'unknown')),
+        takeProfit: numberValue(
+          firstValue(row.takeProfit, row.take_profit, row.limit_price, row.price),
+          `openOrders[${index}].takeProfit`,
+        ),
+        stopLoss: booleanValue(
+          firstValue(row.stopLoss, row.stop_loss, row.stop_price, row.order_class === 'bracket'),
+        ),
+      };
+    }),
+    curatorSignals: curatorSignals.map((signal, index) => {
+      const row = requiredObject(signal, `curatorSignals[${index}]`);
+      return {
+        symbol: String(firstValue(row.symbol, 'UNKNOWN')),
+        status: String(firstValue(row.status, row.execution_status, 'unknown')),
+        skill: String(firstValue(row.skill, row.skill_name, 'Curator Signal')),
+        signal: String(firstValue(row.signal, row.reason, row.output?.signal, '-')),
+        confidence: numberValue(
+          firstValue(row.confidence, row.confidence_score, row.output?.confidence),
+          `curatorSignals[${index}].confidence`,
+        ),
+      };
+    }),
+    summary: data.summary && typeof data.summary === 'object' ? { ...data.summary } : {},
   };
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url, { cache: 'no-store' });
-  if (!response.ok) {
-    throw new Error(`Dashboard snapshot request failed: ${response.status}`);
+function joinUrl(baseUrl, path) {
+  return `${baseUrl.replace(/\/$/, '')}${path}`;
+}
+
+async function fetchJson(fetchImpl, url) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetchImpl(url, {
+      cache: 'no-store',
+      credentials: 'omit',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`Dashboard request failed with HTTP ${response.status}.`);
+    }
+    try {
+      return await response.json();
+    } catch {
+      throw new Error('Dashboard response is not valid JSON.');
+    }
+  } finally {
+    clearTimeout(timeout);
   }
-  return response.json();
+}
+
+export function createDashboardClient(config, { fetchImpl = globalThis.fetch } = {}) {
+  if (typeof fetchImpl !== 'function' && config.dataSource !== DATA_SOURCES.MOCK) {
+    throw new Error('A fetch implementation is required for remote dashboard data.');
+  }
+
+  return Object.freeze({
+    dataSource: config.dataSource,
+    async getSnapshot() {
+      if (config.dataSource === DATA_SOURCES.MOCK) {
+        return normalizeSnapshot(portfolioSnapshot);
+      }
+      const url = config.dataSource === DATA_SOURCES.PUBLIC_SNAPSHOT
+        ? config.snapshotUrl
+        : joinUrl(config.managerApiUrl, '/dashboard/snapshot');
+      return normalizeSnapshot(await fetchJson(fetchImpl, url));
+    },
+  });
+}
+
+let defaultClient;
+
+function getDefaultClient() {
+  if (!defaultClient) defaultClient = createDashboardClient(getDashboardRuntimeConfig());
+  return defaultClient;
 }
 
 export async function getDashboardSnapshot() {
-  if (USE_MOCK_DATA) {
-    return normalizeSnapshot(portfolioSnapshot);
-  }
-
-  if (DASHBOARD_SNAPSHOT_URL) {
-    return normalizeSnapshot(await fetchJson(DASHBOARD_SNAPSHOT_URL));
-  }
-
-  if (API_BASE_URL) {
-    return normalizeSnapshot(await fetchJson(`${cleanBaseUrl(API_BASE_URL)}/dashboard/snapshot`));
-  }
-
-  return normalizeSnapshot(portfolioSnapshot);
-}
-
-export function isMockDataMode() {
-  return USE_MOCK_DATA;
+  return getDefaultClient().getSnapshot();
 }
 
 export function getDashboardDataSource() {
-  if (USE_MOCK_DATA) return 'mock';
-  if (DASHBOARD_SNAPSHOT_URL) return 'public-snapshot';
-  if (API_BASE_URL) return 'manager-api';
-  return 'mock';
+  return getDefaultClient().dataSource;
 }
