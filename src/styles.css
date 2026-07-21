@@ -139,6 +139,26 @@ small,
   font-size: 0.88rem;
 }
 
+.configuration-error {
+  width: min(720px, calc(100% - 32px));
+  margin: 64px auto;
+  padding: 28px;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-radius: 20px;
+  background: rgba(127, 29, 29, 0.22);
+}
+
+.configuration-error p,
+.schema-version {
+  margin-top: 12px;
+  color: #94a3b8;
+}
+
+.schema-version {
+  text-align: center;
+  font-size: 0.72rem;
+}
+
 .refresh-button {
   display: inline-flex;
   align-items: center;

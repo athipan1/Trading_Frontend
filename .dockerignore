@@ -1,9 +1,11 @@
+.git
+.github
+.env*
 node_modules
 dist
 coverage
 playwright-report
 test-results
-.env
-.env.local
-.DS_Store
-.vscode
+npm-debug.log*
+README*.md
+docs

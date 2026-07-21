@@ -1,61 +1,36 @@
-# Trading Frontend
+# Dashboard behavior and operations
 
-React + Vite dashboard for the AI trading agent system.
+The dashboard renders account cash/equity/buying power, positions, open orders, protection status, and advisory signals from `dashboard-snapshot.v1`.
 
-## MVP scope
+## Failure behavior
 
-- Portfolio metrics: cash, equity, buying power, position value
-- Dynamic positions table from snapshot data
-- Open orders / bracket protection view
-- Curator signal panel
-- Mock data by default so the app can deploy before production APIs are exposed
+- Invalid production configuration fails during `npm run build` with a direct environment-variable error.
+- Unsupported schema versions and malformed arrays fail the request; they are never replaced with sample rows.
+- A refresh failure keeps the last valid snapshot visible and shows an error banner.
+- If the first request fails, the UI shows an unavailable/empty state rather than mock portfolio data.
+- Empty `positions`, `openOrders`, and `curatorSignals` arrays remain empty.
 
-## Local development
+## Refresh and language
 
-```bash
-npm install
-npm run dev
+`VITE_REFRESH_INTERVAL_MS` defaults to 60 seconds and accepts 5 seconds through 15 minutes. The Refresh button performs the same read-only request. Thai/English selection is stored only in browser local storage.
+
+## API contract
+
+Manager must return:
+
+```json
+{
+  "schemaVersion": "dashboard-snapshot.v1",
+  "generatedAt": "2026-07-21T10:00:00Z",
+  "mode": "PAPER",
+  "brokerMode": "ALPACA",
+  "flow": "portfolio_review",
+  "account": {},
+  "positions": [],
+  "openOrders": [],
+  "curatorSignals": [],
+  "summary": {}
+}
 ```
 
-## Build
-
-```bash
-npm run build
-```
-
-## Environment variables
-
-Copy `.env.example` to `.env.local` for local development.
-
-```env
-VITE_USE_MOCK_DATA=true
-VITE_DASHBOARD_SNAPSHOT_URL=https://raw.githubusercontent.com/athipan1/Manager_Agent/main/docs/dashboard/latest-dashboard-snapshot.json
-VITE_MANAGER_API_URL=
-VITE_DATABASE_API_URL=
-VITE_EXECUTION_API_URL=
-VITE_DASHBOARD_REFRESH_MS=30000
-```
-
-Keep all secret API keys out of the browser. If an agent endpoint needs a secret, call it through a backend/proxy instead of exposing the key in Vercel public environment variables.
-
-## Public snapshot mode
-
-After `Manager_Agent` publishes `docs/dashboard/latest-dashboard-snapshot.json`, Vercel can use the static JSON file as the dashboard data source:
-
-```env
-VITE_USE_MOCK_DATA=false
-VITE_DASHBOARD_SNAPSHOT_URL=https://raw.githubusercontent.com/athipan1/Manager_Agent/main/docs/dashboard/latest-dashboard-snapshot.json
-```
-
-This is near-realtime. The dashboard updates whenever the Manager workflow publishes a fresh JSON snapshot, and the frontend polls it using `VITE_DASHBOARD_REFRESH_MS`.
-
-## Vercel deployment
-
-Recommended settings:
-
-- Framework preset: Vite
-- Build command: `npm run build`
-- Output directory: `dist`
-- Install command: `npm install`
-
-Start with mock data enabled, then flip `VITE_USE_MOCK_DATA=false` after the public snapshot file exists.
+Only the whitelisted fields normalized by `src/services/api.js` reach UI components. Browser requests use no credentials and explicitly omit cookies.
