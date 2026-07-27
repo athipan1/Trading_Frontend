@@ -52,14 +52,56 @@ export function getControlCapabilities(operatorToken) {
   return requestJson('/web-control/capabilities', { operatorToken });
 }
 
-export function askFinancialAdvisor({ operatorToken, accountId, entries, availableInvestmentCapital, message }) {
-  return requestJson('/web-control/financial-advisor', {
+export function getFinanceState({ operatorToken, accountId }) {
+  return requestJson(`/web-control/finance-state?account_id=${encodeURIComponent(accountId)}`, { operatorToken });
+}
+
+export function createFinanceEntry({ operatorToken, accountId, entry }) {
+  return requestJson('/web-control/finance-entries', {
+    method: 'POST',
+    operatorToken,
+    body: {
+      entry_id: entry.entry_id,
+      account_id: accountId,
+      entry_type: entry.entry_type,
+      amount: entry.amount,
+      currency: 'THB',
+      category: entry.category,
+      description: entry.description,
+      occurred_at: entry.occurred_at,
+    },
+  });
+}
+
+export function deleteFinanceEntry({ operatorToken, accountId, entryId }) {
+  return requestJson(
+    `/web-control/finance-entries/${encodeURIComponent(entryId)}?account_id=${encodeURIComponent(accountId)}`,
+    { method: 'DELETE', operatorToken },
+  );
+}
+
+export function updateFinanceBudgets({
+  operatorToken,
+  accountId,
+  personalInvestmentBudgetThb,
+  tradePlanLimitUsd,
+}) {
+  return requestJson(`/web-control/finance-budgets/${encodeURIComponent(accountId)}`, {
+    method: 'POST',
+    operatorToken,
+    body: {
+      personal_investment_budget_thb: personalInvestmentBudgetThb,
+      trade_plan_limit_usd: tradePlanLimitUsd,
+    },
+  });
+}
+
+export function askFinancialAdvisor({ operatorToken, accountId, message }) {
+  return requestJson('/web-control/financial-advisor-persisted', {
     method: 'POST',
     operatorToken,
     body: {
       account_id: accountId,
-      entries,
-      available_investment_capital: availableInvestmentCapital,
       message,
     },
   });
