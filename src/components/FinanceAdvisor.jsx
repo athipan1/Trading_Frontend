@@ -1,24 +1,37 @@
 import { useState } from 'react';
-import { Send } from 'lucide-react';
+import { Save, Send } from 'lucide-react';
 import { askFinancialAdvisor } from '../services/controlApi.js';
 
 export default function FinanceAdvisor({
   accountId,
   operatorToken,
-  entries,
   availableCapital,
   onAvailableCapitalChange,
+  onSaveBudget,
+  isConnected,
 }) {
   const [message, setMessage] = useState('วันนี้ฉันควรบริหารเงินและแบ่งเงินลงทุนอย่างไร');
   const [messages, setMessages] = useState([
-    { role: 'assistant', text: 'ฉันจะสรุปกระแสเงินสด วงเงินลงทุน และจุดที่ควรระวัง โดยไม่ส่งคำสั่งซื้อขายจากหน้าสนทนานี้' },
+    { role: 'assistant', text: 'ฉันจะอ่านรายการจาก Database_Agent แล้วสรุปกระแสเงินสด งบลงทุน และจุดที่ควรระวัง โดยไม่ส่งคำสั่งซื้อขายจากหน้าสนทนานี้' },
   ]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
 
+  const saveBudget = async () => {
+    setIsSending(true);
+    setError('');
+    try {
+      await onSaveBudget();
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const submit = async (event) => {
     event.preventDefault();
-    if (!message.trim() || isSending) return;
+    if (!isConnected || !message.trim() || isSending) return;
     const userText = message.trim();
     setMessages((current) => [...current, { role: 'user', text: userText }]);
     setMessage('');
@@ -28,14 +41,6 @@ export default function FinanceAdvisor({
       const response = await askFinancialAdvisor({
         operatorToken,
         accountId,
-        entries: entries.map((entry) => ({
-          entry_type: entry.entry_type,
-          amount: entry.amount,
-          category: entry.category,
-          description: entry.description,
-          occurred_at: entry.occurred_at,
-        })),
-        availableInvestmentCapital: availableCapital || 0,
         message: userText,
       });
       setMessages((current) => [...current, { role: 'assistant', text: response.data.answer, summary: response.data.summary }]);
@@ -52,17 +57,20 @@ export default function FinanceAdvisor({
         <div>
           <p className="eyebrow">Daily financial copilot</p>
           <h2>คุยกับ AI การเงิน</h2>
-          <p className="hint">AI อ่านเฉพาะข้อมูลที่คุณบันทึกและงบลงทุนส่วนบุคคลหน่วยบาท</p>
+          <p className="hint">AI อ่านรายการและงบที่บันทึกใน Database_Agent ของบัญชีนี้</p>
         </div>
-        <label className="capital-input">
-          <span>งบลงทุนจากกระแสเงินสด (THB)</span>
-          <input
-            inputMode="decimal"
-            value={availableCapital}
-            onChange={(event) => onAvailableCapitalChange(event.target.value)}
-            placeholder="0.00"
-          />
-        </label>
+        <div className="budget-editor">
+          <label className="capital-input">
+            <span>งบลงทุนจากกระแสเงินสด (THB)</span>
+            <input
+              inputMode="decimal"
+              value={availableCapital}
+              onChange={(event) => onAvailableCapitalChange(event.target.value)}
+              placeholder="0.00"
+            />
+          </label>
+          <button className="primary-action" type="button" onClick={saveBudget} disabled={!isConnected || isSending}><Save /> บันทึกงบ</button>
+        </div>
       </div>
 
       <div className="panel chat-window">
@@ -78,13 +86,13 @@ export default function FinanceAdvisor({
             ) : null}
           </article>
         ))}
-        {isSending ? <p className="hint">กำลังประมวลผลแผนการเงิน…</p> : null}
+        {isSending ? <p className="hint">กำลังประมวลผลข้อมูลการเงิน…</p> : null}
         {error ? <p className="error-banner" role="alert">{error}</p> : null}
       </div>
 
       <form className="chat-composer" onSubmit={submit}>
         <textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="ถามเรื่องรายรับ รายจ่าย เงินสำรอง หรือวงเงินลงทุน" />
-        <button className="primary-action" type="submit" disabled={isSending}><Send /> ส่ง</button>
+        <button className="primary-action" type="submit" disabled={!isConnected || isSending}><Send /> ส่ง</button>
       </form>
     </section>
   );
