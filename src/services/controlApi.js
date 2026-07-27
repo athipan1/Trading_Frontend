@@ -72,6 +72,7 @@ export function createInvestmentPlan({
   period = '1mo',
   userGoal,
   maxInvestmentAmount,
+  investmentCurrency = 'USD',
 }) {
   return requestJson('/web-control/investment-plans', {
     method: 'POST',
@@ -82,6 +83,7 @@ export function createInvestmentPlan({
       period,
       user_goal: userGoal,
       max_investment_amount: maxInvestmentAmount,
+      investment_currency: investmentCurrency,
     },
   });
 }
