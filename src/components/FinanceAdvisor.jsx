@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bot, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { askFinancialAdvisor } from '../services/controlApi.js';
 
 export default function FinanceAdvisor({
