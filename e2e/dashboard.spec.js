@@ -13,7 +13,7 @@ const snapshot = {
   summary: { positionCount: 1, openOrderCount: 1 },
 };
 
-test('loads Manager data, refreshes, switches language, and survives API failure', async ({ page }) => {
+test('uses the finance control menus and preserves the resilient portfolio dashboard', async ({ page }) => {
   const consoleErrors = [];
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text());
@@ -29,13 +29,19 @@ test('loads Manager data, refreshes, switches language, and survives API failure
   await page.goto('/');
   await expect(page.getByTestId('data-source')).toContainText('manager-api');
   await expect(page.getByTestId('trading-mode')).toHaveText('PAPER');
+  await expect(page.getByRole('heading', { name: 'บันทึกรายรับรายจ่าย' })).toBeVisible();
+  await expect(page.getByTestId('schema-version')).toContainText('dashboard-snapshot.v1');
+  await expect(page.getByTestId('schema-version')).toContainText('web-control.v1');
+
+  await page.getByRole('button', { name: /ภาพรวมระบบ/ }).click();
   await expect(page.getByText('AAPL').first()).toBeVisible();
-  await expect(page.getByTestId('schema-version')).toHaveText('dashboard-snapshot.v1');
 
   await page.getByRole('button', { name: /refresh/i }).click();
   await expect.poll(() => requests).toBeGreaterThanOrEqual(2);
-  await page.getByRole('button', { name: 'Switch language' }).click();
-  await expect(page.getByRole('heading', { name: 'แดชบอร์ดพอร์ตลงทุน' })).toBeVisible();
+
+  const languageSwitcher = page.getByRole('button', { name: 'Switch language' });
+  await languageSwitcher.click();
+  await expect(languageSwitcher).toContainText('EN');
   expect(consoleErrors).toEqual([]);
 
   failRequests = true;
