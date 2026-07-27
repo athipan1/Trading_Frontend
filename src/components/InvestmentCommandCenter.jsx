@@ -16,6 +16,14 @@ function findTradePlanId(value) {
   return null;
 }
 
+function formatBaht(value) {
+  return new Intl.NumberFormat('th-TH', {
+    style: 'currency',
+    currency: 'THB',
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
+
 export default function InvestmentCommandCenter({ accountId, operatorToken, snapshot, t, availableCapital, onAvailableCapitalChange }) {
   const [ticker, setTicker] = useState('AAPL');
   const [goal, setGoal] = useState('วิเคราะห์และสร้างแผนลงทุนที่ไม่เกินวงเงินของฉัน');
@@ -38,17 +46,43 @@ export default function InvestmentCommandCenter({ accountId, operatorToken, snap
 
   const createPlan = async (event) => {
     event.preventDefault();
+    const capital = Number(availableCapital);
+    if (!Number.isFinite(capital) || capital <= 0) {
+      setError('กรุณากำหนดวงเงินลงทุนมากกว่า 0 ก่อนสร้างแผน');
+      return;
+    }
+
     setIsWorking(true);
     setError('');
-    setChat((current) => [...current, { role: 'user', text: `${ticker}: ${goal}` }]);
+    setPlanId('');
+    setConfirmationPhrase('');
+    setConfirmationText('');
+    setChat((current) => [...current, { role: 'user', text: `${ticker}: ${goal} | วงเงิน ${formatBaht(capital)}` }]);
     try {
-      const response = await createInvestmentPlan({ operatorToken, accountId, ticker, userGoal: goal });
-      const nextPlanId = findTradePlanId(response);
+      const response = await createInvestmentPlan({
+        operatorToken,
+        accountId,
+        ticker,
+        userGoal: goal,
+        maxInvestmentAmount: capital,
+      });
+      const nextPlanId = response.metadata?.trade_plan_id || findTradePlanId(response);
+      const budgetBlocked = Boolean(response.metadata?.budget_blocked);
+      const planNotional = response.metadata?.plan_notional;
+
+      if (budgetBlocked) {
+        setChat((current) => [...current, {
+          role: 'assistant',
+          text: `แผน ${nextPlanId || ''} มีมูลค่า ${formatBaht(planNotional)} เกินวงเงิน ${formatBaht(capital)} จึงถูกปฏิเสธและไม่สามารถยืนยันได้`,
+        }]);
+        return;
+      }
+
       setPlanId(nextPlanId || '');
       setChat((current) => [...current, {
         role: 'assistant',
         text: nextPlanId
-          ? `Manager_Agent สร้างแผน ${nextPlanId} แล้ว ยังไม่มีการส่งคำสั่งซื้อขาย กรุณาตรวจแผนก่อนยืนยัน`
+          ? `Manager_Agent สร้างแผน ${nextPlanId} มูลค่า ${formatBaht(planNotional)} แล้ว ยังไม่มีการส่งคำสั่งซื้อขาย กรุณาตรวจแผนก่อนยืนยัน`
           : 'Manager_Agent วิเคราะห์เสร็จ แต่ไม่พบ TradePlan ที่พร้อมยืนยัน อาจเป็น HOLD หรือถูก Risk ปฏิเสธ',
       }]);
       if (nextPlanId) {
@@ -78,6 +112,8 @@ export default function InvestmentCommandCenter({ accountId, operatorToken, snap
         text: `ผลการส่งคำสั่ง: ${response.data?.status || response.status} | Plan ${planId}`,
       }]);
       setConfirmationText('');
+      setPlanId('');
+      setConfirmationPhrase('');
     } catch (requestError) {
       setError(requestError.message);
     } finally {
