@@ -10,10 +10,12 @@ The frontend never calls Database_Agent, Execution_Agent, Risk_Agent, Curator_Ag
 
 ## Control Center menus
 
-1. **รายรับรายจ่าย** records personal income and expenses in browser local storage for the first rollout.
-2. **AI การเงิน** sends the current ledger and user-defined investment allowance to Manager_Agent for a daily cash-flow summary and advice.
-3. **AI ลงทุนและคำสั่งเทรด** shows the broker account, positions, and orders, then asks Manager_Agent to create a dry-run TradePlan. Execution remains blocked until the user reviews the plan and enters the exact PAPER/LIVE confirmation phrase.
+1. **รายรับรายจ่าย** records personal income and expenses in THB browser local storage for the first rollout.
+2. **AI การเงิน** sends the current THB ledger and a separate THB personal-investment budget to Manager_Agent for daily cash-flow advice.
+3. **AI ลงทุนและคำสั่งเทรด** shows the USD broker account, positions, and orders, then asks Manager_Agent to create a dry-run USD TradePlan. Execution remains blocked until the user reviews the plan and enters the exact PAPER/LIVE confirmation phrase.
 4. **ภาพรวมระบบ** preserves the existing read-only portfolio dashboard.
+
+Personal-finance THB values and Alpaca trading USD limits are deliberately separate. The frontend does not perform hidden FX conversion.
 
 The operator token is entered at runtime and is held only in React memory. It must never be stored in a `VITE_*` variable, local storage, source control, or the built bundle.
 
@@ -38,7 +40,7 @@ WEB_CONTROL_ALLOW_LIVE_EXECUTION=false
 WEB_CONTROL_CONFIRMATION_TTL_SECONDS=900
 ```
 
-Keep `WEB_CONTROL_ALLOW_EXECUTION=false` until PAPER planning, Risk approval lookup, Database TradePlan lifecycle, and Execution_Agent have been verified end to end. LIVE web execution additionally requires Manager's existing LIVE switches and `WEB_CONTROL_ALLOW_LIVE_EXECUTION=true`.
+Keep `WEB_CONTROL_ALLOW_EXECUTION=false` until PAPER planning, Risk approval lookup, Database TradePlan compare-and-set lifecycle, and Execution_Agent have been verified end to end. LIVE web execution additionally requires Manager's existing LIVE switches and `WEB_CONTROL_ALLOW_LIVE_EXECUTION=true`.
 
 ## Local development
 
