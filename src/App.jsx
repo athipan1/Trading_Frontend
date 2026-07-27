@@ -21,22 +21,15 @@ import { DATA_SOURCES } from './config/dashboardConfig.js';
 import { emptyDashboardSnapshot } from './data/emptyDashboard.js';
 import { useDashboardSnapshot } from './hooks/useDashboardSnapshot.js';
 import { getInitialLanguage, translations } from './i18n.js';
-import { getControlCapabilities } from './services/controlApi.js';
+import {
+  createFinanceEntry,
+  deleteFinanceEntry,
+  getControlCapabilities,
+  getFinanceState,
+  updateFinanceBudgets,
+} from './services/controlApi.js';
 import { getDashboardDataSource } from './services/api.js';
 import { formatCurrency } from './utils/formatters.js';
-
-const LEDGER_KEY = 'trading-control-finance-ledger.v1';
-const FINANCE_BUDGET_THB_KEY = 'trading-control-finance-budget-thb.v1';
-const TRADE_BUDGET_USD_KEY = 'trading-control-trade-budget-usd.v1';
-
-function readJson(key, fallback) {
-  try {
-    const value = window.localStorage.getItem(key);
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 function formatUpdatedAt(value, language, fallback) {
   if (!value) return fallback;
@@ -86,10 +79,11 @@ function PortfolioOverview({ snapshot, t, isLoading, isRefreshing, refresh }) {
 export default function App() {
   const [language, setLanguage] = useState(getInitialLanguage);
   const [activePage, setActivePage] = useState('ledger');
-  const [entries, setEntries] = useState(() => readJson(LEDGER_KEY, []));
-  const [financeBudgetThb, setFinanceBudgetThb] = useState(() => window.localStorage.getItem(FINANCE_BUDGET_THB_KEY) || '0');
-  const [tradeBudgetUsd, setTradeBudgetUsd] = useState(() => window.localStorage.getItem(TRADE_BUDGET_USD_KEY) || '0');
+  const [entries, setEntries] = useState([]);
+  const [financeBudgetThb, setFinanceBudgetThb] = useState('0');
+  const [tradeBudgetUsd, setTradeBudgetUsd] = useState('0');
   const [operatorToken, setOperatorToken] = useState('');
+  const [isControlConnected, setIsControlConnected] = useState(false);
   const [controlStatus, setControlStatus] = useState({ state: 'locked', message: 'ยังไม่ได้เชื่อมต่อ Manager_Agent' });
   const t = useMemo(() => translations[language], [language]);
   const { snapshot, isLoading, isRefreshing, error, lastUpdatedAt, refresh, refreshMs } = useDashboardSnapshot();
@@ -103,23 +97,23 @@ export default function App() {
     document.documentElement.lang = language;
   }, [language]);
 
-  useEffect(() => {
-    window.localStorage.setItem(LEDGER_KEY, JSON.stringify(entries));
-  }, [entries]);
-
-  useEffect(() => {
-    window.localStorage.setItem(FINANCE_BUDGET_THB_KEY, financeBudgetThb);
-  }, [financeBudgetThb]);
-
-  useEffect(() => {
-    window.localStorage.setItem(TRADE_BUDGET_USD_KEY, tradeBudgetUsd);
-  }, [tradeBudgetUsd]);
+  const loadFinanceState = async () => {
+    const response = await getFinanceState({ operatorToken, accountId });
+    const state = response.data || {};
+    const budgets = state.budgets || {};
+    setEntries(Array.isArray(state.entries) ? state.entries : []);
+    setFinanceBudgetThb(String(budgets.personal_investment_budget_thb ?? '0'));
+    setTradeBudgetUsd(String(budgets.trade_plan_limit_usd ?? '0'));
+  };
 
   const connectControl = async () => {
-    setControlStatus({ state: 'checking', message: 'กำลังตรวจสอบสิทธิ์…' });
+    setControlStatus({ state: 'checking', message: 'กำลังตรวจสอบสิทธิ์และโหลดข้อมูล…' });
+    setIsControlConnected(false);
     try {
       const response = await getControlCapabilities(operatorToken);
+      await loadFinanceState();
       const capabilities = response.data;
+      setIsControlConnected(true);
       setControlStatus({
         state: capabilities.execution_enabled ? 'ready' : 'planning',
         message: capabilities.execution_enabled
@@ -129,6 +123,34 @@ export default function App() {
     } catch (connectError) {
       setControlStatus({ state: 'error', message: connectError.message });
     }
+  };
+
+  const handleOperatorTokenChange = (value) => {
+    setOperatorToken(value);
+    setIsControlConnected(false);
+    setControlStatus({ state: 'locked', message: 'Token เปลี่ยนแล้ว กรุณาเชื่อมต่อใหม่' });
+  };
+
+  const handleCreateEntry = async (entry) => {
+    const response = await createFinanceEntry({ operatorToken, accountId, entry });
+    setEntries((current) => [response.data, ...current.filter((item) => item.entry_id !== response.data.entry_id)]);
+  };
+
+  const handleDeleteEntry = async (entryId) => {
+    await deleteFinanceEntry({ operatorToken, accountId, entryId });
+    setEntries((current) => current.filter((item) => item.entry_id !== entryId));
+  };
+
+  const saveBudgets = async () => {
+    const response = await updateFinanceBudgets({
+      operatorToken,
+      accountId,
+      personalInvestmentBudgetThb: Number(financeBudgetThb || 0),
+      tradePlanLimitUsd: Number(tradeBudgetUsd || 0),
+    });
+    setFinanceBudgetThb(String(response.data.personal_investment_budget_thb ?? '0'));
+    setTradeBudgetUsd(String(response.data.trade_plan_limit_usd ?? '0'));
+    setControlStatus((current) => ({ ...current, message: `${current.message.split(' | งบ')[0]} | งบบันทึกแล้ว` }));
   };
 
   const toggleLanguage = () => setLanguage((current) => (current === 'th' ? 'en' : 'th'));
@@ -172,20 +194,28 @@ export default function App() {
       <section className="operator-bar">
         <label>
           <span>Operator Token ไม่ถูกบันทึกในเบราว์เซอร์</span>
-          <input type="password" autoComplete="off" value={operatorToken} onChange={(event) => setOperatorToken(event.target.value)} placeholder="ใส่ WEB_CONTROL_OPERATOR_TOKEN" />
+          <input type="password" autoComplete="off" value={operatorToken} onChange={(event) => handleOperatorTokenChange(event.target.value)} placeholder="ใส่ WEB_CONTROL_OPERATOR_TOKEN" />
         </label>
         <button className="primary-action" type="button" onClick={connectControl}>เชื่อมต่อ Manager</button>
         <p className={`status ${controlStatus.state === 'error' ? 'warn' : 'good'}`}>{controlStatus.message}</p>
       </section>
 
-      {activePage === 'ledger' ? <FinanceLedger entries={entries} onChange={setEntries} /> : null}
+      {activePage === 'ledger' ? (
+        <FinanceLedger
+          entries={entries}
+          onCreate={handleCreateEntry}
+          onDelete={handleDeleteEntry}
+          isConnected={isControlConnected}
+        />
+      ) : null}
       {activePage === 'advisor' ? (
         <FinanceAdvisor
           accountId={accountId}
           operatorToken={operatorToken}
-          entries={entries}
           availableCapital={financeBudgetThb}
           onAvailableCapitalChange={setFinanceBudgetThb}
+          onSaveBudget={saveBudgets}
+          isConnected={isControlConnected}
         />
       ) : null}
       {activePage === 'investment' ? (
@@ -196,6 +226,8 @@ export default function App() {
           t={t}
           availableCapital={tradeBudgetUsd}
           onAvailableCapitalChange={setTradeBudgetUsd}
+          onSaveBudget={saveBudgets}
+          isConnected={isControlConnected}
         />
       ) : null}
       {activePage === 'portfolio' ? (
