@@ -102,13 +102,13 @@ test('persists finance controls and preserves the resilient portfolio dashboard'
   await page.getByPlaceholder('ใส่ WEB_CONTROL_OPERATOR_TOKEN').fill('test-operator-token');
   await page.getByRole('button', { name: 'เชื่อมต่อ Manager' }).click();
   await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible();
-  await expect(page.getByText('salary')).toBeVisible();
+  await expect(page.getByText('salary', { exact: true })).toBeVisible();
 
   await page.getByPlaceholder('จำนวนเงิน').fill('500');
   await page.getByPlaceholder('หมวดหมู่ เช่น อาหาร').fill('transport');
   await page.getByPlaceholder('รายละเอียด').fill('taxi');
   await page.getByRole('button', { name: 'เพิ่มรายการ' }).click();
-  await expect(page.getByText('transport')).toBeVisible();
+  await expect(page.getByText('transport', { exact: true })).toBeVisible();
   expect(persistedEntries[0].amount).toBe('500.00');
 
   await page.getByRole('button', { name: /ภาพรวมระบบ/ }).click();
