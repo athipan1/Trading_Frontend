@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { Bot, Send } from 'lucide-react';
 import { askFinancialAdvisor } from '../services/controlApi.js';
 
-export default function FinanceAdvisor({ accountId, operatorToken, entries, availableCapital }) {
+export default function FinanceAdvisor({
+  accountId,
+  operatorToken,
+  entries,
+  availableCapital,
+  onAvailableCapitalChange,
+}) {
   const [message, setMessage] = useState('วันนี้ฉันควรบริหารเงินและแบ่งเงินลงทุนอย่างไร');
   const [messages, setMessages] = useState([
     { role: 'assistant', text: 'ฉันจะสรุปกระแสเงินสด วงเงินลงทุน และจุดที่ควรระวัง โดยไม่ส่งคำสั่งซื้อขายจากหน้าสนทนานี้' },
@@ -40,9 +46,17 @@ export default function FinanceAdvisor({ accountId, operatorToken, entries, avai
         <div>
           <p className="eyebrow">Daily financial copilot</p>
           <h2>คุยกับ AI การเงิน</h2>
-          <p className="hint">AI อ่านเฉพาะข้อมูลที่คุณบันทึกและวงเงินลงทุนที่กำหนด</p>
+          <p className="hint">AI อ่านเฉพาะข้อมูลที่คุณบันทึกและงบลงทุนส่วนบุคคลหน่วยบาท</p>
         </div>
-        <Bot className="heading-icon" />
+        <label className="capital-input">
+          <span>งบลงทุนจากกระแสเงินสด (THB)</span>
+          <input
+            inputMode="decimal"
+            value={availableCapital}
+            onChange={(event) => onAvailableCapitalChange(event.target.value)}
+            placeholder="0.00"
+          />
+        </label>
       </div>
 
       <div className="panel chat-window">
