@@ -65,7 +65,14 @@ export function askFinancialAdvisor({ operatorToken, accountId, entries, availab
   });
 }
 
-export function createInvestmentPlan({ operatorToken, accountId, ticker, period = '1mo', userGoal }) {
+export function createInvestmentPlan({
+  operatorToken,
+  accountId,
+  ticker,
+  period = '1mo',
+  userGoal,
+  maxInvestmentAmount,
+}) {
   return requestJson('/web-control/investment-plans', {
     method: 'POST',
     operatorToken,
@@ -74,6 +81,7 @@ export function createInvestmentPlan({ operatorToken, accountId, ticker, period 
       ticker,
       period,
       user_goal: userGoal,
+      max_investment_amount: maxInvestmentAmount,
     },
   });
 }
