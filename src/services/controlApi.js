@@ -113,10 +113,8 @@ export function createInvestmentPlan({
   ticker,
   period = '1mo',
   userGoal,
-  maxInvestmentAmount,
-  investmentCurrency = 'USD',
 }) {
-  return requestJson('/web-control/investment-plans', {
+  return requestJson('/web-control/investment-plans-persisted', {
     method: 'POST',
     operatorToken,
     body: {
@@ -124,8 +122,6 @@ export function createInvestmentPlan({
       ticker,
       period,
       user_goal: userGoal,
-      max_investment_amount: maxInvestmentAmount,
-      investment_currency: investmentCurrency,
     },
   });
 }
