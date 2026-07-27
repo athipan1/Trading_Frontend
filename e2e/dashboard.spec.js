@@ -13,17 +13,83 @@ const snapshot = {
   summary: { positionCount: 1, openOrderCount: 1 },
 };
 
-test('uses the finance control menus and preserves the resilient portfolio dashboard', async ({ page }) => {
+test('persists finance controls and preserves the resilient portfolio dashboard', async ({ page }) => {
   const consoleErrors = [];
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text());
   });
-  let requests = 0;
-  let failRequests = false;
+
+  let snapshotRequests = 0;
+  let failSnapshotRequests = false;
+  const persistedEntries = [
+    {
+      entry_id: 'entry-salary-1',
+      account_id: '1',
+      entry_type: 'income',
+      amount: '30000.00',
+      currency: 'THB',
+      category: 'salary',
+      description: 'monthly salary',
+      occurred_at: '2026-07-01T12:00:00Z',
+      created_at: '2026-07-01T12:00:00Z',
+      updated_at: '2026-07-01T12:00:00Z',
+    },
+  ];
+
   await page.route('**/api/dashboard/snapshot', async (route) => {
-    requests += 1;
-    if (failRequests) return route.fulfill({ status: 503, body: 'unavailable' });
+    snapshotRequests += 1;
+    if (failSnapshotRequests) return route.fulfill({ status: 503, body: 'unavailable' });
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(snapshot) });
+  });
+
+  await page.route('**/api/web-control/capabilities', async (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      status: 'success',
+      data: {
+        schema_version: 'web-control.v1',
+        trading_mode: 'PAPER',
+        trading_enabled: true,
+        manual_confirmation_required: true,
+        execution_enabled: false,
+        live_execution_enabled: false,
+        finance_currency: 'THB',
+        trade_currency: 'USD',
+      },
+    }),
+  }));
+
+  await page.route('**/api/web-control/finance-state?**', async (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      status: 'success',
+      data: {
+        account_id: '1',
+        entries: persistedEntries,
+        budgets: {
+          account_id: '1',
+          personal_investment_budget_thb: '5000.00',
+          trade_plan_limit_usd: '250.00',
+        },
+      },
+    }),
+  }));
+
+  await page.route('**/api/web-control/finance-entries', async (route) => {
+    const body = route.request().postDataJSON();
+    const created = {
+      ...body,
+      created_at: '2026-07-28T12:00:00Z',
+      updated_at: '2026-07-28T12:00:00Z',
+    };
+    persistedEntries.unshift(created);
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: 'success', data: created }),
+    });
   });
 
   await page.goto('/');
@@ -33,18 +99,30 @@ test('uses the finance control menus and preserves the resilient portfolio dashb
   await expect(page.getByTestId('schema-version')).toContainText('dashboard-snapshot.v1');
   await expect(page.getByTestId('schema-version')).toContainText('web-control.v1');
 
+  await page.getByPlaceholder('ใส่ WEB_CONTROL_OPERATOR_TOKEN').fill('test-operator-token');
+  await page.getByRole('button', { name: 'เชื่อมต่อ Manager' }).click();
+  await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible();
+  await expect(page.getByText('salary')).toBeVisible();
+
+  await page.getByPlaceholder('จำนวนเงิน').fill('500');
+  await page.getByPlaceholder('หมวดหมู่ เช่น อาหาร').fill('transport');
+  await page.getByPlaceholder('รายละเอียด').fill('taxi');
+  await page.getByRole('button', { name: 'เพิ่มรายการ' }).click();
+  await expect(page.getByText('transport')).toBeVisible();
+  expect(persistedEntries[0].amount).toBe('500.00');
+
   await page.getByRole('button', { name: /ภาพรวมระบบ/ }).click();
   await expect(page.getByText('AAPL').first()).toBeVisible();
 
   await page.getByRole('button', { name: /refresh/i }).click();
-  await expect.poll(() => requests).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => snapshotRequests).toBeGreaterThanOrEqual(2);
 
   const languageSwitcher = page.getByRole('button', { name: 'Switch language' });
   await languageSwitcher.click();
   await expect(languageSwitcher).toContainText('EN');
   expect(consoleErrors).toEqual([]);
 
-  failRequests = true;
+  failSnapshotRequests = true;
   await page.getByRole('button', { name: /รีเฟรช/ }).click();
   await expect(page.getByRole('alert')).toContainText('HTTP 503');
   await expect(page.getByText('AAPL').first()).toBeVisible();
