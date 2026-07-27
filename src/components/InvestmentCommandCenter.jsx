@@ -69,6 +69,7 @@ export default function InvestmentCommandCenter({ accountId, operatorToken, snap
       });
       const nextPlanId = response.metadata?.trade_plan_id || findTradePlanId(response);
       const budgetBlocked = Boolean(response.metadata?.budget_blocked);
+      const confirmationReady = Boolean(response.metadata?.confirmation_ready);
       const planNotional = response.metadata?.plan_notional;
 
       if (budgetBlocked) {
@@ -79,12 +80,21 @@ export default function InvestmentCommandCenter({ accountId, operatorToken, snap
         return;
       }
 
+      if (!confirmationReady) {
+        setChat((current) => [...current, {
+          role: 'assistant',
+          text: response.metadata?.blocked_reason
+            || 'TradePlan ไม่ผ่าน Risk approval หรือสถานะไม่พร้อมยืนยัน จึงไม่มีการเปิดปุ่มส่งคำสั่ง',
+        }]);
+        return;
+      }
+
       setPlanId(nextPlanId || '');
       setChat((current) => [...current, {
         role: 'assistant',
         text: nextPlanId
           ? `Manager_Agent สร้างแผน ${nextPlanId} มูลค่า ${formatUsd(planNotional)} แล้ว ยังไม่มีการส่งคำสั่งซื้อขาย กรุณาตรวจแผนก่อนยืนยัน`
-          : 'Manager_Agent วิเคราะห์เสร็จ แต่ไม่พบ TradePlan ที่พร้อมยืนยัน อาจเป็น HOLD หรือถูก Risk ปฏิเสธ',
+          : 'Manager_Agent วิเคราะห์เสร็จ แต่ไม่พบ TradePlan ที่พร้อมยืนยัน',
       }]);
       if (nextPlanId) {
         const planResponse = await getInvestmentPlan({ operatorToken, tradePlanId: nextPlanId });
