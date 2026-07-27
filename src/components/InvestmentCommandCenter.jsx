@@ -16,10 +16,10 @@ function findTradePlanId(value) {
   return null;
 }
 
-function formatBaht(value) {
-  return new Intl.NumberFormat('th-TH', {
+function formatUsd(value) {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'THB',
+    currency: 'USD',
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
 }
@@ -48,7 +48,7 @@ export default function InvestmentCommandCenter({ accountId, operatorToken, snap
     event.preventDefault();
     const capital = Number(availableCapital);
     if (!Number.isFinite(capital) || capital <= 0) {
-      setError('กรุณากำหนดวงเงินลงทุนมากกว่า 0 ก่อนสร้างแผน');
+      setError('กรุณากำหนดเพดานคำสั่งเทรดเป็น USD มากกว่า 0 ก่อนสร้างแผน');
       return;
     }
 
@@ -57,7 +57,7 @@ export default function InvestmentCommandCenter({ accountId, operatorToken, snap
     setPlanId('');
     setConfirmationPhrase('');
     setConfirmationText('');
-    setChat((current) => [...current, { role: 'user', text: `${ticker}: ${goal} | วงเงิน ${formatBaht(capital)}` }]);
+    setChat((current) => [...current, { role: 'user', text: `${ticker}: ${goal} | เพดาน ${formatUsd(capital)}` }]);
     try {
       const response = await createInvestmentPlan({
         operatorToken,
@@ -65,6 +65,7 @@ export default function InvestmentCommandCenter({ accountId, operatorToken, snap
         ticker,
         userGoal: goal,
         maxInvestmentAmount: capital,
+        investmentCurrency: 'USD',
       });
       const nextPlanId = response.metadata?.trade_plan_id || findTradePlanId(response);
       const budgetBlocked = Boolean(response.metadata?.budget_blocked);
@@ -73,7 +74,7 @@ export default function InvestmentCommandCenter({ accountId, operatorToken, snap
       if (budgetBlocked) {
         setChat((current) => [...current, {
           role: 'assistant',
-          text: `แผน ${nextPlanId || ''} มีมูลค่า ${formatBaht(planNotional)} เกินวงเงิน ${formatBaht(capital)} จึงถูกปฏิเสธและไม่สามารถยืนยันได้`,
+          text: `แผน ${nextPlanId || ''} มีมูลค่า ${formatUsd(planNotional)} เกินเพดาน ${formatUsd(capital)} จึงถูกปฏิเสธและไม่สามารถยืนยันได้`,
         }]);
         return;
       }
@@ -82,7 +83,7 @@ export default function InvestmentCommandCenter({ accountId, operatorToken, snap
       setChat((current) => [...current, {
         role: 'assistant',
         text: nextPlanId
-          ? `Manager_Agent สร้างแผน ${nextPlanId} มูลค่า ${formatBaht(planNotional)} แล้ว ยังไม่มีการส่งคำสั่งซื้อขาย กรุณาตรวจแผนก่อนยืนยัน`
+          ? `Manager_Agent สร้างแผน ${nextPlanId} มูลค่า ${formatUsd(planNotional)} แล้ว ยังไม่มีการส่งคำสั่งซื้อขาย กรุณาตรวจแผนก่อนยืนยัน`
           : 'Manager_Agent วิเคราะห์เสร็จ แต่ไม่พบ TradePlan ที่พร้อมยืนยัน อาจเป็น HOLD หรือถูก Risk ปฏิเสธ',
       }]);
       if (nextPlanId) {
@@ -127,18 +128,18 @@ export default function InvestmentCommandCenter({ accountId, operatorToken, snap
         <div>
           <p className="eyebrow">Investment account</p>
           <h2>บัญชีเงินลงทุน</h2>
-          <p className="hint">วงเงินนี้เป็นเพดานจากผู้ใช้ ไม่ใช่ Buying Power ที่ AI ใช้ได้อัตโนมัติ</p>
+          <p className="hint">บัญชี Alpaca และ TradePlan ใช้ USD ช่องนี้จึงแยกจากงบการเงินส่วนบุคคลที่เป็น THB</p>
         </div>
         <label className="capital-input">
-          <span>วงเงินที่อนุญาตให้วางแผน</span>
-          <input inputMode="decimal" value={availableCapital} onChange={(event) => onAvailableCapitalChange(event.target.value)} />
+          <span>เพดานคำสั่งเทรดต่อแผน (USD)</span>
+          <input inputMode="decimal" value={availableCapital} onChange={(event) => onAvailableCapitalChange(event.target.value)} placeholder="0.00" />
         </label>
       </div>
 
       <div className="metrics-grid command-metrics">
-        <article className="metric-card cash"><span>เงินสด Broker</span><strong>{formatCurrency(account.cash)}</strong></article>
-        <article className="metric-card"><span>Equity</span><strong>{formatCurrency(account.equity)}</strong></article>
-        <article className="metric-card"><span>มูลค่าพอร์ต</span><strong>{formatCurrency(totalPositionValue)}</strong></article>
+        <article className="metric-card cash"><span>เงินสด Broker (USD)</span><strong>{formatCurrency(account.cash)}</strong></article>
+        <article className="metric-card"><span>Equity (USD)</span><strong>{formatCurrency(account.equity)}</strong></article>
+        <article className="metric-card"><span>มูลค่าพอร์ต (USD)</span><strong>{formatCurrency(totalPositionValue)}</strong></article>
         <article className="metric-card"><span>คำสั่งเปิด</span><strong>{openOrders.length}</strong></article>
       </div>
 
