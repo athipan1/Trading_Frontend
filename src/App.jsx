@@ -26,7 +26,8 @@ import { getDashboardDataSource } from './services/api.js';
 import { formatCurrency } from './utils/formatters.js';
 
 const LEDGER_KEY = 'trading-control-finance-ledger.v1';
-const CAPITAL_KEY = 'trading-control-investment-capital.v1';
+const FINANCE_BUDGET_THB_KEY = 'trading-control-finance-budget-thb.v1';
+const TRADE_BUDGET_USD_KEY = 'trading-control-trade-budget-usd.v1';
 
 function readJson(key, fallback) {
   try {
@@ -86,7 +87,8 @@ export default function App() {
   const [language, setLanguage] = useState(getInitialLanguage);
   const [activePage, setActivePage] = useState('ledger');
   const [entries, setEntries] = useState(() => readJson(LEDGER_KEY, []));
-  const [availableCapital, setAvailableCapital] = useState(() => window.localStorage.getItem(CAPITAL_KEY) || '0');
+  const [financeBudgetThb, setFinanceBudgetThb] = useState(() => window.localStorage.getItem(FINANCE_BUDGET_THB_KEY) || '0');
+  const [tradeBudgetUsd, setTradeBudgetUsd] = useState(() => window.localStorage.getItem(TRADE_BUDGET_USD_KEY) || '0');
   const [operatorToken, setOperatorToken] = useState('');
   const [controlStatus, setControlStatus] = useState({ state: 'locked', message: 'ยังไม่ได้เชื่อมต่อ Manager_Agent' });
   const t = useMemo(() => translations[language], [language]);
@@ -106,8 +108,12 @@ export default function App() {
   }, [entries]);
 
   useEffect(() => {
-    window.localStorage.setItem(CAPITAL_KEY, availableCapital);
-  }, [availableCapital]);
+    window.localStorage.setItem(FINANCE_BUDGET_THB_KEY, financeBudgetThb);
+  }, [financeBudgetThb]);
+
+  useEffect(() => {
+    window.localStorage.setItem(TRADE_BUDGET_USD_KEY, tradeBudgetUsd);
+  }, [tradeBudgetUsd]);
 
   const connectControl = async () => {
     setControlStatus({ state: 'checking', message: 'กำลังตรวจสอบสิทธิ์…' });
@@ -173,15 +179,23 @@ export default function App() {
       </section>
 
       {activePage === 'ledger' ? <FinanceLedger entries={entries} onChange={setEntries} /> : null}
-      {activePage === 'advisor' ? <FinanceAdvisor accountId={accountId} operatorToken={operatorToken} entries={entries} availableCapital={availableCapital} /> : null}
+      {activePage === 'advisor' ? (
+        <FinanceAdvisor
+          accountId={accountId}
+          operatorToken={operatorToken}
+          entries={entries}
+          availableCapital={financeBudgetThb}
+          onAvailableCapitalChange={setFinanceBudgetThb}
+        />
+      ) : null}
       {activePage === 'investment' ? (
         <InvestmentCommandCenter
           accountId={accountId}
           operatorToken={operatorToken}
           snapshot={dashboardSnapshot}
           t={t}
-          availableCapital={availableCapital}
-          onAvailableCapitalChange={setAvailableCapital}
+          availableCapital={tradeBudgetUsd}
+          onAvailableCapitalChange={setTradeBudgetUsd}
         />
       ) : null}
       {activePage === 'portfolio' ? (
