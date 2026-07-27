@@ -28,7 +28,13 @@ export default function FinanceAdvisor({
       const response = await askFinancialAdvisor({
         operatorToken,
         accountId,
-        entries: entries.map(({ id, ...entry }) => entry),
+        entries: entries.map((entry) => ({
+          entry_type: entry.entry_type,
+          amount: entry.amount,
+          category: entry.category,
+          description: entry.description,
+          occurred_at: entry.occurred_at,
+        })),
         availableInvestmentCapital: availableCapital || 0,
         message: userText,
       });
