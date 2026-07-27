@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Bot, LockKeyhole, Send, ShieldCheck } from 'lucide-react';
+import { Bot, LockKeyhole, Save, Send, ShieldCheck } from 'lucide-react';
 import PositionsTable from './PositionsTable.jsx';
 import OrdersTable from './OrdersTable.jsx';
 import { confirmInvestmentPlan, createInvestmentPlan, getInvestmentPlan } from '../services/controlApi.js';
@@ -24,7 +24,16 @@ function formatUsd(value) {
   }).format(Number(value || 0));
 }
 
-export default function InvestmentCommandCenter({ accountId, operatorToken, snapshot, t, availableCapital, onAvailableCapitalChange }) {
+export default function InvestmentCommandCenter({
+  accountId,
+  operatorToken,
+  snapshot,
+  t,
+  availableCapital,
+  onAvailableCapitalChange,
+  onSaveBudget,
+  isConnected,
+}) {
   const [ticker, setTicker] = useState('AAPL');
   const [goal, setGoal] = useState('วิเคราะห์และสร้างแผนลงทุนที่ไม่เกินวงเงินของฉัน');
   const [chat, setChat] = useState([
@@ -44,9 +53,25 @@ export default function InvestmentCommandCenter({ accountId, operatorToken, snap
     [positions],
   );
 
+  const saveBudget = async () => {
+    setIsWorking(true);
+    setError('');
+    try {
+      await onSaveBudget();
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setIsWorking(false);
+    }
+  };
+
   const createPlan = async (event) => {
     event.preventDefault();
     const capital = Number(availableCapital);
+    if (!isConnected) {
+      setError('กรุณาเชื่อมต่อ Manager_Agent ก่อนสร้างแผน');
+      return;
+    }
     if (!Number.isFinite(capital) || capital <= 0) {
       setError('กรุณากำหนดเพดานคำสั่งเทรดเป็น USD มากกว่า 0 ก่อนสร้างแผน');
       return;
@@ -138,12 +163,15 @@ export default function InvestmentCommandCenter({ accountId, operatorToken, snap
         <div>
           <p className="eyebrow">Investment account</p>
           <h2>บัญชีเงินลงทุน</h2>
-          <p className="hint">บัญชี Alpaca และ TradePlan ใช้ USD ช่องนี้จึงแยกจากงบการเงินส่วนบุคคลที่เป็น THB</p>
+          <p className="hint">บัญชี Alpaca และ TradePlan ใช้ USD เพดานนี้เก็บใน Database_Agent แยกจากงบ THB</p>
         </div>
-        <label className="capital-input">
-          <span>เพดานคำสั่งเทรดต่อแผน (USD)</span>
-          <input inputMode="decimal" value={availableCapital} onChange={(event) => onAvailableCapitalChange(event.target.value)} placeholder="0.00" />
-        </label>
+        <div className="budget-editor">
+          <label className="capital-input">
+            <span>เพดานคำสั่งเทรดต่อแผน (USD)</span>
+            <input inputMode="decimal" value={availableCapital} onChange={(event) => onAvailableCapitalChange(event.target.value)} placeholder="0.00" />
+          </label>
+          <button className="primary-action" type="button" onClick={saveBudget} disabled={!isConnected || isWorking}><Save /> บันทึกเพดาน</button>
+        </div>
       </div>
 
       <div className="metrics-grid command-metrics">
@@ -174,7 +202,7 @@ export default function InvestmentCommandCenter({ accountId, operatorToken, snap
         <form className="trade-plan-form" onSubmit={createPlan}>
           <input value={ticker} onChange={(event) => setTicker(event.target.value.toUpperCase())} placeholder="Symbol" />
           <textarea value={goal} onChange={(event) => setGoal(event.target.value)} placeholder="เป้าหมายและข้อจำกัด" />
-          <button className="primary-action" type="submit" disabled={isWorking}><Bot /> สร้างแผน</button>
+          <button className="primary-action" type="submit" disabled={!isConnected || isWorking}><Bot /> สร้างแผน</button>
         </form>
 
         {planId ? (
