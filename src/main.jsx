@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './styles.css';
 import './language.css';
+import './control-center.css';
+import './persistence.css';
 
 class DashboardErrorBoundary extends React.Component {
   constructor(props) {

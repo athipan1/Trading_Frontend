@@ -1,5 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Languages, RefreshCw, ShieldCheck, WalletCards, Zap } from 'lucide-react';
+import {
+  Activity,
+  Bot,
+  Languages,
+  LockKeyhole,
+  NotebookTabs,
+  RefreshCw,
+  ShieldCheck,
+  WalletCards,
+  Zap,
+} from 'lucide-react';
+import FinanceAdvisor from './components/FinanceAdvisor.jsx';
+import FinanceLedger from './components/FinanceLedger.jsx';
+import InvestmentCommandCenter from './components/InvestmentCommandCenter.jsx';
 import MetricCard from './components/MetricCard.jsx';
 import OrdersTable from './components/OrdersTable.jsx';
 import PositionsTable from './components/PositionsTable.jsx';
@@ -8,6 +21,13 @@ import { DATA_SOURCES } from './config/dashboardConfig.js';
 import { emptyDashboardSnapshot } from './data/emptyDashboard.js';
 import { useDashboardSnapshot } from './hooks/useDashboardSnapshot.js';
 import { getInitialLanguage, translations } from './i18n.js';
+import {
+  createFinanceEntry,
+  deleteFinanceEntry,
+  getControlCapabilities,
+  getFinanceState,
+  updateFinanceBudgets,
+} from './services/controlApi.js';
 import { getDashboardDataSource } from './services/api.js';
 import { formatCurrency } from './utils/formatters.js';
 
@@ -20,66 +40,15 @@ function formatUpdatedAt(value, language, fallback) {
   }).format(new Date(value));
 }
 
-export default function App() {
-  const [language, setLanguage] = useState(getInitialLanguage);
-  const t = useMemo(() => translations[language], [language]);
-  const { snapshot, isLoading, isRefreshing, error, lastUpdatedAt, refresh, refreshMs } = useDashboardSnapshot();
-  const dashboardSnapshot = snapshot ?? emptyDashboardSnapshot;
-  const { account, positions, openOrders, curatorSignals } = dashboardSnapshot;
-  const dataSource = getDashboardDataSource();
-  const mockMode = dataSource === DATA_SOURCES.MOCK;
-
-  useEffect(() => {
-    window.localStorage.setItem('trading-dashboard-language', language);
-    document.documentElement.lang = language;
-  }, [language]);
-
+function PortfolioOverview({ snapshot, t, isLoading, isRefreshing, refresh }) {
+  const { account, positions, openOrders, curatorSignals } = snapshot;
   const totalPositionValue = positions.reduce((sum, position) => sum + Number(position.marketValue || 0), 0);
   const protectedPositions = positions.filter((position) =>
     openOrders.some((order) => order.symbol === position.symbol && order.orderClass === 'bracket'),
   ).length;
 
-  const toggleLanguage = () => setLanguage((current) => (current === 'th' ? 'en' : 'th'));
-
   return (
-    <main className="app-shell">
-      <div className="top-actions">
-        <button className="language-switcher" type="button" onClick={toggleLanguage} aria-label="Switch language">
-          <Languages />
-          <span>{language === 'th' ? 'EN' : 'ไทย'}</span>
-        </button>
-      </div>
-
-      <section className="hero">
-        <div>
-          <p className="eyebrow">{t.eyebrow}</p>
-          <h1>{t.title}</h1>
-          <p className="hero-copy">{t.subtitle}</p>
-          <div className="refresh-row">
-            <span className={`status ${mockMode ? 'warn' : 'good'}`} data-testid="data-source">
-              {mockMode ? t.mockMode : `${t.liveMode}: ${dataSource}`}
-            </span>
-            <span className="sync-text">
-              {t.lastUpdated}: {formatUpdatedAt(lastUpdatedAt || account.lastSyncedAt, language, t.notUpdated)}
-            </span>
-            <span className="sync-text">{t.autoRefresh}: {Math.round(refreshMs / 1000)}s</span>
-          </div>
-          {error ? (
-            <p className="error-banner" role="alert">
-              {t.apiFailed}: {error.message}. {snapshot ? t.showingLastSnapshot : t.noSnapshotAvailable}
-            </p>
-          ) : null}
-        </div>
-        <div className="hero-status">
-          <span data-testid="trading-mode">{account.mode}</span>
-          <strong>{isLoading ? t.loading : account.status}</strong>
-          <button className="refresh-button" type="button" onClick={() => refresh()} disabled={isRefreshing}>
-            <RefreshCw className={isRefreshing ? 'spinning' : ''} />
-            {t.refresh}
-          </button>
-        </div>
-      </section>
-
+    <>
       <section className="metrics-grid">
         <MetricCard label={t.cash} value={formatCurrency(account.cash)} helper={t.availableBalance} tone="cash" />
         <MetricCard label={t.equity} value={formatCurrency(account.equity)} helper={t.brokerSnapshot} />
@@ -88,31 +57,190 @@ export default function App() {
       </section>
 
       <section className="health-grid">
-        <article className="health-card">
-          <WalletCards />
-          <div><span>{t.positions}</span><strong>{positions.length}</strong></div>
-        </article>
-        <article className="health-card">
-          <ShieldCheck />
-          <div><span>{t.bracketProtected}</span><strong>{protectedPositions}/{positions.length}</strong></div>
-        </article>
-        <article className="health-card">
-          <Activity />
-          <div><span>{t.openOrders}</span><strong>{openOrders.length}</strong></div>
-        </article>
-        <article className="health-card">
-          <Zap />
-          <div><span>{t.curatorSignals}</span><strong>{curatorSignals.length}</strong></div>
-        </article>
+        <article className="health-card"><WalletCards /><div><span>{t.positions}</span><strong>{positions.length}</strong></div></article>
+        <article className="health-card"><ShieldCheck /><div><span>{t.bracketProtected}</span><strong>{protectedPositions}/{positions.length}</strong></div></article>
+        <article className="health-card"><Activity /><div><span>{t.openOrders}</span><strong>{openOrders.length}</strong></div></article>
+        <article className="health-card"><Zap /><div><span>{t.curatorSignals}</span><strong>{curatorSignals.length}</strong></div></article>
       </section>
 
       <div className="content-grid">
         <PositionsTable positions={positions} openOrders={openOrders} t={t} />
         <OrdersTable orders={openOrders} t={t} />
       </div>
-
       <SignalsPanel signals={curatorSignals} t={t} />
-      <p className="schema-version" data-testid="schema-version">{dashboardSnapshot.schemaVersion}</p>
+      {isLoading ? <p className="hint">{t.loading}</p> : null}
+      <button className="refresh-button" type="button" onClick={() => refresh()} disabled={isRefreshing}>
+        <RefreshCw className={isRefreshing ? 'spinning' : ''} /> {t.refresh}
+      </button>
+    </>
+  );
+}
+
+export default function App() {
+  const [language, setLanguage] = useState(getInitialLanguage);
+  const [activePage, setActivePage] = useState('ledger');
+  const [entries, setEntries] = useState([]);
+  const [financeBudgetThb, setFinanceBudgetThb] = useState('0');
+  const [tradeBudgetUsd, setTradeBudgetUsd] = useState('0');
+  const [operatorToken, setOperatorToken] = useState('');
+  const [isControlConnected, setIsControlConnected] = useState(false);
+  const [controlStatus, setControlStatus] = useState({ state: 'locked', message: 'ยังไม่ได้เชื่อมต่อ Manager_Agent' });
+  const t = useMemo(() => translations[language], [language]);
+  const { snapshot, isLoading, isRefreshing, error, lastUpdatedAt, refresh, refreshMs } = useDashboardSnapshot();
+  const dashboardSnapshot = snapshot ?? emptyDashboardSnapshot;
+  const dataSource = getDashboardDataSource();
+  const mockMode = dataSource === DATA_SOURCES.MOCK;
+  const accountId = '1';
+
+  useEffect(() => {
+    window.localStorage.setItem('trading-dashboard-language', language);
+    document.documentElement.lang = language;
+  }, [language]);
+
+  const loadFinanceState = async () => {
+    const response = await getFinanceState({ operatorToken, accountId });
+    const state = response.data || {};
+    const budgets = state.budgets || {};
+    setEntries(Array.isArray(state.entries) ? state.entries : []);
+    setFinanceBudgetThb(String(budgets.personal_investment_budget_thb ?? '0'));
+    setTradeBudgetUsd(String(budgets.trade_plan_limit_usd ?? '0'));
+  };
+
+  const connectControl = async () => {
+    setControlStatus({ state: 'checking', message: 'กำลังตรวจสอบสิทธิ์และโหลดข้อมูล…' });
+    setIsControlConnected(false);
+    try {
+      const response = await getControlCapabilities(operatorToken);
+      await loadFinanceState();
+      const capabilities = response.data;
+      setIsControlConnected(true);
+      setControlStatus({
+        state: capabilities.execution_enabled ? 'ready' : 'planning',
+        message: capabilities.execution_enabled
+          ? `เชื่อมต่อแล้ว | ${capabilities.trading_mode} | ยืนยันก่อนส่งคำสั่ง`
+          : `เชื่อมต่อแล้ว | ${capabilities.trading_mode} | โหมดวางแผนเท่านั้น`,
+      });
+    } catch (connectError) {
+      setControlStatus({ state: 'error', message: connectError.message });
+    }
+  };
+
+  const handleOperatorTokenChange = (value) => {
+    setOperatorToken(value);
+    setIsControlConnected(false);
+    setControlStatus({ state: 'locked', message: 'Token เปลี่ยนแล้ว กรุณาเชื่อมต่อใหม่' });
+  };
+
+  const handleCreateEntry = async (entry) => {
+    const response = await createFinanceEntry({ operatorToken, accountId, entry });
+    setEntries((current) => [response.data, ...current.filter((item) => item.entry_id !== response.data.entry_id)]);
+  };
+
+  const handleDeleteEntry = async (entryId) => {
+    await deleteFinanceEntry({ operatorToken, accountId, entryId });
+    setEntries((current) => current.filter((item) => item.entry_id !== entryId));
+  };
+
+  const saveBudgets = async () => {
+    const response = await updateFinanceBudgets({
+      operatorToken,
+      accountId,
+      personalInvestmentBudgetThb: Number(financeBudgetThb || 0),
+      tradePlanLimitUsd: Number(tradeBudgetUsd || 0),
+    });
+    setFinanceBudgetThb(String(response.data.personal_investment_budget_thb ?? '0'));
+    setTradeBudgetUsd(String(response.data.trade_plan_limit_usd ?? '0'));
+    setControlStatus((current) => ({ ...current, message: `${current.message.split(' | งบ')[0]} | งบบันทึกแล้ว` }));
+  };
+
+  const toggleLanguage = () => setLanguage((current) => (current === 'th' ? 'en' : 'th'));
+
+  return (
+    <main className="app-shell">
+      <div className="top-actions">
+        <button className="language-switcher" type="button" onClick={toggleLanguage} aria-label="Switch language">
+          <Languages /><span>{language === 'th' ? 'EN' : 'ไทย'}</span>
+        </button>
+      </div>
+
+      <section className="hero">
+        <div>
+          <p className="eyebrow">AI finance & trading control center</p>
+          <h1>ศูนย์ควบคุมการเงินและ AI Trading</h1>
+          <p className="hero-copy">บันทึกกระแสเงินสด วางแผนกับ AI และส่งคำสั่งผ่าน Manager_Agent หลังผู้ใช้ยืนยันเท่านั้น</p>
+          <div className="refresh-row">
+            <span className={`status ${mockMode ? 'warn' : 'good'}`} data-testid="data-source">
+              {mockMode ? t.mockMode : `${t.liveMode}: ${dataSource}`}
+            </span>
+            <span className="sync-text">{t.lastUpdated}: {formatUpdatedAt(lastUpdatedAt || dashboardSnapshot.account.lastSyncedAt, language, t.notUpdated)}</span>
+            <span className="sync-text">{t.autoRefresh}: {Math.round(refreshMs / 1000)}s</span>
+          </div>
+          {error ? <p className="error-banner" role="alert">{t.apiFailed}: {error.message}</p> : null}
+        </div>
+        <div className="hero-status">
+          <span data-testid="trading-mode">{dashboardSnapshot.account.mode}</span>
+          <strong>{isLoading ? t.loading : dashboardSnapshot.account.status}</strong>
+          <LockKeyhole />
+        </div>
+      </section>
+
+      <nav className="control-nav" aria-label="เมนูศูนย์ควบคุม">
+        <button className={activePage === 'ledger' ? 'active' : ''} type="button" onClick={() => setActivePage('ledger')}><NotebookTabs /> รายรับรายจ่าย</button>
+        <button className={activePage === 'advisor' ? 'active' : ''} type="button" onClick={() => setActivePage('advisor')}><Bot /> AI การเงิน</button>
+        <button className={activePage === 'investment' ? 'active' : ''} type="button" onClick={() => setActivePage('investment')}><WalletCards /> AI ลงทุนและคำสั่งเทรด</button>
+        <button className={activePage === 'portfolio' ? 'active' : ''} type="button" onClick={() => setActivePage('portfolio')}><Activity /> ภาพรวมระบบ</button>
+      </nav>
+
+      <section className="operator-bar">
+        <label>
+          <span>Operator Token ไม่ถูกบันทึกในเบราว์เซอร์</span>
+          <input type="password" autoComplete="off" value={operatorToken} onChange={(event) => handleOperatorTokenChange(event.target.value)} placeholder="ใส่ WEB_CONTROL_OPERATOR_TOKEN" />
+        </label>
+        <button className="primary-action" type="button" onClick={connectControl}>เชื่อมต่อ Manager</button>
+        <p className={`status ${controlStatus.state === 'error' ? 'warn' : 'good'}`}>{controlStatus.message}</p>
+      </section>
+
+      {activePage === 'ledger' ? (
+        <FinanceLedger
+          entries={entries}
+          onCreate={handleCreateEntry}
+          onDelete={handleDeleteEntry}
+          isConnected={isControlConnected}
+        />
+      ) : null}
+      {activePage === 'advisor' ? (
+        <FinanceAdvisor
+          accountId={accountId}
+          operatorToken={operatorToken}
+          availableCapital={financeBudgetThb}
+          onAvailableCapitalChange={setFinanceBudgetThb}
+          onSaveBudget={saveBudgets}
+          isConnected={isControlConnected}
+        />
+      ) : null}
+      {activePage === 'investment' ? (
+        <InvestmentCommandCenter
+          accountId={accountId}
+          operatorToken={operatorToken}
+          snapshot={dashboardSnapshot}
+          t={t}
+          availableCapital={tradeBudgetUsd}
+          onAvailableCapitalChange={setTradeBudgetUsd}
+          onSaveBudget={saveBudgets}
+          isConnected={isControlConnected}
+        />
+      ) : null}
+      {activePage === 'portfolio' ? (
+        <PortfolioOverview
+          snapshot={dashboardSnapshot}
+          t={t}
+          isLoading={isLoading}
+          isRefreshing={isRefreshing}
+          refresh={refresh}
+        />
+      ) : null}
+
+      <p className="schema-version" data-testid="schema-version">{dashboardSnapshot.schemaVersion} · web-control.v1</p>
     </main>
   );
 }
