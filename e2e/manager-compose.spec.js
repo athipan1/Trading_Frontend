@@ -14,6 +14,8 @@ test('loads the real Manager snapshot through the same-origin proxy', async ({ p
   await expect(page.getByTestId('trading-mode')).toHaveText('PAPER');
   await expect(page.getByTestId('schema-version')).toContainText('dashboard-snapshot.v1');
   await expect(page.getByTestId('schema-version')).toContainText('web-control.v1');
+
+  await page.getByRole('button', { name: 'ภาพรวมระบบ' }).click();
   await expect(page.getByText('Cash').first()).toBeVisible();
   await expect(page.getByText('Equity').first()).toBeVisible();
   await expect(page.getByText('Open Orders').first()).toBeVisible();
@@ -34,6 +36,7 @@ test('shows an error without crashing when Manager is unavailable', async ({ pag
   await page.goto('/');
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByTestId('data-source')).toContainText('manager-api');
+  await page.getByRole('button', { name: 'ภาพรวมระบบ' }).click();
   await expect(page.getByText('Cash').first()).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
