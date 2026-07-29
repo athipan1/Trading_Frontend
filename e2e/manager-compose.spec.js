@@ -24,7 +24,9 @@ test('loads the real Manager snapshot through the same-origin proxy', async ({ p
   await page.getByRole('button', { name: /refresh/i }).click();
   expect((await refreshResponse).status()).toBe(200);
   await page.getByRole('button', { name: 'Switch language' }).click();
-  await expect(page.getByRole('heading', { name: 'แดชบอร์ดพอร์ตลงทุน' })).toBeVisible();
+  await expect(page.getByText('เงินสด').first()).toBeVisible();
+  await expect(page.getByText('มูลค่าบัญชี').first()).toBeVisible();
+  await expect(page.getByText('คำสั่งซื้อขายที่เปิดอยู่').first()).toBeVisible();
   expect(consoleErrors).toEqual([]);
 });
 
