@@ -60,7 +60,11 @@ function booleanValue(value) {
 
 function safeText(value, fallback = '', limit = 280) {
   if (value === undefined || value === null) return fallback;
-  return String(value).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, limit) || fallback;
+  const printable = Array.from(String(value), (character) => {
+    const code = character.charCodeAt(0);
+    return code <= 31 || code === 127 ? ' ' : character;
+  }).join('');
+  return printable.replace(/\s+/g, ' ').trim().slice(0, limit) || fallback;
 }
 
 function safeTimestamp(value) {
