@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "dashboard-snapshot.v2",
+  "generatedAt": "2026-07-30T00:00:00Z",
+  "workflow": { "runId": 1006, "runNumber": 106, "runUrl": "https://github.com/athipan1/Manager_Agent/actions/runs/1006", "eventName": "workflow_dispatch", "status": "completed", "conclusion": "cancelled", "startedAt": "2026-07-29T23:59:00Z", "completedAt": "2026-07-30T00:00:00Z", "durationSeconds": 60 },
+  "runtime": { "mode": "SIMULATOR", "brokerMode": "SIMULATOR", "dryRun": true, "liveTradingEnabled": false, "flow": "hourly_portfolio_cycle" },
+  "cycle": { "id": null, "status": "cancelled", "marketMode": null, "candidateCount": 0, "selectedSymbols": [], "executionAttempted": false, "executionStatus": "not_attempted", "executionReason": null, "partialFillDetected": false },
+  "phases": [],
+  "account": { "cash": null, "equity": null, "buyingPower": null, "status": "UNKNOWN", "lastSyncedAt": "2026-07-30T00:00:00Z", "valuesMasked": true },
+  "summary": { "positionCount": 0, "openOrderCount": 0, "candidateCount": 0, "executionStatus": "not_attempted", "executionReason": null },
+  "positions": [], "openOrders": [], "signals": [], "warnings": [],
+  "error": { "code": "HOURLY_WORKFLOW_CANCELLED", "message": "Hourly Auto Trading was cancelled before completion." },
+  "lastSuccessfulRun": { "generatedAt": "2026-07-29T23:00:00Z", "runId": 1000, "runNumber": 105, "cycleStatus": "success" },
+  "freshness": { "expectedIntervalMinutes": 60, "ageMinutes": 5, "isStale": false, "staleAfterMinutes": 120 },
+  "privacy": { "mode": "status-only", "valuesMasked": true }
+}
