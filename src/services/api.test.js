@@ -84,9 +84,9 @@ describe('dashboard API modes', () => {
       { dataSource: 'public-snapshot', snapshotUrl: 'https://example.com/dashboard.json' },
       { fetchImpl },
     );
-    const pending = timeoutClient.getSnapshot();
+    const rejection = expect(timeoutClient.getSnapshot()).rejects.toThrow('timed out');
     await vi.advanceTimersByTimeAsync(10_001);
-    await expect(pending).rejects.toThrow('timed out');
+    await rejection;
   });
 });
 
