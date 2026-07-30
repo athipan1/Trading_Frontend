@@ -1,0 +1,62 @@
+.app-shell,
+.hero,
+.panel,
+.metric-card,
+.health-card,
+.content-grid,
+.metrics-grid,
+.health-grid,
+.table-wrap,
+.control-nav {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.hero > *,
+.content-grid > *,
+.metrics-grid > *,
+.health-grid > *,
+.section-heading > * {
+  min-width: 0;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.table-wrap table {
+  min-width: 680px;
+}
+
+.control-nav {
+  width: 100%;
+  overscroll-behavior-inline: contain;
+}
+
+.order-card,
+.signal-card,
+.read-only-banner,
+.automation-meta-row {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 520px) {
+  .content-grid,
+  .metrics-grid,
+  .health-grid {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .panel {
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+  }
+}
