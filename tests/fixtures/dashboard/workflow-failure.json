@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "dashboard-snapshot.v2",
+  "generatedAt": "2026-07-30T00:00:00Z",
+  "workflow": { "runId": 1005, "runNumber": 105, "runUrl": "https://github.com/athipan1/Manager_Agent/actions/runs/1005", "eventName": "schedule", "status": "completed", "conclusion": "failure", "startedAt": "2026-07-29T23:58:00Z", "completedAt": "2026-07-30T00:00:00Z", "durationSeconds": 120 },
+  "runtime": { "mode": "UNKNOWN", "brokerMode": "UNKNOWN", "dryRun": true, "liveTradingEnabled": false, "flow": "hourly_portfolio_cycle" },
+  "cycle": { "id": null, "status": "failure", "marketMode": null, "candidateCount": 0, "selectedSymbols": [], "executionAttempted": false, "executionStatus": "not_attempted", "executionReason": null, "partialFillDetected": false },
+  "phases": [],
+  "account": { "cash": null, "equity": null, "buyingPower": null, "status": "UNKNOWN", "lastSyncedAt": "2026-07-30T00:00:00Z", "valuesMasked": true },
+  "summary": { "positionCount": 0, "openOrderCount": 0, "candidateCount": 0, "executionStatus": "not_attempted", "executionReason": null },
+  "positions": [], "openOrders": [], "signals": [], "warnings": ["Hourly artifact was unavailable; workflow metadata fallback is shown."],
+  "error": { "code": "HOURLY_WORKFLOW_FAILED", "message": "Hourly Auto Trading did not complete successfully." },
+  "lastSuccessfulRun": { "generatedAt": "2026-07-29T23:00:00Z", "runId": 1000, "runNumber": 104, "cycleStatus": "success" },
+  "freshness": { "expectedIntervalMinutes": 60, "ageMinutes": 5, "isStale": false, "staleAfterMinutes": 120 },
+  "privacy": { "mode": "status-only", "valuesMasked": true }
+}
