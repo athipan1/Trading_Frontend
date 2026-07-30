@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "dashboard-snapshot.v2",
+  "generatedAt": "2026-07-29T20:00:00Z",
+  "workflow": { "runId": 1007, "runNumber": 107, "runUrl": "https://github.com/athipan1/Manager_Agent/actions/runs/1007", "eventName": "schedule", "status": "completed", "conclusion": "success", "startedAt": "2026-07-29T19:55:00Z", "completedAt": "2026-07-29T20:00:00Z", "durationSeconds": 300 },
+  "runtime": { "mode": "ALPACA_PAPER", "brokerMode": "ALPACA", "dryRun": false, "liveTradingEnabled": false, "flow": "hourly_portfolio_cycle" },
+  "cycle": { "id": "cycle-107", "status": "success", "marketMode": "REGULAR", "candidateCount": 0, "selectedSymbols": [], "executionAttempted": false, "executionStatus": "not_attempted", "executionReason": "no_preselected_backtest_symbols", "partialFillDetected": false },
+  "phases": [],
+  "account": { "cash": null, "equity": null, "buyingPower": null, "status": "ACTIVE", "lastSyncedAt": "2026-07-29T20:00:00Z", "valuesMasked": true },
+  "summary": { "positionCount": 0, "openOrderCount": 0, "candidateCount": 0, "executionStatus": "not_attempted", "executionReason": "no_preselected_backtest_symbols" },
+  "positions": [], "openOrders": [], "signals": [], "warnings": [], "error": null,
+  "lastSuccessfulRun": { "generatedAt": "2026-07-29T20:00:00Z", "runId": 1007, "runNumber": 107, "cycleStatus": "success" },
+  "freshness": { "expectedIntervalMinutes": 60, "ageMinutes": 240, "isStale": true, "staleAfterMinutes": 120 },
+  "privacy": { "mode": "masked", "valuesMasked": true }
+}
