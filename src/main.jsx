@@ -5,6 +5,7 @@ import './styles.css';
 import './language.css';
 import './control-center.css';
 import './persistence.css';
+import './hourlyAutomation.css';
 
 class DashboardErrorBoundary extends React.Component {
   constructor(props) {
