@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const snapshotUrl =
   'https://raw.githubusercontent.com/athipan1/Manager_Agent/dashboard-data/docs/dashboard/latest-dashboard-snapshot.json';
 
 function readVercelConfig() {
-  return JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
+  return JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8'));
 }
 
 describe('Vercel production build configuration', () => {

@@ -57,18 +57,29 @@ jobs:
           }
           const report = JSON.parse(fs.readFileSync(path, 'utf8'));
           const clean = (value) => String(value ?? '-').replace(/[\r\n|`]/g, ' ');
+          const status = report.connected
+            ? report.staleDataVisible
+              ? '⚠️ Deployment healthy, upstream data stale'
+              : '✅ Connected'
+            : '❌ Failed';
           const lines = [
             '# Trading_Frontend production smoke',
             '',
-            `- Status: ${report.connected ? '✅ Connected' : '❌ Failed'}`,
+            `- Status: ${status}`,
             `- Production: \`${clean(report.productionUrl)}\``,
             `- Data source: \`${clean(report.dataSourceText)}\``,
             `- Schema: \`${clean(report.schemaText)}\``,
+            `- Runtime: \`${clean(report.runtimeModeText)}\``,
             `- Manager snapshot HTTP: ${clean(report.managerSnapshotStatus)}`,
+            `- Stale warning visible: \`${clean(report.staleDataVisible)}\``,
             `- Operator control exposed: \`${clean(report.operatorControlExposed)}\``,
             `- Attempts: ${clean(report.attemptsUsed)}`,
           ];
-          const errors = Array.isArray(report.errors) ? report.errors.map((item) => item.message || item).join('; ') : '';
+          const warnings = Array.isArray(report.warnings) ? report.warnings.join('; ') : '';
+          const errors = Array.isArray(report.errors)
+            ? report.errors.map((item) => item.message || item).join('; ')
+            : '';
+          if (warnings) lines.push(`- Warning: ${clean(warnings)}`);
           if (errors) lines.push(`- Error: ${clean(errors)}`);
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
           NODE
