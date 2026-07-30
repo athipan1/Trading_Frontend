@@ -27,6 +27,32 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
 
+      - name: Validate copied Manager snapshot fixtures
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const directory = path.join(process.cwd(), 'tests/fixtures/dashboard');
+          const expected = new Set([
+            'success.json',
+            'no-candidate.json',
+            'risk-rejected.json',
+            'execution-success.json',
+            'execution-failure.json',
+            'workflow-failure.json',
+            'cancelled.json',
+            'stale.json',
+            'masked.json',
+          ]);
+          const files = fs.readdirSync(directory).filter((name) => name.endsWith('.json'));
+          for (const name of expected) {
+            if (!files.includes(name)) throw new Error(`Missing contract fixture: ${name}`);
+            const payload = JSON.parse(fs.readFileSync(path.join(directory, name), 'utf8'));
+            if (payload.schemaVersion !== 'dashboard-snapshot.v2') throw new Error(`Invalid schema in ${name}`);
+            if (payload.runtime.liveTradingEnabled !== false) throw new Error(`Unsafe runtime in ${name}`);
+          }
+          NODE
+
       - name: Lint
         id: lint
         run: npm run lint -- --format json --output-file eslint-report.json
@@ -43,11 +69,12 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Production build
+      - name: Production public-snapshot build
         run: npm run build
         env:
-          VITE_DATA_SOURCE: manager-api
-          VITE_MANAGER_API_URL: /api
+          VITE_DATA_SOURCE: public-snapshot
+          VITE_MANAGER_API_URL: ""
+          VITE_DASHBOARD_SNAPSHOT_URL: https://raw.githubusercontent.com/athipan1/Manager_Agent/dashboard-data/docs/dashboard/latest-dashboard-snapshot.json
           VITE_REFRESH_INTERVAL_MS: 60000
           ALPACA_SECRET_KEY: frontend-ci-secret-must-not-leak
 
@@ -67,7 +94,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build pinned multi-stage image
+      - name: Build pinned optional Manager-control image
         run: >-
           docker build
           --build-arg VITE_DATA_SOURCE=manager-api
