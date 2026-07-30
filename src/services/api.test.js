@@ -1,4 +1,13 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import success from '../../tests/fixtures/dashboard/success.json';
+import noCandidate from '../../tests/fixtures/dashboard/no-candidate.json';
+import riskRejected from '../../tests/fixtures/dashboard/risk-rejected.json';
+import executionSuccess from '../../tests/fixtures/dashboard/execution-success.json';
+import executionFailure from '../../tests/fixtures/dashboard/execution-failure.json';
+import workflowFailure from '../../tests/fixtures/dashboard/workflow-failure.json';
+import cancelled from '../../tests/fixtures/dashboard/cancelled.json';
+import stale from '../../tests/fixtures/dashboard/stale.json';
+import masked from '../../tests/fixtures/dashboard/masked.json';
 import { createDashboardClient, normalizeSnapshot } from './api.js';
 import { portfolioSnapshot } from '../data/mockPortfolio.js';
 
@@ -10,28 +19,41 @@ function response(payload, status = 200) {
   };
 }
 
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-07-30T00:12:00Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
 describe('dashboard API modes', () => {
-  it('returns normalized data in explicit mock mode without fetching', async () => {
+  it('returns a v2 internal model in explicit mock mode without fetching', async () => {
     const fetchImpl = vi.fn();
     const client = createDashboardClient({ dataSource: 'mock' }, { fetchImpl });
     const result = await client.getSnapshot();
-    expect(result.schemaVersion).toBe('dashboard-snapshot.v1');
+    expect(result.schemaVersion).toBe('dashboard-snapshot.v2');
+    expect(result.sourceSchemaVersion).toBe('dashboard-snapshot.v1');
     expect(result.positions).toEqual([]);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('loads public snapshot mode from only the configured snapshot URL', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(response(portfolioSnapshot));
+  it('loads a cache-busted public snapshot with no credentials and no-store', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(response(success));
     const client = createDashboardClient(
       { dataSource: 'public-snapshot', snapshotUrl: 'https://example.com/dashboard.json' },
       { fetchImpl },
     );
-    await expect(client.getSnapshot()).resolves.toMatchObject({ mode: 'PAPER' });
-    expect(fetchImpl).toHaveBeenCalledWith('https://example.com/dashboard.json', expect.any(Object));
+    await expect(client.getSnapshot()).resolves.toMatchObject({ mode: 'ALPACA_PAPER' });
+    const [url, options] = fetchImpl.mock.calls[0];
+    expect(url).toBe('https://example.com/dashboard.json?t=1785370320000');
+    expect(options).toMatchObject({ cache: 'no-store', credentials: 'omit' });
   });
 
-  it('loads Manager API mode through the versioned snapshot endpoint', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(response(portfolioSnapshot));
+  it('keeps optional Manager API mode on the versioned endpoint', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(response(success));
     const client = createDashboardClient(
       { dataSource: 'manager-api', managerApiUrl: '/api' },
       { fetchImpl },
@@ -40,17 +62,78 @@ describe('dashboard API modes', () => {
     expect(fetchImpl).toHaveBeenCalledWith('/api/dashboard/snapshot', expect.objectContaining({ credentials: 'omit' }));
   });
 
-  it('propagates API failures without falling back to mock data', async () => {
+  it.each([404, 500])('reports HTTP %s without substituting mock data', async (status) => {
     const client = createDashboardClient(
-      { dataSource: 'manager-api', managerApiUrl: '/api' },
-      { fetchImpl: vi.fn().mockResolvedValue(response({}, 503)) },
+      { dataSource: 'public-snapshot', snapshotUrl: 'https://example.com/dashboard.json' },
+      { fetchImpl: vi.fn().mockResolvedValue(response({}, status)) },
     );
-    await expect(client.getSnapshot()).rejects.toThrow('HTTP 503');
+    await expect(client.getSnapshot()).rejects.toThrow(`HTTP ${status}`);
+  });
+
+  it('reports malformed JSON and request timeout with bounded messages', async () => {
+    const malformedClient = createDashboardClient(
+      { dataSource: 'public-snapshot', snapshotUrl: 'https://example.com/dashboard.json' },
+      { fetchImpl: vi.fn().mockResolvedValue({ ok: true, status: 200, json: vi.fn().mockRejectedValue(new SyntaxError('bad')) }) },
+    );
+    await expect(malformedClient.getSnapshot()).rejects.toThrow('not valid JSON');
+
+    const fetchImpl = vi.fn((url, options) => new Promise((resolve, reject) => {
+      options.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+    }));
+    const timeoutClient = createDashboardClient(
+      { dataSource: 'public-snapshot', snapshotUrl: 'https://example.com/dashboard.json' },
+      { fetchImpl },
+    );
+    const rejection = expect(timeoutClient.getSnapshot()).rejects.toThrow('timed out');
+    await vi.advanceTimersByTimeAsync(10_001);
+    await rejection;
   });
 });
 
-describe('payload normalization', () => {
-  it('normalizes numeric aliases and strips unknown fields', () => {
+describe('dashboard-snapshot.v2 contract fixtures', () => {
+  it.each([
+    ['success', success, 'success', 'not_attempted'],
+    ['no candidate', noCandidate, 'success', 'not_attempted'],
+    ['risk rejected', riskRejected, 'success', 'not_attempted'],
+    ['execution success', executionSuccess, 'success', 'submitted'],
+    ['execution failure', executionFailure, 'failure', 'failure'],
+    ['workflow failure', workflowFailure, 'failure', 'not_attempted'],
+    ['cancelled', cancelled, 'cancelled', 'not_attempted'],
+    ['stale', stale, 'success', 'not_attempted'],
+    ['masked', masked, 'success', 'not_attempted'],
+  ])('normalizes %s', (name, fixture, cycleStatus, executionStatus) => {
+    const result = normalizeSnapshot(fixture);
+    expect(result.schemaVersion).toBe('dashboard-snapshot.v2');
+    expect(result.cycle.status).toBe(cycleStatus);
+    expect(result.cycle.executionStatus).toBe(executionStatus);
+    expect(result.runtime.liveTradingEnabled).toBe(false);
+  });
+
+  it('recalculates stale state from the trusted generatedAt timestamp', () => {
+    expect(normalizeSnapshot(success).freshness.isStale).toBe(false);
+    expect(normalizeSnapshot(stale).freshness.isStale).toBe(true);
+  });
+
+  it('preserves masked nulls instead of rendering them as zero', () => {
+    const result = normalizeSnapshot(masked);
+    expect(result.account).toMatchObject({ cash: null, equity: null, buyingPower: null, valuesMasked: true });
+    expect(result.positions[0].quantity).toBeNull();
+    expect(result.privacy.mode).toBe('masked');
+  });
+
+  it('supports partial fill without inventing order identifiers', () => {
+    const payload = structuredClone(executionSuccess);
+    payload.cycle.executionStatus = 'partial_fill';
+    payload.cycle.partialFillDetected = true;
+    const result = normalizeSnapshot(payload);
+    expect(result.cycle.partialFillDetected).toBe(true);
+    expect(result.cycle.executionStatus).toBe('partial_fill');
+    expect(result.openOrders).toEqual([]);
+  });
+});
+
+describe('payload validation and v1 compatibility', () => {
+  it('normalizes legacy v1 into the same v2 internal model', () => {
     const result = normalizeSnapshot({
       ...portfolioSnapshot,
       account: { cash_balance: '10.5', portfolio_value: '12', buying_power: '20', apiKey: 'never-return' },
@@ -58,21 +141,34 @@ describe('payload normalization', () => {
       openOrders: [],
       curatorSignals: [],
     });
+    expect(result.schemaVersion).toBe('dashboard-snapshot.v2');
+    expect(result.sourceSchemaVersion).toBe('dashboard-snapshot.v1');
     expect(result.account.cash).toBe(10.5);
     expect(result.positions[0]).toMatchObject({ symbol: 'AAPL', quantity: 2, currentPrice: 11 });
     expect(result.account).not.toHaveProperty('apiKey');
   });
 
-  it('keeps empty positions and orders empty instead of substituting mock rows', () => {
-    const result = normalizeSnapshot({ ...portfolioSnapshot, positions: [], openOrders: [], curatorSignals: [] });
-    expect(result.positions).toEqual([]);
-    expect(result.openOrders).toEqual([]);
+  it('rejects invalid v2 arrays, non-finite numbers and unknown schemas', () => {
+    expect(() => normalizeSnapshot({ ...success, positions: {} })).toThrow('positions must be an array');
+    expect(() => normalizeSnapshot({ ...success, account: { ...success.account, cash: 'NaN' } })).toThrow('must be finite');
+    expect(() => normalizeSnapshot({ ...success, schemaVersion: 'dashboard-snapshot.v3' })).toThrow('Unsupported dashboard schema');
   });
 
-  it('rejects malformed payloads and unknown schema versions', () => {
-    expect(() => normalizeSnapshot({ ...portfolioSnapshot, positions: {} })).toThrow('positions must be an array');
-    expect(() => normalizeSnapshot({ ...portfolioSnapshot, schemaVersion: 'dashboard-snapshot.v2' })).toThrow(
-      'Unsupported dashboard schema',
-    );
+  it('rejects prototype-pollution keys before rendering', () => {
+    const payload = JSON.parse(JSON.stringify(success));
+    Object.defineProperty(payload, '__proto__', { value: { polluted: true }, enumerable: true });
+    expect(() => normalizeSnapshot(payload)).toThrow('unsafe key');
+    expect({}.polluted).toBeUndefined();
+  });
+
+  it('limits workflow errors to the allowlisted code and message', () => {
+    const payload = structuredClone(workflowFailure);
+    payload.error.stack = 'private stack trace';
+    payload.error.authorization = 'Bearer secret';
+    const result = normalizeSnapshot(payload);
+    expect(result.error).toEqual({
+      code: 'HOURLY_WORKFLOW_FAILED',
+      message: 'Hourly Auto Trading did not complete successfully.',
+    });
   });
 });

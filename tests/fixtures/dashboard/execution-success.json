@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "dashboard-snapshot.v2",
+  "generatedAt": "2026-07-30T00:00:00Z",
+  "workflow": { "runId": 1003, "runNumber": 103, "runUrl": "https://github.com/athipan1/Manager_Agent/actions/runs/1003", "eventName": "workflow_dispatch", "status": "completed", "conclusion": "success", "startedAt": "2026-07-29T23:50:00Z", "completedAt": "2026-07-30T00:00:00Z", "durationSeconds": 600 },
+  "runtime": { "mode": "ALPACA_PAPER", "brokerMode": "ALPACA", "dryRun": false, "liveTradingEnabled": false, "flow": "hourly_portfolio_cycle" },
+  "cycle": { "id": "cycle-103", "status": "success", "marketMode": "REGULAR", "candidateCount": 1, "selectedSymbols": ["ACGL"], "executionAttempted": true, "executionStatus": "submitted", "executionReason": "paper_order_submitted", "partialFillDetected": false },
+  "phases": [
+    { "name": "preflight", "status": "success", "message": null },
+    { "name": "portfolio_review", "status": "success", "message": null },
+    { "name": "scanner", "status": "success", "message": null },
+    { "name": "backtest", "status": "success", "message": null },
+    { "name": "risk", "status": "success", "message": "Approved" },
+    { "name": "execution", "status": "success", "message": "Paper order submitted" },
+    { "name": "final_reconciliation", "status": "success", "message": null }
+  ],
+  "account": { "cash": null, "equity": null, "buyingPower": null, "status": "ACTIVE", "lastSyncedAt": "2026-07-30T00:00:00Z", "valuesMasked": true },
+  "summary": { "positionCount": 1, "openOrderCount": 1, "candidateCount": 1, "executionStatus": "submitted", "executionReason": "paper_order_submitted" },
+  "positions": [], "openOrders": [], "signals": [], "warnings": [], "error": null,
+  "lastSuccessfulRun": { "generatedAt": "2026-07-30T00:00:00Z", "runId": 1003, "runNumber": 103, "cycleStatus": "success" },
+  "freshness": { "expectedIntervalMinutes": 60, "ageMinutes": 5, "isStale": false, "staleAfterMinutes": 120 },
+  "privacy": { "mode": "masked", "valuesMasked": true }
+}

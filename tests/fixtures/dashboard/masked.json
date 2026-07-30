@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "dashboard-snapshot.v2",
+  "generatedAt": "2026-07-30T00:00:00Z",
+  "workflow": { "runId": 1008, "runNumber": 108, "runUrl": "https://github.com/athipan1/Manager_Agent/actions/runs/1008", "eventName": "schedule", "status": "completed", "conclusion": "success", "startedAt": "2026-07-29T23:55:00Z", "completedAt": "2026-07-30T00:00:00Z", "durationSeconds": 300 },
+  "runtime": { "mode": "ALPACA_PAPER", "brokerMode": "ALPACA", "dryRun": false, "liveTradingEnabled": false, "flow": "hourly_portfolio_cycle" },
+  "cycle": { "id": "cycle-108", "status": "success", "marketMode": "REGULAR", "candidateCount": 0, "selectedSymbols": [], "executionAttempted": false, "executionStatus": "not_attempted", "executionReason": "no_preselected_backtest_symbols", "partialFillDetected": false },
+  "phases": [],
+  "account": { "cash": null, "equity": null, "buyingPower": null, "status": "ACTIVE", "lastSyncedAt": "2026-07-30T00:00:00Z", "valuesMasked": true },
+  "summary": { "positionCount": 1, "openOrderCount": 1, "candidateCount": 0, "executionStatus": "not_attempted", "executionReason": "no_preselected_backtest_symbols" },
+  "positions": [{ "symbol": "ACGL", "quantity": null, "averageCost": null, "currentPrice": null, "marketValue": null, "unrealizedPnL": null, "bucket": "value_rebound", "valuesMasked": true, "protection": { "status": "bracket_protected", "hasStopLoss": true, "hasTakeProfit": true, "hasBracket": true } }],
+  "openOrders": [{ "symbol": "ACGL", "side": "sell", "quantity": null, "orderClass": "bracket", "type": "limit", "status": "new", "takeProfit": null, "stopLoss": true, "valuesMasked": true }],
+  "signals": [], "warnings": [], "error": null,
+  "lastSuccessfulRun": { "generatedAt": "2026-07-30T00:00:00Z", "runId": 1008, "runNumber": 108, "cycleStatus": "success" },
+  "freshness": { "expectedIntervalMinutes": 60, "ageMinutes": 5, "isStale": false, "staleAfterMinutes": 120 },
+  "privacy": { "mode": "masked", "valuesMasked": true }
+}

@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "dashboard-snapshot.v2",
+  "generatedAt": "2026-07-30T00:00:00Z",
+  "workflow": {
+    "runId": 123456789,
+    "runNumber": 100,
+    "runUrl": "https://github.com/athipan1/Manager_Agent/actions/runs/123456789",
+    "eventName": "schedule",
+    "status": "completed",
+    "conclusion": "success",
+    "startedAt": "2026-07-29T23:53:00Z",
+    "completedAt": "2026-07-30T00:00:00Z",
+    "durationSeconds": 420
+  },
+  "runtime": {
+    "mode": "ALPACA_PAPER",
+    "brokerMode": "ALPACA",
+    "dryRun": false,
+    "liveTradingEnabled": false,
+    "flow": "hourly_portfolio_cycle"
+  },
+  "cycle": {
+    "id": "cycle-100",
+    "status": "success",
+    "marketMode": "REGULAR",
+    "candidateCount": 1,
+    "selectedSymbols": ["ACGL"],
+    "executionAttempted": false,
+    "executionStatus": "not_attempted",
+    "executionReason": "risk_rejected",
+    "partialFillDetected": false
+  },
+  "phases": [
+    { "name": "preflight", "status": "success", "message": null },
+    { "name": "portfolio_review", "status": "success", "message": null },
+    { "name": "protection_reconciliation", "status": "success", "message": null },
+    { "name": "scanner", "status": "success", "message": "One candidate passed" },
+    { "name": "backtest", "status": "success", "message": null },
+    { "name": "risk", "status": "failure", "message": "Risk rejected candidate" },
+    { "name": "execution", "status": "not_attempted", "message": "No approved trade" },
+    { "name": "final_reconciliation", "status": "success", "message": null }
+  ],
+  "account": {
+    "cash": 48155.5,
+    "equity": 71784.67,
+    "buyingPower": 275290.36,
+    "status": "ACTIVE",
+    "lastSyncedAt": "2026-07-30T00:00:00Z",
+    "valuesMasked": false
+  },
+  "summary": {
+    "positionCount": 1,
+    "openOrderCount": 1,
+    "candidateCount": 1,
+    "executionStatus": "not_attempted",
+    "executionReason": "risk_rejected"
+  },
+  "positions": [
+    {
+      "symbol": "ACGL",
+      "quantity": 54,
+      "averageCost": 104.2,
+      "currentPrice": 104.155,
+      "marketValue": 5624.37,
+      "unrealizedPnL": -2.43,
+      "bucket": "value_rebound",
+      "valuesMasked": false,
+      "protection": {
+        "status": "bracket_protected",
+        "hasStopLoss": true,
+        "hasTakeProfit": true,
+        "hasBracket": true
+      }
+    }
+  ],
+  "openOrders": [
+    {
+      "symbol": "ACGL",
+      "side": "sell",
+      "quantity": 54,
+      "orderClass": "bracket",
+      "type": "limit",
+      "status": "new",
+      "takeProfit": 112.84,
+      "stopLoss": true,
+      "valuesMasked": false
+    }
+  ],
+  "signals": [],
+  "warnings": [],
+  "error": null,
+  "lastSuccessfulRun": {
+    "generatedAt": "2026-07-30T00:00:00Z",
+    "runId": 123456789,
+    "runNumber": 100,
+    "cycleStatus": "success"
+  },
+  "freshness": {
+    "expectedIntervalMinutes": 60,
+    "ageMinutes": 12,
+    "isStale": false,
+    "staleAfterMinutes": 120
+  },
+  "privacy": {
+    "mode": "full",
+    "valuesMasked": false
+  }
+}

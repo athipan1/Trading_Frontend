@@ -4,34 +4,32 @@ import { useDashboardSnapshot } from './useDashboardSnapshot.js';
 import { normalizeSnapshot } from '../services/api.js';
 import { portfolioSnapshot } from '../data/mockPortfolio.js';
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+});
 
 describe('useDashboardSnapshot', () => {
-  it('refreshes on schedule and preserves the last snapshot after an API failure', async () => {
+  it('refreshes on schedule and preserves the last snapshot after a refresh failure', async () => {
     vi.useFakeTimers();
     const valid = normalizeSnapshot(portfolioSnapshot);
     const loadSnapshot = vi.fn()
       .mockResolvedValueOnce(valid)
-      .mockRejectedValueOnce(new Error('manager unavailable'));
+      .mockRejectedValueOnce(new Error('snapshot unavailable'));
     const { result } = renderHook(() => useDashboardSnapshot({ loadSnapshot, refreshMs: 5_000 }));
 
-    await act(async () => {
-      vi.advanceTimersByTime(0);
-      await Promise.resolve();
-    });
+    await act(async () => vi.advanceTimersByTimeAsync(0));
     expect(result.current.snapshot).toEqual(valid);
     expect(result.current.error).toBeNull();
 
-    await act(async () => {
-      vi.advanceTimersByTime(5_000);
-      await Promise.resolve();
-    });
+    await act(async () => vi.advanceTimersByTimeAsync(5_000));
     expect(loadSnapshot).toHaveBeenCalledTimes(2);
     expect(result.current.snapshot).toEqual(valid);
-    expect(result.current.error.message).toBe('manager unavailable');
+    expect(result.current.error.message).toBe('snapshot unavailable');
   });
 
-  it('supports manual refresh and clears a previous error after recovery', async () => {
+  it('supports retry and clears a previous error after recovery', async () => {
     const valid = normalizeSnapshot(portfolioSnapshot);
     const loadSnapshot = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(valid);
     const { result } = renderHook(() => useDashboardSnapshot({ loadSnapshot, refreshMs: 900_000 }));
@@ -40,5 +38,62 @@ describe('useDashboardSnapshot', () => {
     await act(async () => result.current.refresh());
     expect(result.current.snapshot).toEqual(valid);
     expect(result.current.error).toBeNull();
+  });
+
+  it('cancels an older manual request before starting a replacement', async () => {
+    const valid = normalizeSnapshot(portfolioSnapshot);
+    const signals = [];
+    const loadSnapshot = vi.fn(({ signal }) => {
+      signals.push(signal);
+      if (signals.length === 1) {
+        return new Promise((resolve, reject) => signal.addEventListener('abort', () => {
+          const error = new Error('cancelled');
+          error.name = 'AbortError';
+          reject(error);
+        }, { once: true }));
+      }
+      return Promise.resolve(valid);
+    });
+    const { result } = renderHook(() => useDashboardSnapshot({ loadSnapshot, refreshMs: 900_000 }));
+    await waitFor(() => expect(loadSnapshot).toHaveBeenCalledTimes(1));
+    await act(async () => result.current.refresh());
+    expect(signals[0].aborted).toBe(true);
+    expect(result.current.snapshot).toEqual(valid);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('pauses polling while hidden and resumes with an immediate refresh', async () => {
+    vi.useFakeTimers();
+    const valid = normalizeSnapshot(portfolioSnapshot);
+    const loadSnapshot = vi.fn().mockResolvedValue(valid);
+    renderHook(() => useDashboardSnapshot({ loadSnapshot, refreshMs: 5_000 }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(loadSnapshot).toHaveBeenCalledTimes(1);
+
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    expect(loadSnapshot).toHaveBeenCalledTimes(1);
+
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      await Promise.resolve();
+    });
+    expect(loadSnapshot).toHaveBeenCalledTimes(2);
+    await act(async () => vi.advanceTimersByTimeAsync(5_000));
+    expect(loadSnapshot).toHaveBeenCalledTimes(3);
+  });
+
+  it('aborts polling work during cleanup', async () => {
+    let activeSignal;
+    const loadSnapshot = vi.fn(({ signal }) => {
+      activeSignal = signal;
+      return new Promise(() => {});
+    });
+    const { unmount } = renderHook(() => useDashboardSnapshot({ loadSnapshot, refreshMs: 5_000 }));
+    await waitFor(() => expect(loadSnapshot).toHaveBeenCalled());
+    unmount();
+    expect(activeSignal.aborted).toBe(true);
   });
 });

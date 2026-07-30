@@ -1,0 +1,360 @@
+.automation-panel {
+  overflow: hidden;
+}
+
+.automation-heading,
+.automation-actions,
+.automation-meta-row,
+.read-only-banner,
+.workflow-error,
+.stale-banner,
+.run-link,
+.icon-action,
+.automation-status {
+  display: flex;
+  align-items: center;
+}
+
+.automation-heading {
+  align-items: flex-start;
+}
+
+.automation-actions {
+  gap: 10px;
+}
+
+.automation-actions .status,
+.automation-status,
+.masked-indicator,
+.run-link {
+  gap: 7px;
+}
+
+.automation-actions svg,
+.automation-status svg,
+.masked-indicator svg,
+.run-link svg,
+.stale-banner > svg,
+.workflow-error > svg,
+.icon-action svg,
+.read-only-banner svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.icon-action {
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  color: #e0f2fe;
+  background: rgba(14, 165, 233, 0.14);
+  cursor: pointer;
+}
+
+.icon-action:disabled,
+.control-nav button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.icon-action:focus-visible,
+.run-link:focus-visible,
+.error-banner button:focus-visible,
+.control-nav button:focus-visible {
+  outline: 3px solid #7dd3fc;
+  outline-offset: 3px;
+}
+
+.automation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.automation-stat {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 18px;
+  background: rgba(2, 6, 23, 0.34);
+}
+
+.automation-stat > span,
+.automation-stat small,
+.phase-item span,
+.stale-banner span {
+  color: #a8b5c7;
+  font-size: 0.78rem;
+}
+
+.automation-stat > strong {
+  display: flex;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+}
+
+.automation-stat small {
+  display: block;
+  margin-top: 5px;
+}
+
+.automation-status {
+  text-transform: capitalize;
+}
+
+.status-success,
+.status-completed {
+  color: #86efac;
+}
+
+.status-running,
+.status-pending {
+  color: #7dd3fc;
+}
+
+.status-warning,
+.status-skipped,
+.status-not_attempted {
+  color: #fde68a;
+}
+
+.status-failure,
+.status-cancelled {
+  color: #fda4af;
+}
+
+.status-unknown {
+  color: #cbd5e1;
+}
+
+.stale-banner,
+.workflow-error,
+.read-only-banner {
+  gap: 12px;
+  padding: 13px 15px;
+  border-radius: 16px;
+}
+
+.stale-banner {
+  margin-bottom: 18px;
+  border: 1px solid rgba(245, 158, 11, 0.38);
+  background: rgba(120, 53, 15, 0.28);
+  color: #fde68a;
+}
+
+.stale-banner div {
+  display: grid;
+  gap: 3px;
+}
+
+.workflow-error {
+  margin-bottom: 18px;
+  border: 1px solid rgba(248, 113, 113, 0.34);
+  background: rgba(127, 29, 29, 0.24);
+  color: #fecaca;
+  overflow-wrap: anywhere;
+}
+
+.read-only-banner {
+  margin-top: 16px;
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  background: rgba(14, 116, 144, 0.14);
+  color: #bae6fd;
+}
+
+.automation-reason {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-left: 3px solid #38bdf8;
+  color: #cbd5e1;
+  overflow-wrap: anywhere;
+}
+
+.automation-meta-row {
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-top: 16px;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+}
+
+.masked-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #fde68a;
+}
+
+.run-link {
+  color: #7dd3fc;
+  text-decoration: none;
+}
+
+.run-link:hover {
+  text-decoration: underline;
+}
+
+.phase-section {
+  margin-top: 22px;
+}
+
+.phase-section h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.phase-timeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.phase-item {
+  display: flex;
+  min-width: 0;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 13px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 16px;
+  background: rgba(2, 6, 23, 0.3);
+}
+
+.phase-item > svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+}
+
+.phase-item > div {
+  min-width: 0;
+}
+
+.phase-item strong,
+.phase-item span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.phase-item span {
+  margin-top: 3px;
+}
+
+.automation-skeleton {
+  min-height: 260px;
+}
+
+.skeleton-line,
+.skeleton-card {
+  border-radius: 14px;
+  background: linear-gradient(90deg, rgba(51, 65, 85, 0.35), rgba(100, 116, 139, 0.48), rgba(51, 65, 85, 0.35));
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton-title {
+  width: min(360px, 80%);
+  height: 30px;
+  margin-bottom: 22px;
+}
+
+.skeleton-card {
+  height: 92px;
+}
+
+@keyframes skeleton-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.error-banner button {
+  flex: 0 0 auto;
+  border: 1px solid rgba(254, 202, 202, 0.35);
+  border-radius: 10px;
+  padding: 7px 10px;
+  color: #fff1f2;
+  background: rgba(127, 29, 29, 0.36);
+  cursor: pointer;
+}
+
+.control-nav button:disabled {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+@media (max-width: 900px) {
+  .automation-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .phase-timeline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .app-shell {
+    width: min(100% - 20px, 1180px);
+    padding-top: 18px;
+  }
+
+  .hero,
+  .panel {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .automation-grid,
+  .phase-timeline {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .automation-heading,
+  .automation-meta-row,
+  .error-banner,
+  .read-only-banner {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .automation-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .automation-stat,
+  .phase-item,
+  .automation-reason,
+  .workflow-error,
+  .stale-banner {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .run-link,
+  .error-banner button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinning,
+  .skeleton-line,
+  .skeleton-card {
+    animation: none;
+  }
+}

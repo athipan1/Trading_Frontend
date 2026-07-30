@@ -1,46 +1,84 @@
 # Trading Frontend
 
-React/Vite control center for the multi-agent trading system. The browser has one service boundary only:
+React/Vite dashboard for the multi-agent trading system. The production dashboard is intentionally decoupled from a continuously deployed Manager API.
+
+## Production architecture
 
 ```text
-Trading_Frontend -> Manager_Agent -> Database/Risk/Execution/internal agents
+Hourly Auto Trading in Manager_Agent
+  -> sanitized hourly-auto-trading-report artifact
+  -> Publish Dashboard Snapshot workflow
+  -> allowlisted dashboard-snapshot.v2 on dashboard-data branch
+  -> Trading_Frontend fetches the public HTTPS snapshot
+  -> browser refreshes every 60 seconds
 ```
 
-The frontend never calls Database_Agent, Execution_Agent, Risk_Agent, Curator_Agent, or Alpaca directly. It contains no broker or service credentials and is not required by hourly trading.
+The frontend remains optional. A frontend outage, Vercel outage, or snapshot publication failure cannot stop or change Hourly Auto Trading. The browser never calls Execution_Agent, Risk_Agent, Database_Agent, Curator_Agent, or Alpaca directly.
 
-## Control Center menus
+Production snapshot URL:
 
-1. **รายรับรายจ่าย** records personal income and expenses in THB through Manager_Agent and persists them in Database_Agent.
-2. **AI การเงิน** reads the persisted THB ledger and a separate THB personal-investment budget for daily cash-flow advice.
-3. **AI ลงทุนและคำสั่งเทรด** shows the USD broker account, positions, and orders, then asks Manager_Agent to create a dry-run USD TradePlan using the server-side persisted USD limit. Execution remains blocked until the user reviews the plan and enters the exact PAPER/LIVE confirmation phrase.
-4. **ภาพรวมระบบ** preserves the existing read-only portfolio dashboard.
+```text
+https://raw.githubusercontent.com/athipan1/Manager_Agent/dashboard-data/docs/dashboard/latest-dashboard-snapshot.json
+```
 
-Personal-finance THB values and Alpaca trading USD limits are deliberately separate. The frontend does not perform hidden FX conversion. The USD trade limit is read by Manager_Agent from Database_Agent when a plan is created, so changing a browser request cannot raise the limit.
-
-The operator token is entered at runtime and is held only in React memory. It must never be stored in a `VITE_*` variable, local storage, source control, or the built bundle.
+No GitHub token, broker credential, API key, database credential, service URL, or operator token belongs in React source, a `VITE_*` variable, localStorage, or the public JSON.
 
 ## Data modes
 
 | `VITE_DATA_SOURCE` | Required variable | Use case |
 |---|---|---|
-| `mock` | none | Explicit local UI development only; control actions are disabled |
-| `public-snapshot` | `VITE_DASHBOARD_SNAPSHOT_URL` | Read a sanitized static JSON snapshot; control actions are disabled |
-| `manager-api` | `VITE_MANAGER_API_URL` | Read the live dashboard and use authenticated Web Control endpoints |
+| `public-snapshot` | `VITE_DASHBOARD_SNAPSHOT_URL` | Production read-only dashboard without an always-on Manager API |
+| `manager-api` | `VITE_MANAGER_API_URL` | Optional trusted deployment with authenticated Web Control features |
+| `mock` | none | Explicit local UI development only |
 
-Production defaults to `manager-api` and fails its build when the required URL is missing. It never silently falls back to mock data.
+Production defaults to `public-snapshot` and fails its build when the snapshot URL is missing. It never silently falls back to mock data.
 
-## Manager requirements
+`dashboard-snapshot.v2` includes workflow metadata, Paper runtime, cycle result, phase timeline, freshness, last successful run, masked account state, safe warnings, and a bounded public error. The frontend temporarily accepts `dashboard-snapshot.v1`, converts it to the same internal model, and emits a development-only deprecation warning.
 
-Manager_Agent must expose `/web-control/*` and configure:
+## Vercel production
+
+Use the Vite preset, `npm run build`, and output directory `dist`:
 
 ```env
-WEB_CONTROL_OPERATOR_TOKEN=<strong random secret entered by the operator>
-WEB_CONTROL_ALLOW_EXECUTION=false
-WEB_CONTROL_ALLOW_LIVE_EXECUTION=false
-WEB_CONTROL_CONFIRMATION_TTL_SECONDS=900
+VITE_DATA_SOURCE=public-snapshot
+VITE_MANAGER_API_URL=
+VITE_DASHBOARD_SNAPSHOT_URL=https://raw.githubusercontent.com/athipan1/Manager_Agent/dashboard-data/docs/dashboard/latest-dashboard-snapshot.json
+VITE_REFRESH_INTERVAL_MS=60000
 ```
 
-Keep `WEB_CONTROL_ALLOW_EXECUTION=false` until PAPER planning, finance persistence, Risk approval lookup, Database TradePlan compare-and-set lifecycle, and Execution_Agent have been verified end to end. LIVE web execution additionally requires Manager's existing LIVE switches and `WEB_CONTROL_ALLOW_LIVE_EXECUTION=true`.
+The Vercel Content Security Policy permits snapshot requests only to `raw.githubusercontent.com` and same-origin endpoints. When changing snapshot hosting, update both `VITE_DASHBOARD_SNAPSHOT_URL` and `vercel.json` deliberately.
+
+The client sends `cache: no-store`, adds a timestamp query parameter to bypass stale CDN responses, cancels obsolete requests, prevents overlapping polling, pauses while the tab is hidden, resumes when visible, and preserves the last valid snapshot when a refresh fails.
+
+## Dashboard behavior
+
+The Hourly Automation Status section shows:
+
+- latest run and run number
+- scheduled or manual trigger
+- Simulator or Alpaca Paper runtime
+- workflow and cycle conclusion
+- execution attempt, result, reason, candidates, positions, and open orders
+- last successful run
+- snapshot age and stale warning
+- privacy masking status
+- GitHub Actions run link
+- phase timeline from preflight through final reconciliation
+
+Timestamps use `Asia/Bangkok` for display while retaining absolute ISO timestamps in the contract. Statuses include text and icons, not color alone. The layout is mobile-first down to 320px and supports keyboard navigation and reduced motion.
+
+## Optional Web Control
+
+`manager-api` remains available for trusted environments that deploy Manager_Agent and need the existing finance or planning controls. The operator token is held only in React memory and is never persisted. In `public-snapshot` mode those controls are disabled and the dashboard remains read-only.
+
+Manager deployments must retain fail-closed controls such as:
+
+```env
+WEB_CONTROL_ALLOW_EXECUTION=false
+WEB_CONTROL_ALLOW_LIVE_EXECUTION=false
+```
+
+This frontend does not enable live trading or Profit automatic execution.
 
 ## Local development
 
@@ -50,47 +88,44 @@ npm ci
 npm run dev
 ```
 
-The checked-in local example explicitly selects `mock`. To use a local Manager:
+The checked-in local example selects mock mode. To test the production data path locally:
 
 ```env
-VITE_DATA_SOURCE=manager-api
-VITE_MANAGER_API_URL=http://localhost:8000
-VITE_DASHBOARD_SNAPSHOT_URL=
+VITE_DATA_SOURCE=public-snapshot
+VITE_DASHBOARD_SNAPSHOT_URL=https://raw.githubusercontent.com/athipan1/Manager_Agent/dashboard-data/docs/dashboard/latest-dashboard-snapshot.json
 VITE_REFRESH_INTERVAL_MS=60000
 ```
+
+## Contract fixtures
+
+`tests/fixtures/dashboard/` contains copied public contract fixtures for:
+
+```text
+success.json
+no-candidate.json
+risk-rejected.json
+execution-success.json
+execution-failure.json
+workflow-failure.json
+cancelled.json
+stale.json
+masked.json
+```
+
+Vitest imports every fixture through the real normalizer. Playwright serves the same fixtures as the public snapshot endpoint. This keeps tests reproducible and prevents CI from depending on an unpinned `main` branch.
 
 ## Validation
 
 ```bash
+npm ci
 npm run lint
 npm test
-VITE_DATA_SOURCE=manager-api VITE_MANAGER_API_URL=/api npm run build
+VITE_DATA_SOURCE=public-snapshot \
+VITE_DASHBOARD_SNAPSHOT_URL=https://raw.githubusercontent.com/athipan1/Manager_Agent/dashboard-data/docs/dashboard/latest-dashboard-snapshot.json \
+npm run build
 npm run check:bundle
 npm audit --omit=dev --audit-level=high
 npm run test:e2e
 ```
 
-The production dependency audit remains blocking. The ESLint development-tool migration is tracked separately because the current React lint plugin is not yet compatible with ESLint 10.
-
-## Docker Compose
-
-Manager_Agent owns `docker-compose.frontend.yml`. It builds this image with `VITE_MANAGER_API_URL=/api`; Nginx proxies that same-origin path to Manager inside the Docker network. Open `http://localhost:5173` after starting the `dashboard` profile.
-
-The image is a pinned Node multi-stage build served by non-root Nginx on port `8080`. `/healthz` is the container health endpoint. API responses are never cached; hashed static assets are cached immutably.
-
-## Vercel production
-
-Use the Vite preset, `npm run build`, and output directory `dist`:
-
-```env
-VITE_DATA_SOURCE=manager-api
-VITE_MANAGER_API_URL=https://manager.example.com
-VITE_DASHBOARD_SNAPSHOT_URL=
-VITE_REFRESH_INTERVAL_MS=60000
-```
-
-Manager must expose HTTPS and include the Vercel origin in `DASHBOARD_CORS_ALLOWED_ORIGINS`. Never put API keys, Alpaca credentials, database URLs, internal tokens, or the operator token in a `VITE_*` variable: Vite variables are public JavaScript.
-
-The current rollout is intentionally single-account (`account_id=1`) and uses deterministic financial guidance. Adding user login, multi-account authorization, and a hosted language model requires a separate security and privacy design.
-
-See [README_MVP.md](README_MVP.md) for existing dashboard behavior details and [docs/realtime-api-plan.md](docs/realtime-api-plan.md) for deployment boundaries.
+The production dependency audit remains blocking. See [README_MVP.md](README_MVP.md) for legacy dashboard details and [docs/realtime-api-plan.md](docs/realtime-api-plan.md) for optional real-time deployment boundaries.

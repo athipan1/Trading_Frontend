@@ -67,7 +67,7 @@ function parseRefreshInterval(value) {
 
 export function resolveDashboardConfig(env = {}, { isProduction = false } = {}) {
   const configuredSource = text(env.VITE_DATA_SOURCE).toLowerCase();
-  const dataSource = configuredSource || (isProduction ? DATA_SOURCES.MANAGER_API : DATA_SOURCES.MOCK);
+  const dataSource = configuredSource || (isProduction ? DATA_SOURCES.PUBLIC_SNAPSHOT : DATA_SOURCES.MOCK);
 
   if (!SUPPORTED_DATA_SOURCES.has(dataSource)) {
     throw new DashboardConfigError(
