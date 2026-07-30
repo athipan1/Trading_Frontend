@@ -1,0 +1,83 @@
+name: Production Deployment Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '35 */6 * * *'
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trading-frontend-production-smoke
+  cancel-in-progress: true
+
+jobs:
+  verify-production:
+    name: Verify Vercel public snapshot deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PRODUCTION_URL: https://trading-frontend-wheat-pi.vercel.app/
+      PRODUCTION_SMOKE_ATTEMPTS: '24'
+      PRODUCTION_SMOKE_DELAY_MS: '15000'
+      PRODUCTION_SMOKE_NAVIGATION_TIMEOUT_MS: '30000'
+      PRODUCTION_SMOKE_ARTIFACT_DIR: production-smoke-artifacts
+
+    steps:
+      - name: Checkout Trading_Frontend
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.17.0
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install pinned Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Open production and verify Manager snapshot
+        run: node scripts/check-production-ui.mjs
+
+      - name: Publish smoke summary
+        if: always()
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const path = 'production-smoke-artifacts/report.json';
+          if (!fs.existsSync(path)) {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '# Production smoke\n\n❌ Report was not generated.\n');
+            process.exit(0);
+          }
+          const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const clean = (value) => String(value ?? '-').replace(/[\r\n|`]/g, ' ');
+          const lines = [
+            '# Trading_Frontend production smoke',
+            '',
+            `- Status: ${report.connected ? '✅ Connected' : '❌ Failed'}`,
+            `- Production: \`${clean(report.productionUrl)}\``,
+            `- Data source: \`${clean(report.dataSourceText)}\``,
+            `- Schema: \`${clean(report.schemaText)}\``,
+            `- Manager snapshot HTTP: ${clean(report.managerSnapshotStatus)}`,
+            `- Operator control exposed: \`${clean(report.operatorControlExposed)}\``,
+            `- Attempts: ${clean(report.attemptsUsed)}`,
+          ];
+          const errors = Array.isArray(report.errors) ? report.errors.map((item) => item.message || item).join('; ') : '';
+          if (errors) lines.push(`- Error: ${clean(errors)}`);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
+          NODE
+
+      - name: Upload production smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trading-frontend-production-smoke
+          path: production-smoke-artifacts
+          if-no-files-found: error
+          retention-days: 14
