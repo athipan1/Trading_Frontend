@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "check:bundle": "node scripts/check-bundle-secrets.mjs"
+    "check:bundle": "node scripts/check-bundle-secrets.mjs",
+    "check:manager-connection": "node scripts/check-manager-connection.mjs"
   },
   "dependencies": {
     "lucide-react": "1.25.0",
