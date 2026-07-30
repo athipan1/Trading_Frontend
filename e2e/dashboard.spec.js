@@ -42,7 +42,7 @@ test('renders workflow failure and preserves the last successful run', async ({ 
   await page.goto('/');
   await expect(page.getByTestId('hourly-automation-status')).toContainText('failure');
   await expect(page.getByText('Hourly Auto Trading did not complete successfully.')).toBeVisible();
-  await expect(page.getByTestId('hourly-automation-status')).toContainText('29 ก.ค.');
+  await expect(page.getByTestId('hourly-automation-status')).toContainText('30 ก.ค. 2569 06:00:00');
 });
 
 test('renders cancelled workflow and stale warning states', async ({ page }) => {
