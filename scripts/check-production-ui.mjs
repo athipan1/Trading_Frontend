@@ -1,0 +1,152 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import { chromium } from '@playwright/test';
+
+const DEFAULT_URL = 'https://trading-frontend-wheat-pi.vercel.app/';
+const MANAGER_SNAPSHOT_URL =
+  'https://raw.githubusercontent.com/athipan1/Manager_Agent/dashboard-data/docs/dashboard/latest-dashboard-snapshot.json';
+const DEFAULT_ATTEMPTS = 24;
+const DEFAULT_DELAY_MS = 15_000;
+const DEFAULT_NAVIGATION_TIMEOUT_MS = 30_000;
+
+function positiveInteger(value, fallback, name) {
+  if (value === undefined || value === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${name} must be a positive integer`);
+  return parsed;
+}
+
+function approvedProductionUrl(value) {
+  const url = new URL(value || DEFAULT_URL);
+  if (url.protocol !== 'https:') throw new Error('Production URL must use HTTPS');
+  if (url.hostname !== 'trading-frontend-wheat-pi.vercel.app') {
+    throw new Error('Production URL must be trading-frontend-wheat-pi.vercel.app');
+  }
+  if (url.username || url.password || url.hash) throw new Error('Production URL must not contain credentials or fragments');
+  url.pathname = '/';
+  url.search = '';
+  return url;
+}
+
+function sanitizeMessage(error) {
+  return (error instanceof Error ? error.message : String(error))
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 500);
+}
+
+async function inspectPage(page, targetUrl, navigationTimeoutMs) {
+  let managerResponse = null;
+  const responseListener = (response) => {
+    if (response.url().split('?')[0] === MANAGER_SNAPSHOT_URL) {
+      managerResponse = { status: response.status(), url: response.url() };
+    }
+  };
+  page.on('response', responseListener);
+
+  try {
+    const pageResponse = await page.goto(`${targetUrl.toString()}?smoke=${Date.now()}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: navigationTimeoutMs,
+    });
+    if (!pageResponse) throw new Error('Production page did not return an HTTP response');
+    if (pageResponse.status() >= 400) throw new Error(`Production page returned HTTP ${pageResponse.status()}`);
+
+    const dataSource = page.getByTestId('data-source');
+    await dataSource.waitFor({ state: 'visible', timeout: navigationTimeoutMs });
+    await page.getByTestId('schema-version').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
+
+    const dataSourceText = (await dataSource.textContent())?.trim() ?? '';
+    const schemaText = (await page.getByTestId('schema-version').textContent())?.trim() ?? '';
+    const alertTexts = await page.locator('[role="alert"]').allTextContents();
+    const operatorInputCount = await page.locator('input[placeholder="ใส่ WEB_CONTROL_OPERATOR_TOKEN"]').count();
+    const readOnlyBannerCount = await page.locator('[aria-label="Read-only public snapshot mode"]').count();
+
+    if (!dataSourceText.includes('public-snapshot')) {
+      throw new Error(`Production data source is not public-snapshot: ${dataSourceText || '(empty)'}`);
+    }
+    if (!schemaText.includes('dashboard-snapshot.v2')) {
+      throw new Error(`Production schema is not dashboard-snapshot.v2: ${schemaText || '(empty)'}`);
+    }
+    if (alertTexts.length > 0) throw new Error(`Production UI reports an error: ${alertTexts.join(' | ')}`);
+    if (operatorInputCount !== 0) throw new Error('Operator token control must not be exposed in public snapshot mode');
+    if (readOnlyBannerCount !== 1) throw new Error('Read-only public snapshot banner is missing');
+    if (!managerResponse) throw new Error('Browser did not request the Manager_Agent public snapshot');
+    if (managerResponse.status !== 200) throw new Error(`Manager_Agent snapshot returned HTTP ${managerResponse.status}`);
+
+    return {
+      connected: true,
+      pageStatus: pageResponse.status(),
+      dataSourceText,
+      schemaText,
+      managerSnapshotStatus: managerResponse.status,
+      managerSnapshotUrl: MANAGER_SNAPSHOT_URL,
+      operatorControlExposed: false,
+      readOnlyBannerVisible: true,
+    };
+  } finally {
+    page.off('response', responseListener);
+  }
+}
+
+async function main() {
+  const targetUrl = approvedProductionUrl(process.env.PRODUCTION_URL);
+  const attempts = positiveInteger(process.env.PRODUCTION_SMOKE_ATTEMPTS, DEFAULT_ATTEMPTS, 'PRODUCTION_SMOKE_ATTEMPTS');
+  const delayMs = positiveInteger(process.env.PRODUCTION_SMOKE_DELAY_MS, DEFAULT_DELAY_MS, 'PRODUCTION_SMOKE_DELAY_MS');
+  const navigationTimeoutMs = positiveInteger(
+    process.env.PRODUCTION_SMOKE_NAVIGATION_TIMEOUT_MS,
+    DEFAULT_NAVIGATION_TIMEOUT_MS,
+    'PRODUCTION_SMOKE_NAVIGATION_TIMEOUT_MS',
+  );
+  const artifactDirectory = process.env.PRODUCTION_SMOKE_ARTIFACT_DIR || 'production-smoke-artifacts';
+  await mkdir(artifactDirectory, { recursive: true });
+
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ locale: 'th-TH', timezoneId: 'Asia/Bangkok' });
+  const page = await context.newPage();
+  const failures = [];
+  let result = null;
+
+  try {
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      try {
+        const inspection = await inspectPage(page, targetUrl, navigationTimeoutMs);
+        result = {
+          ...inspection,
+          checkedAt: new Date().toISOString(),
+          productionUrl: targetUrl.toString(),
+          attemptsUsed: attempt,
+          errors: [],
+        };
+        break;
+      } catch (error) {
+        const message = sanitizeMessage(error);
+        failures.push({ attempt, message, at: new Date().toISOString() });
+        console.error(`Production smoke attempt ${attempt}/${attempts} failed: ${message}`);
+        if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+
+    if (!result) {
+      await page.screenshot({ path: `${artifactDirectory}/failure.png`, fullPage: true }).catch(() => {});
+      result = {
+        connected: false,
+        checkedAt: new Date().toISOString(),
+        productionUrl: targetUrl.toString(),
+        attemptsUsed: attempts,
+        errors: failures,
+      };
+    } else {
+      await page.screenshot({ path: `${artifactDirectory}/success.png`, fullPage: true });
+    }
+  } finally {
+    await context.close();
+    await browser.close();
+  }
+
+  await writeFile(`${artifactDirectory}/report.json`, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
+  console.log(JSON.stringify(result, null, 2));
+  if (!result.connected) process.exitCode = 1;
+}
+
+await main();
