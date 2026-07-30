@@ -2,6 +2,8 @@ import { formatCurrency, pnlClassName } from '../utils/formatters';
 
 export default function PositionsTable({ positions, openOrders, t }) {
   const orderBySymbol = new Map(openOrders.map((order) => [order.symbol, order]));
+  const displayNumber = (value, masked) => (masked || value === null ? t.masked : value);
+  const displayCurrency = (value, masked) => (masked || value === null ? t.masked : formatCurrency(value));
 
   return (
     <section className="panel">
@@ -28,14 +30,15 @@ export default function PositionsTable({ positions, openOrders, t }) {
           <tbody>
             {positions.map((position) => {
               const order = orderBySymbol.get(position.symbol);
+              const masked = Boolean(position.valuesMasked);
               return (
                 <tr key={position.symbol}>
                   <td className="symbol">{position.symbol}</td>
                   <td><span className="bucket">{position.bucket}</span></td>
-                  <td>{position.quantity}</td>
-                  <td>{formatCurrency(position.averageCost)}</td>
-                  <td>{formatCurrency(position.currentPrice)}</td>
-                  <td className={pnlClassName(position.unrealizedPnL)}>{formatCurrency(position.unrealizedPnL)}</td>
+                  <td>{displayNumber(position.quantity, masked)}</td>
+                  <td>{displayCurrency(position.averageCost, masked)}</td>
+                  <td>{displayCurrency(position.currentPrice, masked)}</td>
+                  <td className={masked ? 'neutral' : pnlClassName(position.unrealizedPnL)}>{displayCurrency(position.unrealizedPnL, masked)}</td>
                   <td>{order?.orderClass === 'bracket' ? <span className="status good">{t.protected}</span> : <span className="status warn">{t.needsReview}</span>}</td>
                 </tr>
               );
