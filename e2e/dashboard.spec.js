@@ -67,7 +67,7 @@ test('keeps the previous snapshot when a refresh returns HTTP 500', async ({ pag
   await page.goto('/');
   await expect(page.getByText('ACGL').first()).toBeVisible();
   await page.getByRole('button', { name: 'รีเฟรชตอนนี้' }).click();
-  await expect(page.getByRole('alert')).toContainText('HTTP 500');
+  await expect(page.locator('.error-banner')).toContainText('HTTP 500');
   await expect(page.getByText('ACGL').first()).toBeVisible();
 });
 
