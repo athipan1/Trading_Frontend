@@ -7,6 +7,14 @@ on:
         description: Maximum accepted Manager snapshot age
         required: false
         default: '180'
+      freshness_policy:
+        description: Treat stale upstream data as a warning or a failure
+        required: false
+        type: choice
+        options:
+          - warn
+          - fail
+        default: warn
   schedule:
     - cron: '20 * * * *'
   pull_request:
@@ -45,6 +53,7 @@ jobs:
       MANAGER_CONNECTION_TIMEOUT_MS: '15000'
       MANAGER_CONNECTION_RETRIES: '3'
       MANAGER_SNAPSHOT_MAX_AGE_MINUTES: ${{ github.event.inputs.max_age_minutes || '180' }}
+      MANAGER_SNAPSHOT_FRESHNESS_POLICY: ${{ github.event.inputs.freshness_policy || 'warn' }}
 
     steps:
       - name: Checkout Trading_Frontend
@@ -77,21 +86,34 @@ jobs:
         run: |
           node - <<'NODE'
           const fs = require('node:fs');
-          const report = JSON.parse(fs.readFileSync('manager-connection-report.json', 'utf8'));
+          const path = 'manager-connection-report.json';
+          if (!fs.existsSync(path)) {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '# Manager_Agent connection\n\n❌ Report was not generated.\n');
+            process.exit(0);
+          }
+          const report = JSON.parse(fs.readFileSync(path, 'utf8'));
           const clean = (value) => String(value ?? '-').replace(/[\r\n|`]/g, ' ');
+          const stale = report.freshness?.isStale === true;
+          const status = report.connected
+            ? stale
+              ? '⚠️ Connected, upstream data stale'
+              : '✅ Connected and fresh'
+            : '❌ Failed';
           const lines = [
             '# Manager_Agent connection',
             '',
-            `- Status: ${report.connected ? '✅ Connected' : '❌ Failed'}`,
+            `- Status: ${status}`,
             `- Endpoint: \`${clean(report.endpoint)}\``,
             `- HTTP: ${clean(report.httpStatus)}`,
             `- CORS: \`${clean(report.corsAllowOrigin)}\``,
             `- Schema: \`${clean(report.schemaVersion)}\``,
             `- Snapshot age: ${clean(report.ageMinutes)} minutes`,
+            `- Freshness policy: \`${clean(report.freshness?.policy)}\``,
             `- Manager run: ${clean(report.workflow?.runNumber)}`,
             `- Manager conclusion: \`${clean(report.workflow?.conclusion)}\``,
             `- Live trading enabled: \`${clean(report.runtime?.liveTradingEnabled)}\``,
           ];
+          if (report.warnings?.length) lines.push(`- Warning: ${clean(report.warnings.join('; '))}`);
           if (report.errors?.length) lines.push(`- Error: ${clean(report.errors.join('; '))}`);
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
           NODE
