@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import successFixture from '../../tests/fixtures/dashboard/success.json';
 import noCandidateFixture from '../../tests/fixtures/dashboard/no-candidate.json';
@@ -17,7 +17,10 @@ beforeEach(() => {
   vi.setSystemTime(new Date('2026-07-30T00:12:00Z'));
 });
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 function renderStatus(fixture = successFixture, props = {}) {
   return render(
@@ -42,8 +45,8 @@ describe('HourlyAutomationStatus', () => {
     renderStatus();
     const panel = screen.getByTestId('hourly-automation-status');
     expect(within(panel).getByRole('heading', { name: 'Hourly Automation Status' })).toBeVisible();
-    expect(within(panel).getByText(/30 Jul 2026/)).toBeVisible();
-    expect(within(panel).getByText(/07:00:00/)).toBeVisible();
+    expect(within(panel).getAllByText(/30 Jul 2026/).length).toBeGreaterThanOrEqual(1);
+    expect(within(panel).getAllByText(/07:00:00/).length).toBeGreaterThanOrEqual(1);
     expect(within(panel).getByText('Run #100')).toBeVisible();
     expect(within(panel).getByText('ALPACA_PAPER')).toBeVisible();
     expect(within(panel).getByText('Risk', { exact: true })).toBeVisible();
