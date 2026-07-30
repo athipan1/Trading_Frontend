@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "dashboard-snapshot.v2",
+  "generatedAt": "2026-07-30T00:00:00Z",
+  "workflow": { "runId": 1002, "runNumber": 102, "runUrl": "https://github.com/athipan1/Manager_Agent/actions/runs/1002", "eventName": "schedule", "status": "completed", "conclusion": "success", "startedAt": "2026-07-29T23:54:00Z", "completedAt": "2026-07-30T00:00:00Z", "durationSeconds": 360 },
+  "runtime": { "mode": "ALPACA_PAPER", "brokerMode": "ALPACA", "dryRun": false, "liveTradingEnabled": false, "flow": "hourly_portfolio_cycle" },
+  "cycle": { "id": "cycle-102", "status": "success", "marketMode": "REGULAR", "candidateCount": 1, "selectedSymbols": ["ACGL"], "executionAttempted": false, "executionStatus": "not_attempted", "executionReason": "risk_rejected", "partialFillDetected": false },
+  "phases": [
+    { "name": "preflight", "status": "success", "message": null },
+    { "name": "scanner", "status": "success", "message": "Candidate selected" },
+    { "name": "backtest", "status": "success", "message": null },
+    { "name": "risk", "status": "failure", "message": "Risk policy rejected candidate" },
+    { "name": "execution", "status": "not_attempted", "message": "risk_rejected" },
+    { "name": "final_reconciliation", "status": "success", "message": null }
+  ],
+  "account": { "cash": null, "equity": null, "buyingPower": null, "status": "ACTIVE", "lastSyncedAt": "2026-07-30T00:00:00Z", "valuesMasked": true },
+  "summary": { "positionCount": 0, "openOrderCount": 0, "candidateCount": 1, "executionStatus": "not_attempted", "executionReason": "risk_rejected" },
+  "positions": [], "openOrders": [], "signals": [], "warnings": [], "error": null,
+  "lastSuccessfulRun": { "generatedAt": "2026-07-30T00:00:00Z", "runId": 1002, "runNumber": 102, "cycleStatus": "success" },
+  "freshness": { "expectedIntervalMinutes": 60, "ageMinutes": 5, "isStale": false, "staleAfterMinutes": 120 },
+  "privacy": { "mode": "masked", "valuesMasked": true }
+}
