@@ -1,4 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import { chromium } from '@playwright/test';
 
 const DEFAULT_URL = 'https://trading-frontend-wheat-pi.vercel.app/';
@@ -7,11 +8,14 @@ const MANAGER_SNAPSHOT_URL =
 const DEFAULT_ATTEMPTS = 24;
 const DEFAULT_DELAY_MS = 15_000;
 const DEFAULT_NAVIGATION_TIMEOUT_MS = 30_000;
+const ALLOWED_RUNTIME_MODES = new Set(['PAPER', 'SIMULATOR']);
 
 function positiveInteger(value, fallback, name) {
   if (value === undefined || value === '') return fallback;
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${name} must be a positive integer`);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer`);
+  }
   return parsed;
 }
 
@@ -21,7 +25,9 @@ function approvedProductionUrl(value) {
   if (url.hostname !== 'trading-frontend-wheat-pi.vercel.app') {
     throw new Error('Production URL must be trading-frontend-wheat-pi.vercel.app');
   }
-  if (url.username || url.password || url.hash) throw new Error('Production URL must not contain credentials or fragments');
+  if (url.username || url.password || url.hash) {
+    throw new Error('Production URL must not contain credentials or fragments');
+  }
   url.pathname = '/';
   url.search = '';
   return url;
@@ -35,7 +41,23 @@ function sanitizeMessage(error) {
     .slice(0, 500);
 }
 
-async function inspectPage(page, targetUrl, navigationTimeoutMs) {
+export function evaluateUiStatus({ errorBannerTexts = [], staleBannerCount = 0 }) {
+  const applicationErrors = errorBannerTexts
+    .map((value) => String(value || '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  if (applicationErrors.length > 0) {
+    throw new Error(`Production UI reports a data-load error: ${applicationErrors.join(' | ')}`);
+  }
+  const staleDataVisible = Number(staleBannerCount) > 0;
+  return {
+    staleDataVisible,
+    warnings: staleDataVisible
+      ? ['Production UI is healthy but displays a stale Manager snapshot warning.']
+      : [],
+  };
+}
+
+export async function inspectPage(page, targetUrl, navigationTimeoutMs) {
   let managerResponse = null;
   const responseListener = (response) => {
     if (response.url().split('?')[0] === MANAGER_SNAPSHOT_URL) {
@@ -49,40 +71,78 @@ async function inspectPage(page, targetUrl, navigationTimeoutMs) {
       waitUntil: 'domcontentloaded',
       timeout: navigationTimeoutMs,
     });
-    if (!pageResponse) throw new Error('Production page did not return an HTTP response');
-    if (pageResponse.status() >= 400) throw new Error(`Production page returned HTTP ${pageResponse.status()}`);
+    if (!pageResponse) {
+      throw new Error('Production page did not return an HTTP response');
+    }
+    if (pageResponse.status() >= 400) {
+      throw new Error(`Production page returned HTTP ${pageResponse.status()}`);
+    }
 
     const dataSource = page.getByTestId('data-source');
+    const schemaVersion = page.getByTestId('schema-version');
+    const tradingMode = page.getByTestId('trading-mode');
     await dataSource.waitFor({ state: 'visible', timeout: navigationTimeoutMs });
-    await page.getByTestId('schema-version').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
+    await schemaVersion.waitFor({ state: 'visible', timeout: navigationTimeoutMs });
+    await tradingMode.waitFor({ state: 'visible', timeout: navigationTimeoutMs });
 
     const dataSourceText = (await dataSource.textContent())?.trim() ?? '';
-    const schemaText = (await page.getByTestId('schema-version').textContent())?.trim() ?? '';
-    const alertTexts = await page.locator('[role="alert"]').allTextContents();
-    const operatorInputCount = await page.locator('input[placeholder="ใส่ WEB_CONTROL_OPERATOR_TOKEN"]').count();
-    const readOnlyBannerCount = await page.locator('[aria-label="Read-only public snapshot mode"]').count();
+    const schemaText = (await schemaVersion.textContent())?.trim() ?? '';
+    const runtimeModeText = (await tradingMode.textContent())?.trim().toUpperCase() ?? '';
+    const errorBannerTexts = await page
+      .locator('.error-banner[role="alert"]')
+      .allTextContents();
+    const staleBannerCount = await page
+      .locator('.stale-banner[role="alert"]')
+      .count();
+    const operatorInputCount = await page
+      .locator('input[placeholder="ใส่ WEB_CONTROL_OPERATOR_TOKEN"]')
+      .count();
+    const readOnlyBannerCount = await page
+      .locator('[aria-label="Read-only public snapshot mode"]')
+      .count();
+    const uiStatus = evaluateUiStatus({ errorBannerTexts, staleBannerCount });
 
     if (!dataSourceText.includes('public-snapshot')) {
-      throw new Error(`Production data source is not public-snapshot: ${dataSourceText || '(empty)'}`);
+      throw new Error(
+        `Production data source is not public-snapshot: ${dataSourceText || '(empty)'}`,
+      );
     }
     if (!schemaText.includes('dashboard-snapshot.v2')) {
-      throw new Error(`Production schema is not dashboard-snapshot.v2: ${schemaText || '(empty)'}`);
+      throw new Error(
+        `Production schema is not dashboard-snapshot.v2: ${schemaText || '(empty)'}`,
+      );
     }
-    if (alertTexts.length > 0) throw new Error(`Production UI reports an error: ${alertTexts.join(' | ')}`);
-    if (operatorInputCount !== 0) throw new Error('Operator token control must not be exposed in public snapshot mode');
-    if (readOnlyBannerCount !== 1) throw new Error('Read-only public snapshot banner is missing');
-    if (!managerResponse) throw new Error('Browser did not request the Manager_Agent public snapshot');
-    if (managerResponse.status !== 200) throw new Error(`Manager_Agent snapshot returned HTTP ${managerResponse.status}`);
+    if (!ALLOWED_RUNTIME_MODES.has(runtimeModeText)) {
+      throw new Error(
+        `Production runtime mode must be PAPER or SIMULATOR: ${runtimeModeText || '(empty)'}`,
+      );
+    }
+    if (operatorInputCount !== 0) {
+      throw new Error(
+        'Operator token control must not be exposed in public snapshot mode',
+      );
+    }
+    if (readOnlyBannerCount !== 1) {
+      throw new Error('Read-only public snapshot banner is missing');
+    }
+    if (!managerResponse) {
+      throw new Error('Browser did not request the Manager_Agent public snapshot');
+    }
+    if (managerResponse.status !== 200) {
+      throw new Error(`Manager_Agent snapshot returned HTTP ${managerResponse.status}`);
+    }
 
     return {
       connected: true,
       pageStatus: pageResponse.status(),
       dataSourceText,
       schemaText,
+      runtimeModeText,
       managerSnapshotStatus: managerResponse.status,
       managerSnapshotUrl: MANAGER_SNAPSHOT_URL,
       operatorControlExposed: false,
       readOnlyBannerVisible: true,
+      ...uiStatus,
     };
   } finally {
     page.off('response', responseListener);
@@ -91,18 +151,30 @@ async function inspectPage(page, targetUrl, navigationTimeoutMs) {
 
 async function main() {
   const targetUrl = approvedProductionUrl(process.env.PRODUCTION_URL);
-  const attempts = positiveInteger(process.env.PRODUCTION_SMOKE_ATTEMPTS, DEFAULT_ATTEMPTS, 'PRODUCTION_SMOKE_ATTEMPTS');
-  const delayMs = positiveInteger(process.env.PRODUCTION_SMOKE_DELAY_MS, DEFAULT_DELAY_MS, 'PRODUCTION_SMOKE_DELAY_MS');
+  const attempts = positiveInteger(
+    process.env.PRODUCTION_SMOKE_ATTEMPTS,
+    DEFAULT_ATTEMPTS,
+    'PRODUCTION_SMOKE_ATTEMPTS',
+  );
+  const delayMs = positiveInteger(
+    process.env.PRODUCTION_SMOKE_DELAY_MS,
+    DEFAULT_DELAY_MS,
+    'PRODUCTION_SMOKE_DELAY_MS',
+  );
   const navigationTimeoutMs = positiveInteger(
     process.env.PRODUCTION_SMOKE_NAVIGATION_TIMEOUT_MS,
     DEFAULT_NAVIGATION_TIMEOUT_MS,
     'PRODUCTION_SMOKE_NAVIGATION_TIMEOUT_MS',
   );
-  const artifactDirectory = process.env.PRODUCTION_SMOKE_ARTIFACT_DIR || 'production-smoke-artifacts';
+  const artifactDirectory =
+    process.env.PRODUCTION_SMOKE_ARTIFACT_DIR || 'production-smoke-artifacts';
   await mkdir(artifactDirectory, { recursive: true });
 
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ locale: 'th-TH', timezoneId: 'Asia/Bangkok' });
+  const context = await browser.newContext({
+    locale: 'th-TH',
+    timezoneId: 'Asia/Bangkok',
+  });
   const page = await context.newPage();
   const failures = [];
   let result = null;
@@ -122,31 +194,45 @@ async function main() {
       } catch (error) {
         const message = sanitizeMessage(error);
         failures.push({ attempt, message, at: new Date().toISOString() });
-        console.error(`Production smoke attempt ${attempt}/${attempts} failed: ${message}`);
-        if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, delayMs));
+        console.error(
+          `Production smoke attempt ${attempt}/${attempts} failed: ${message}`,
+        );
+        if (attempt < attempts) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
       }
     }
 
     if (!result) {
-      await page.screenshot({ path: `${artifactDirectory}/failure.png`, fullPage: true }).catch(() => {});
+      await page
+        .screenshot({ path: `${artifactDirectory}/failure.png`, fullPage: true })
+        .catch(() => {});
       result = {
         connected: false,
         checkedAt: new Date().toISOString(),
         productionUrl: targetUrl.toString(),
         attemptsUsed: attempts,
+        warnings: [],
         errors: failures,
       };
     } else {
-      await page.screenshot({ path: `${artifactDirectory}/success.png`, fullPage: true });
+      await page.screenshot({
+        path: `${artifactDirectory}/success.png`,
+        fullPage: true,
+      });
     }
   } finally {
     await context.close();
     await browser.close();
   }
 
-  await writeFile(`${artifactDirectory}/report.json`, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
+  await writeFile(
+    `${artifactDirectory}/report.json`,
+    `${JSON.stringify(result, null, 2)}\n`,
+    'utf8',
+  );
   console.log(JSON.stringify(result, null, 2));
   if (!result.connected) process.exitCode = 1;
 }
 
-await main();
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) await main();
