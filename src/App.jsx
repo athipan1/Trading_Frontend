@@ -44,7 +44,11 @@ function formatUpdatedAt(value, language, fallback) {
 function safeRefreshError(error, language) {
   const fallback = language === 'th' ? 'โหลด Snapshot ไม่สำเร็จ' : 'Snapshot refresh failed';
   const message = typeof error?.message === 'string' ? error.message : fallback;
-  return message.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180) || fallback;
+  const printable = Array.from(message, (character) => {
+    const code = character.charCodeAt(0);
+    return code <= 31 || code === 127 ? ' ' : character;
+  }).join('');
+  return printable.replace(/\s+/g, ' ').trim().slice(0, 180) || fallback;
 }
 
 function PortfolioOverview({ snapshot, language, t, isLoading, isRefreshing, refresh }) {
