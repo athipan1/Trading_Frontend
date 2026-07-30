@@ -20,7 +20,7 @@ function createSnapshot(overrides = {}) {
     },
     runtime: {
       mode: 'PAPER',
-      brokerMode: 'PAPER',
+      brokerMode: 'ALPACA',
       liveTradingEnabled: false,
     },
     cycle: {},
@@ -48,30 +48,80 @@ describe('Manager connection validation', () => {
   });
 
   it('accepts a fresh masked snapshot with live trading disabled', () => {
-    expect(validateSnapshot(createSnapshot(), { nowMs: NOW, maxAgeMinutes: 180 })).toMatchObject({
+    expect(
+      validateSnapshot(createSnapshot(), {
+        nowMs: NOW,
+        maxAgeMinutes: 180,
+        freshnessPolicy: 'fail',
+      }),
+    ).toMatchObject({
       schemaVersion: 'dashboard-snapshot.v2',
       ageMinutes: 60,
       runtime: { liveTradingEnabled: false },
       privacy: { mode: 'masked', valuesMasked: true },
+      freshness: { isStale: false, policy: 'fail', warnings: [] },
     });
   });
 
-  it('rejects stale snapshots', () => {
-    expect(() => validateSnapshot(createSnapshot({ generatedAt: '2026-07-30T00:00:00Z' }), {
-      nowMs: NOW,
-      maxAgeMinutes: 180,
-    })).toThrow('stale');
+  it('reports stale upstream data as a warning when connectivity policy is warn', () => {
+    const result = validateSnapshot(
+      createSnapshot({ generatedAt: '2026-07-30T00:00:00Z' }),
+      {
+        nowMs: NOW,
+        maxAgeMinutes: 180,
+        freshnessPolicy: 'warn',
+      },
+    );
+
+    expect(result.freshness).toMatchObject({ isStale: true, policy: 'warn' });
+    expect(result.warnings[0]).toContain('stale');
+    expect(result.runtime.liveTradingEnabled).toBe(false);
   });
 
-  it('fails closed when live trading is enabled', () => {
-    expect(() => validateSnapshot(createSnapshot({
-      runtime: { mode: 'LIVE', brokerMode: 'LIVE', liveTradingEnabled: true },
-    }), { nowMs: NOW })).toThrow('liveTradingEnabled');
+  it('rejects stale snapshots when strict freshness is requested', () => {
+    expect(() =>
+      validateSnapshot(createSnapshot({ generatedAt: '2026-07-30T00:00:00Z' }), {
+        nowMs: NOW,
+        maxAgeMinutes: 180,
+        freshnessPolicy: 'fail',
+      }),
+    ).toThrow('stale');
+  });
+
+  it('preserves a publisher stale warning even when age is within the local limit', () => {
+    const result = validateSnapshot(
+      createSnapshot({
+        freshness: {
+          expectedIntervalMinutes: 60,
+          staleAfterMinutes: 120,
+          isStale: true,
+        },
+      }),
+      { nowMs: NOW, maxAgeMinutes: 180, freshnessPolicy: 'warn' },
+    );
+
+    expect(result.freshness.isStale).toBe(true);
+    expect(result.warnings).toContain('Manager snapshot reports freshness.isStale=true');
+  });
+
+  it('fails closed when live trading is enabled even under warning freshness policy', () => {
+    expect(() =>
+      validateSnapshot(
+        createSnapshot({
+          generatedAt: '2026-07-30T00:00:00Z',
+          runtime: { mode: 'LIVE', brokerMode: 'LIVE', liveTradingEnabled: true },
+        }),
+        { nowMs: NOW, freshnessPolicy: 'warn' },
+      ),
+    ).toThrow('liveTradingEnabled');
   });
 
   it('rejects sensitive fields in the public payload', () => {
-    expect(() => validateSnapshot(createSnapshot({ token: 'not-public' }), { nowMs: NOW })).toThrow(
-      'Forbidden sensitive field',
-    );
+    expect(() =>
+      validateSnapshot(createSnapshot({ token: 'not-public' }), {
+        nowMs: NOW,
+        freshnessPolicy: 'warn',
+      }),
+    ).toThrow('Forbidden sensitive field');
   });
 });
