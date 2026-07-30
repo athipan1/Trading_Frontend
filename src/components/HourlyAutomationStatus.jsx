@@ -10,18 +10,15 @@ import {
   XCircle,
 } from 'lucide-react';
 
-const STATUS_ICONS = {
-  success: CheckCircle2,
-  completed: CheckCircle2,
-  running: RefreshCw,
-  pending: Clock3,
-  warning: TriangleAlert,
-  skipped: Ban,
-  not_attempted: CircleDashed,
-  failure: XCircle,
-  cancelled: Ban,
-  unknown: CircleDashed,
-};
+function StatusIcon({ status }) {
+  if (status === 'success' || status === 'completed') return <CheckCircle2 aria-hidden="true" />;
+  if (status === 'running') return <RefreshCw aria-hidden="true" />;
+  if (status === 'pending') return <Clock3 aria-hidden="true" />;
+  if (status === 'warning') return <TriangleAlert aria-hidden="true" />;
+  if (status === 'failure') return <XCircle aria-hidden="true" />;
+  if (status === 'cancelled' || status === 'skipped') return <Ban aria-hidden="true" />;
+  return <CircleDashed aria-hidden="true" />;
+}
 
 const COPY = {
   th: {
@@ -42,10 +39,6 @@ const PHASE_LABELS = {
   execution: ['Execution', 'Execution'],
   final_reconciliation: ['ตรวจสอบหลังรัน', 'Final Reconciliation'],
 };
-
-function statusIcon(status) {
-  return STATUS_ICONS[status] || CircleDashed;
-}
 
 function statusLabel(status) {
   return String(status || 'unknown').replaceAll('_', ' ');
@@ -79,12 +72,11 @@ function validRunUrl(value) {
 }
 
 function StatusValue({ label, status }) {
-  const Icon = statusIcon(status);
   return (
     <div className="automation-stat">
       <span>{label}</span>
       <strong className={`automation-status status-${status || 'unknown'}`}>
-        <Icon aria-hidden="true" /> {statusLabel(status)}
+        <StatusIcon status={status} /> {statusLabel(status)}
       </strong>
     </div>
   );
@@ -170,11 +162,10 @@ export default function HourlyAutomationStatus({ snapshot, language = 'th', isLo
         {snapshot?.phases?.length ? (
           <ol className="phase-timeline">
             {snapshot.phases.map((item, index) => {
-              const Icon = statusIcon(item.status);
               const labels = PHASE_LABELS[item.name] || [item.name, item.name];
               return (
                 <li key={`${item.name}-${index}`} className={`phase-item status-${item.status}`}>
-                  <Icon aria-hidden="true" />
+                  <StatusIcon status={item.status} />
                   <div><strong>{labels[language === 'th' ? 0 : 1]}</strong><span>{statusLabel(item.status)}{item.message ? ` · ${item.message}` : ''}</span></div>
                 </li>
               );
