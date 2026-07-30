@@ -7,6 +7,8 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   use: {
     baseURL: 'http://127.0.0.1:4173',
+    locale: 'th-TH',
+    timezoneId: 'Asia/Bangkok',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
