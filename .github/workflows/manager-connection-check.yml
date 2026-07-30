@@ -1,0 +1,106 @@
+name: Manager Connection Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_age_minutes:
+        description: Maximum accepted Manager snapshot age
+        required: false
+        default: '180'
+  schedule:
+    - cron: '20 * * * *'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/manager-connection-check.yml'
+      - 'scripts/check-manager-connection.mjs'
+      - 'tests/checkManagerConnection.test.js'
+      - 'package.json'
+      - 'vercel.json'
+      - '.env.production.example'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/manager-connection-check.yml'
+      - 'scripts/check-manager-connection.mjs'
+      - 'tests/checkManagerConnection.test.js'
+      - 'package.json'
+      - 'vercel.json'
+      - '.env.production.example'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manager-connection-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-manager-connection:
+    name: Verify public Manager snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      MANAGER_DASHBOARD_SNAPSHOT_URL: https://raw.githubusercontent.com/athipan1/Manager_Agent/dashboard-data/docs/dashboard/latest-dashboard-snapshot.json
+      MANAGER_CONNECTION_TIMEOUT_MS: '15000'
+      MANAGER_CONNECTION_RETRIES: '3'
+      MANAGER_SNAPSHOT_MAX_AGE_MINUTES: ${{ github.event.inputs.max_age_minutes || '180' }}
+
+    steps:
+      - name: Checkout Trading_Frontend
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.17.0
+
+      - name: Verify frontend production configuration
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const expected = 'https://raw.githubusercontent.com/athipan1/Manager_Agent/dashboard-data/docs/dashboard/latest-dashboard-snapshot.json';
+          const env = fs.readFileSync('.env.production.example', 'utf8');
+          if (!env.includes('VITE_DATA_SOURCE=public-snapshot')) throw new Error('Production data source is not public-snapshot');
+          if (!env.includes(`VITE_DASHBOARD_SNAPSHOT_URL=${expected}`)) throw new Error('Production snapshot URL does not match Manager_Agent');
+          const vercel = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
+          const serialized = JSON.stringify(vercel);
+          if (!serialized.includes('raw.githubusercontent.com')) throw new Error('Vercel CSP does not allow the Manager snapshot host');
+          NODE
+
+      - name: Test live Manager_Agent connection
+        id: connection
+        run: node scripts/check-manager-connection.mjs --output=manager-connection-report.json
+
+      - name: Publish connection summary
+        if: always()
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('manager-connection-report.json', 'utf8'));
+          const clean = (value) => String(value ?? '-').replace(/[\r\n|`]/g, ' ');
+          const lines = [
+            '# Manager_Agent connection',
+            '',
+            `- Status: ${report.connected ? '✅ Connected' : '❌ Failed'}`,
+            `- Endpoint: \`${clean(report.endpoint)}\``,
+            `- HTTP: ${clean(report.httpStatus)}`,
+            `- CORS: \`${clean(report.corsAllowOrigin)}\``,
+            `- Schema: \`${clean(report.schemaVersion)}\``,
+            `- Snapshot age: ${clean(report.ageMinutes)} minutes`,
+            `- Manager run: ${clean(report.workflow?.runNumber)}`,
+            `- Manager conclusion: \`${clean(report.workflow?.conclusion)}\``,
+            `- Live trading enabled: \`${clean(report.runtime?.liveTradingEnabled)}\``,
+          ];
+          if (report.errors?.length) lines.push(`- Error: ${clean(report.errors.join('; '))}`);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
+          NODE
+
+      - name: Upload sanitized connection report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manager-connection-report
+          path: manager-connection-report.json
+          if-no-files-found: error
+          retention-days: 14
