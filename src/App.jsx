@@ -2,14 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   Bot,
+  ChevronRight,
+  Gauge,
   Languages,
-  LockKeyhole,
   NotebookTabs,
   RefreshCw,
   ShieldCheck,
   WalletCards,
   Zap,
 } from 'lucide-react';
+import AppNavigation from './components/AppNavigation.jsx';
 import FinanceAdvisor from './components/FinanceAdvisor.jsx';
 import FinanceLedger from './components/FinanceLedger.jsx';
 import HourlyAutomationStatus from './components/HourlyAutomationStatus.jsx';
@@ -32,6 +34,21 @@ import {
 import { getDashboardDataSource } from './services/api.js';
 import { formatCurrency } from './utils/formatters.js';
 
+const PAGE_PATHS = {
+  overview: '/overview',
+  portfolio: '/portfolio',
+  system: '/system',
+  ledger: '/ledger',
+  advisor: '/advisor',
+  investment: '/investment',
+};
+
+function pageFromPath(pathname) {
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+  if (normalized === '/') return 'overview';
+  return Object.entries(PAGE_PATHS).find(([, path]) => path === normalized)?.[0] || 'overview';
+}
+
 function formatUpdatedAt(value, language, fallback) {
   if (!value) return fallback;
   return new Intl.DateTimeFormat(language === 'th' ? 'th-TH' : 'en-GB', {
@@ -51,55 +68,108 @@ function safeRefreshError(error, language) {
   return printable.replace(/\s+/g, ' ').trim().slice(0, 180) || fallback;
 }
 
-function PortfolioOverview({ snapshot, language, t, isLoading, isRefreshing, refresh }) {
-  const { account, positions, openOrders } = snapshot;
-  const signals = snapshot.signals ?? snapshot.curatorSignals ?? [];
+function AccountMetrics({ snapshot, language, t }) {
+  const { account, positions } = snapshot;
   const totalPositionValue = positions.reduce((sum, position) => sum + Number(position.marketValue || 0), 0);
-  const protectedPositions = positions.filter((position) =>
-    openOrders.some((order) => order.symbol === position.symbol && order.orderClass === 'bracket'),
-  ).length;
   const maskedValue = language === 'th' ? 'ปกปิด' : 'Masked';
   const accountValue = (value) => (account.valuesMasked || value === null ? maskedValue : formatCurrency(value));
 
   return (
-    <>
-      <HourlyAutomationStatus
+    <section className="metrics-grid" aria-label={language === 'th' ? 'ข้อมูลบัญชี' : 'Account metrics'}>
+      <MetricCard label={t.cash} value={accountValue(account.cash)} helper={account.valuesMasked ? maskedValue : t.availableBalance} tone="cash" />
+      <MetricCard label={t.equity} value={accountValue(account.equity)} helper={account.valuesMasked ? maskedValue : t.brokerSnapshot} />
+      <MetricCard label={t.buyingPower} value={accountValue(account.buyingPower)} helper={account.valuesMasked ? maskedValue : t.paperAccount} />
+      <MetricCard label={t.positionValue} value={account.valuesMasked ? maskedValue : formatCurrency(totalPositionValue)} helper={`${positions.length} ${t.activePositions}`} />
+    </section>
+  );
+}
+
+function PortfolioHealth({ snapshot, t }) {
+  const { positions, openOrders } = snapshot;
+  const signals = snapshot.signals ?? snapshot.curatorSignals ?? [];
+  const protectedPositions = positions.filter((position) =>
+    openOrders.some((order) => order.symbol === position.symbol && order.orderClass === 'bracket'),
+  ).length;
+
+  return (
+    <section className="health-grid" aria-label={t.portfolioSummary}>
+      <article className="health-card"><WalletCards aria-hidden="true" /><div><span>{t.positions}</span><strong>{positions.length}</strong></div></article>
+      <article className="health-card"><ShieldCheck aria-hidden="true" /><div><span>{t.bracketProtected}</span><strong>{protectedPositions}/{positions.length}</strong></div></article>
+      <article className="health-card"><Activity aria-hidden="true" /><div><span>{t.openOrders}</span><strong>{openOrders.length}</strong></div></article>
+      <article className="health-card"><Zap aria-hidden="true" /><div><span>{t.curatorSignals}</span><strong>{signals.length}</strong></div></article>
+    </section>
+  );
+}
+
+function SystemSummary({ snapshot, language, t, onOpenSystem, onOpenPortfolio }) {
+  const conclusion = snapshot.workflow?.conclusion || 'unknown';
+  const isHealthy = conclusion === 'success' || conclusion === 'completed';
+  const generatedAt = snapshot.generatedAt;
+
+  return (
+    <section className={`panel overview-system-card${isHealthy ? ' healthy' : ' attention'}`}>
+      <div className="overview-system-copy">
+        <span className={`status ${isHealthy ? 'good' : 'warn'}`}>
+          <ShieldCheck aria-hidden="true" /> {isHealthy ? t.systemHealthy : t.systemNeedsAttention}
+        </span>
+        <h2>{t.latestAutomation}</h2>
+        <p>{t.latestAutomationDescription}</p>
+      </div>
+      <div className="overview-system-facts">
+        <div><span>{t.workflowStatus}</span><strong>{conclusion}</strong></div>
+        <div><span>{t.runtimeMode}</span><strong>{snapshot.runtime?.mode || 'UNKNOWN'}</strong></div>
+        <div><span>{t.lastUpdated}</span><strong>{formatUpdatedAt(generatedAt, language, t.notUpdated)}</strong></div>
+      </div>
+      <div className="overview-quick-actions">
+        <button className="secondary-action" type="button" onClick={onOpenPortfolio}>
+          {t.openPortfolio}<ChevronRight aria-hidden="true" />
+        </button>
+        <button className="primary-action" type="button" onClick={onOpenSystem}>
+          {t.viewSystemDetails}<ChevronRight aria-hidden="true" />
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function OverviewPage({ snapshot, language, t, onNavigate, readOnlyMessage }) {
+  return (
+    <div className="page-stack" data-testid="page-overview">
+      <SystemSummary
         snapshot={snapshot}
         language={language}
-        isLoading={isLoading}
-        isRefreshing={isRefreshing}
-        onRefresh={refresh}
+        t={t}
+        onOpenSystem={() => onNavigate('system')}
+        onOpenPortfolio={() => onNavigate('portfolio')}
       />
+      <AccountMetrics snapshot={snapshot} language={language} t={t} />
+      <PortfolioHealth snapshot={snapshot} t={t} />
+      {readOnlyMessage ? (
+        <section className="read-only-banner" aria-label="Read-only public snapshot mode">
+          <ShieldCheck aria-hidden="true" /><p>{readOnlyMessage}</p>
+        </section>
+      ) : null}
+    </div>
+  );
+}
 
-      <section className="metrics-grid" aria-label={language === 'th' ? 'ข้อมูลบัญชี' : 'Account metrics'}>
-        <MetricCard label={t.cash} value={accountValue(account.cash)} helper={account.valuesMasked ? maskedValue : t.availableBalance} tone="cash" />
-        <MetricCard label={t.equity} value={accountValue(account.equity)} helper={account.valuesMasked ? maskedValue : t.brokerSnapshot} />
-        <MetricCard label={t.buyingPower} value={accountValue(account.buyingPower)} helper={account.valuesMasked ? maskedValue : t.paperAccount} />
-        <MetricCard label={t.positionValue} value={account.valuesMasked ? maskedValue : formatCurrency(totalPositionValue)} helper={`${positions.length} ${t.activePositions}`} />
-      </section>
+function PortfolioPage({ snapshot, t }) {
+  const signals = snapshot.signals ?? snapshot.curatorSignals ?? [];
 
-      <section className="health-grid" aria-label={language === 'th' ? 'สรุปพอร์ต' : 'Portfolio summary'}>
-        <article className="health-card"><WalletCards aria-hidden="true" /><div><span>{t.positions}</span><strong>{positions.length}</strong></div></article>
-        <article className="health-card"><ShieldCheck aria-hidden="true" /><div><span>{t.bracketProtected}</span><strong>{protectedPositions}/{positions.length}</strong></div></article>
-        <article className="health-card"><Activity aria-hidden="true" /><div><span>{t.openOrders}</span><strong>{openOrders.length}</strong></div></article>
-        <article className="health-card"><Zap aria-hidden="true" /><div><span>{t.curatorSignals}</span><strong>{signals.length}</strong></div></article>
-      </section>
-
+  return (
+    <div className="page-stack" data-testid="page-portfolio">
       <div className="content-grid">
-        <PositionsTable positions={positions} openOrders={openOrders} t={t} />
-        <OrdersTable orders={openOrders} t={t} />
+        <PositionsTable positions={snapshot.positions} openOrders={snapshot.openOrders} t={t} />
+        <OrdersTable orders={snapshot.openOrders} t={t} />
       </div>
       <SignalsPanel signals={signals} t={t} />
-      <button className="refresh-button" type="button" onClick={() => refresh()} disabled={isRefreshing}>
-        <RefreshCw className={isRefreshing ? 'spinning' : ''} aria-hidden="true" /> {t.refresh}
-      </button>
-    </>
+    </div>
   );
 }
 
 export default function App() {
   const [language, setLanguage] = useState(getInitialLanguage);
-  const [activePage, setActivePage] = useState('portfolio');
+  const [activePage, setActivePage] = useState(() => pageFromPath(window.location.pathname));
   const [entries, setEntries] = useState([]);
   const [financeBudgetThb, setFinanceBudgetThb] = useState('0');
   const [tradeBudgetUsd, setTradeBudgetUsd] = useState('0');
@@ -114,10 +184,47 @@ export default function App() {
   const managerControlAvailable = dataSource === DATA_SOURCES.MANAGER_API;
   const accountId = '1';
 
+  const navigationItems = useMemo(() => {
+    const publicItems = [
+      { id: 'overview', label: t.navOverview, description: t.navOverviewDescription, icon: Gauge },
+      { id: 'portfolio', label: t.navPortfolio, description: t.navPortfolioDescription, icon: WalletCards },
+      { id: 'system', label: t.navSystem, description: t.navSystemDescription, icon: Activity },
+    ];
+    if (!managerControlAvailable) return publicItems;
+    return [
+      ...publicItems,
+      { id: 'ledger', label: t.navLedger, description: t.navLedgerDescription, icon: NotebookTabs },
+      { id: 'advisor', label: t.navAdvisor, description: t.navAdvisorDescription, icon: Bot },
+      { id: 'investment', label: t.navInvestment, description: t.navInvestmentDescription, icon: Zap },
+    ];
+  }, [managerControlAvailable, t]);
+
+  const resolvedActivePage = navigationItems.some((item) => item.id === activePage) ? activePage : 'overview';
+  const activePageMeta = navigationItems.find((item) => item.id === resolvedActivePage) ?? navigationItems[0];
+  const isManagerControlPage = ['ledger', 'advisor', 'investment'].includes(resolvedActivePage);
+
   useEffect(() => {
     window.localStorage.setItem('trading-dashboard-language', language);
     document.documentElement.lang = language;
   }, [language]);
+
+  useEffect(() => {
+    const onPopState = () => setActivePage(pageFromPath(window.location.pathname));
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    if (activePage === resolvedActivePage) return;
+    window.history.replaceState({}, '', PAGE_PATHS.overview);
+  }, [activePage, resolvedActivePage]);
+
+  const navigateToPage = (page) => {
+    if (!navigationItems.some((item) => item.id === page)) return;
+    setActivePage(page);
+    window.history.pushState({}, '', PAGE_PATHS[page]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const loadFinanceState = async () => {
     const response = await getFinanceState({ operatorToken, accountId });
@@ -177,74 +284,94 @@ export default function App() {
   };
 
   const toggleLanguage = () => setLanguage((current) => (current === 'th' ? 'en' : 'th'));
-  const readOnlyMessage = language === 'th'
-    ? 'Production อ่าน Snapshot สาธารณะแบบ read-only โดยไม่ต้องเปิด Manager API ตลอดเวลา'
-    : 'Production reads a public, read-only snapshot without an always-on Manager API.';
+  const readOnlyMessage = managerControlAvailable ? null : t.readOnlySnapshotMessage;
 
   return (
-    <main className="app-shell">
-      <div className="top-actions">
-        <button className="language-switcher" type="button" onClick={toggleLanguage} aria-label="Switch language">
-          <Languages aria-hidden="true" /><span>{language === 'th' ? 'EN' : 'ไทย'}</span>
-        </button>
-      </div>
+    <AppNavigation
+      items={navigationItems}
+      activePage={resolvedActivePage}
+      onNavigate={navigateToPage}
+      brand={{
+        title: t.appName,
+        subtitle: t.appTagline,
+        navigationLabel: t.mainNavigation,
+        closeLabel: t.close,
+      }}
+      boundaryLabel={t.paperBoundary}
+      moreLabel={t.navMore}
+    >
+      <main className="app-shell">
+        <header className="dashboard-header">
+          <div className="dashboard-heading">
+            <p className="eyebrow">{t.eyebrow}</p>
+            <h1>{activePageMeta.label}</h1>
+            <p>{activePageMeta.description}</p>
+          </div>
 
-      <section className="hero">
-        <div>
-          <p className="eyebrow">AI finance & trading control center</p>
-          <h1>ศูนย์ควบคุมการเงินและ AI Trading</h1>
-          <p className="hero-copy">ติดตาม GitHub Actions รายชั่วโมงจาก Snapshot แบบอ่านอย่างเดียว และใช้ Web Control เฉพาะเมื่อมี Manager API</p>
-          <div className="refresh-row">
+          <div className="dashboard-header-actions">
+            <button className="language-switcher" type="button" onClick={toggleLanguage} aria-label="Switch language">
+              <Languages aria-hidden="true" /><span>{language === 'th' ? 'EN' : 'ไทย'}</span>
+            </button>
+            <button className="header-refresh-button" type="button" onClick={() => refresh()} disabled={isRefreshing} aria-label={t.refreshNow}>
+              <RefreshCw className={isRefreshing ? 'spinning' : ''} aria-hidden="true" />
+              <span>{t.refresh}</span>
+            </button>
+          </div>
+
+          <div className="dashboard-status-row">
             <span className={`status ${mockMode ? 'warn' : 'good'}`} data-testid="data-source">
               {mockMode ? t.mockMode : `${t.liveMode}: ${dataSource}`}
             </span>
+            <span className="status neutral-status" data-testid="trading-mode">{dashboardSnapshot.runtime.mode}</span>
             <span className="sync-text">{t.lastUpdated}: {formatUpdatedAt(lastUpdatedAt || dashboardSnapshot.generatedAt, language, t.notUpdated)}</span>
             <span className="sync-text">{t.autoRefresh}: {Math.round(refreshMs / 1000)}s</span>
           </div>
+
           {error ? (
             <div className="error-banner" role="alert">
               <span>{t.apiFailed}: {safeRefreshError(error, language)} {snapshot ? t.showingLastSnapshot : t.noSnapshotAvailable}</span>
-              <button type="button" onClick={() => refresh()} disabled={isRefreshing}>{language === 'th' ? 'ลองใหม่' : 'Retry'}</button>
+              <button type="button" onClick={() => refresh()} disabled={isRefreshing}>{t.retry}</button>
             </div>
           ) : null}
-        </div>
-        <div className="hero-status">
-          <span data-testid="trading-mode">{dashboardSnapshot.runtime.mode}</span>
-          <strong>{isLoading ? t.loading : dashboardSnapshot.workflow.conclusion}</strong>
-          <LockKeyhole aria-hidden="true" />
-        </div>
-      </section>
+        </header>
 
-      <nav className="control-nav" aria-label="เมนูศูนย์ควบคุม">
-        <button className={activePage === 'ledger' ? 'active' : ''} type="button" disabled={!managerControlAvailable} onClick={() => setActivePage('ledger')}><NotebookTabs aria-hidden="true" /> รายรับรายจ่าย</button>
-        <button className={activePage === 'advisor' ? 'active' : ''} type="button" disabled={!managerControlAvailable} onClick={() => setActivePage('advisor')}><Bot aria-hidden="true" /> AI การเงิน</button>
-        <button className={activePage === 'investment' ? 'active' : ''} type="button" disabled={!managerControlAvailable} onClick={() => setActivePage('investment')}><WalletCards aria-hidden="true" /> AI ลงทุนและคำสั่งเทรด</button>
-        <button className={activePage === 'portfolio' ? 'active' : ''} type="button" onClick={() => setActivePage('portfolio')}><Activity aria-hidden="true" /> ภาพรวมระบบ</button>
-      </nav>
+        {managerControlAvailable && isManagerControlPage ? (
+          <section className="operator-bar">
+            <label>
+              <span>Operator Token ไม่ถูกบันทึกในเบราว์เซอร์</span>
+              <input type="password" autoComplete="off" value={operatorToken} onChange={(event) => handleOperatorTokenChange(event.target.value)} placeholder="ใส่ WEB_CONTROL_OPERATOR_TOKEN" />
+            </label>
+            <button className="primary-action" type="button" onClick={connectControl}>เชื่อมต่อ Manager</button>
+            <p className={`status ${controlStatus.state === 'error' ? 'warn' : 'good'}`}>{controlStatus.message}</p>
+          </section>
+        ) : null}
 
-      {managerControlAvailable ? (
-        <section className="operator-bar">
-          <label>
-            <span>Operator Token ไม่ถูกบันทึกในเบราว์เซอร์</span>
-            <input type="password" autoComplete="off" value={operatorToken} onChange={(event) => handleOperatorTokenChange(event.target.value)} placeholder="ใส่ WEB_CONTROL_OPERATOR_TOKEN" />
-          </label>
-          <button className="primary-action" type="button" onClick={connectControl}>เชื่อมต่อ Manager</button>
-          <p className={`status ${controlStatus.state === 'error' ? 'warn' : 'good'}`}>{controlStatus.message}</p>
-        </section>
-      ) : (
-        <section className="read-only-banner" aria-label="Read-only public snapshot mode">
-          <ShieldCheck aria-hidden="true" /><p>{readOnlyMessage}</p>
-        </section>
-      )}
+        {resolvedActivePage === 'overview' ? (
+          <OverviewPage
+            snapshot={dashboardSnapshot}
+            language={language}
+            t={t}
+            onNavigate={navigateToPage}
+            readOnlyMessage={readOnlyMessage}
+          />
+        ) : null}
+        {resolvedActivePage === 'portfolio' ? <PortfolioPage snapshot={dashboardSnapshot} t={t} /> : null}
+        {resolvedActivePage === 'system' ? (
+          <HourlyAutomationStatus
+            snapshot={dashboardSnapshot}
+            language={language}
+            isLoading={isLoading}
+            isRefreshing={isRefreshing}
+            onRefresh={refresh}
+            showRefreshAction={false}
+          />
+        ) : null}
+        {resolvedActivePage === 'ledger' ? <FinanceLedger entries={entries} onCreate={handleCreateEntry} onDelete={handleDeleteEntry} isConnected={isControlConnected} /> : null}
+        {resolvedActivePage === 'advisor' ? <FinanceAdvisor accountId={accountId} operatorToken={operatorToken} availableCapital={financeBudgetThb} onAvailableCapitalChange={setFinanceBudgetThb} onSaveBudget={saveBudgets} isConnected={isControlConnected} /> : null}
+        {resolvedActivePage === 'investment' ? <InvestmentCommandCenter accountId={accountId} operatorToken={operatorToken} snapshot={dashboardSnapshot} t={t} availableCapital={tradeBudgetUsd} onAvailableCapitalChange={setTradeBudgetUsd} onSaveBudget={saveBudgets} isConnected={isControlConnected} /> : null}
 
-      {activePage === 'ledger' ? <FinanceLedger entries={entries} onCreate={handleCreateEntry} onDelete={handleDeleteEntry} isConnected={isControlConnected} /> : null}
-      {activePage === 'advisor' ? <FinanceAdvisor accountId={accountId} operatorToken={operatorToken} availableCapital={financeBudgetThb} onAvailableCapitalChange={setFinanceBudgetThb} onSaveBudget={saveBudgets} isConnected={isControlConnected} /> : null}
-      {activePage === 'investment' ? <InvestmentCommandCenter accountId={accountId} operatorToken={operatorToken} snapshot={dashboardSnapshot} t={t} availableCapital={tradeBudgetUsd} onAvailableCapitalChange={setTradeBudgetUsd} onSaveBudget={saveBudgets} isConnected={isControlConnected} /> : null}
-      {activePage === 'portfolio' ? (
-        <PortfolioOverview snapshot={dashboardSnapshot} language={language} t={t} isLoading={isLoading} isRefreshing={isRefreshing} refresh={refresh} />
-      ) : null}
-
-      <p className="schema-version" data-testid="schema-version">{dashboardSnapshot.schemaVersion} · web-control.v1</p>
-    </main>
+        <p className="schema-version" data-testid="schema-version">{dashboardSnapshot.schemaVersion} · web-control.v1</p>
+      </main>
+    </AppNavigation>
   );
 }
