@@ -92,6 +92,31 @@ test('keeps the previous snapshot when a refresh returns HTTP 500', async ({ pag
   await expect(page.getByText('ACGL').first()).toBeVisible();
 });
 
+test('renders position cards and action center on a 320px portfolio view', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await mockSnapshot(page, fixture('success'));
+  await page.goto('/portfolio');
+
+  await expect(page.getByTestId('portfolio-action-center')).toContainText('การคุ้มครองพอร์ตครบถ้วน');
+  await expect(page.getByTestId('position-card-ACGL')).toBeVisible();
+  await expect(page.locator('.desktop-position-table')).toBeHidden();
+
+  const dimensions = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    page: document.documentElement.scrollWidth,
+  }));
+  expect(dimensions.page).toBeLessThanOrEqual(dimensions.viewport);
+});
+
+test('renders explicit portfolio empty states', async ({ page }) => {
+  await mockSnapshot(page, fixture('execution-failure'));
+  await page.goto('/portfolio');
+
+  await expect(page.getByTestId('positions-empty-state')).toContainText('ยังไม่มี Position ที่เปิดอยู่');
+  await expect(page.getByTestId('orders-empty-state')).toContainText('ไม่มี Open Order');
+  await expect(page.getByTestId('signals-empty-state')).toContainText('ยังไม่มีสัญญาณแนะนำ');
+});
+
 test('is mobile-first at 320px with no horizontal page overflow', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 });
   await mockSnapshot(page, fixture('masked'));
