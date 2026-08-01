@@ -26,7 +26,7 @@
 .sidebar-collapse-button {
   position: absolute;
   top: 30px;
-  right: -16px;
+  right: -22px;
   z-index: 2;
   display: grid;
   place-items: center;
