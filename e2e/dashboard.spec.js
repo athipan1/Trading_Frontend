@@ -28,13 +28,17 @@ test('uses route-aware navigation and hides unavailable control pages', async ({
   await expect(page).toHaveURL(/\/portfolio$/);
   await expect(page.getByTestId('page-portfolio')).toBeVisible();
 
+  await page.getByTestId('nav-orders').first().click();
+  await expect(page).toHaveURL(/\/orders$/);
+  await expect(page.getByTestId('page-orders')).toBeVisible();
+
   await page.getByTestId('nav-system').first().click();
   await expect(page).toHaveURL(/\/system$/);
   await expect(page.getByTestId('hourly-automation-status')).toBeVisible();
 
   await page.goBack();
-  await expect(page).toHaveURL(/\/portfolio$/);
-  await expect(page.getByTestId('page-portfolio')).toBeVisible();
+  await expect(page).toHaveURL(/\/orders$/);
+  await expect(page.getByTestId('page-orders')).toBeVisible();
 });
 
 test('persists the collapsible desktop navigation', async ({ page }) => {
@@ -105,6 +109,52 @@ test('keeps the professional portfolio workspace inside a 768px tablet viewport'
   await page.goto('/portfolio');
   await expect(page.getByTestId('page-portfolio')).toBeVisible();
 
+  const dimensions = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    page: document.documentElement.scrollWidth,
+  }));
+  expect(dimensions.page).toBeLessThanOrEqual(dimensions.viewport);
+});
+
+test('filters and exports the Manager-only order snapshot without inventing history', async ({ page }) => {
+  const payload = fixture('success');
+  payload.openOrders.push(
+    { ...payload.openOrders[0], symbol: 'MSFT', side: 'buy', status: 'filled' },
+    { ...payload.openOrders[0], symbol: 'AMD', side: 'buy', status: 'rejected' },
+    { ...payload.openOrders[0], symbol: 'NVDA', status: 'canceled' },
+  );
+  await page.addInitScript(() => {
+    window.localStorage.setItem('trading-dashboard-language', 'en');
+  });
+  await mockSnapshot(page, payload);
+  await page.goto('/orders');
+
+  await expect(page.getByTestId('page-orders')).toContainText('Manager_Agent only');
+  await page.getByRole('button', { name: /Filled\s*1/ }).click();
+  await expect(page.getByTestId('order-table-view')).toContainText('MSFT');
+  await expect(page.getByTestId('order-table-view')).not.toContainText('ACGL');
+  await expect(page.getByRole('heading', { name: 'Order timeline' })).toBeVisible();
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'CSV' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('orders-2026-07-30.csv');
+});
+
+test('keeps order management usable at 320px with mobile navigation overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await mockSnapshot(page, fixture('success'));
+  await page.goto('/orders');
+
+  await expect(page.getByTestId('page-orders')).toBeVisible();
+  await expect(page.getByTestId('order-card-view')).toBeVisible();
+  await expect(page.getByTestId('order-table-view')).toBeHidden();
+  const moreNavigation = page.getByRole('button', { name: 'เพิ่มเติม' });
+  await moreNavigation.click();
+  await expect(page.getByRole('dialog', { name: 'เพิ่มเติม' })).toBeVisible();
+  await expect(page.getByTestId('nav-orders').last()).toHaveAttribute('aria-current', 'page');
+  await page.keyboard.press('Escape');
+  await expect(moreNavigation).toBeFocused();
   const dimensions = await page.evaluate(() => ({
     viewport: window.innerWidth,
     page: document.documentElement.scrollWidth,

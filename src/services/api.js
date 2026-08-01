@@ -97,7 +97,25 @@ function normalizePosition(position, index) {
 
 function normalizeOrder(order, index) {
   const row = requiredObject(order, `openOrders[${index}]`);
+  const submittedAt = firstValue(row.submittedAt, row.submitted_at, row.createdAt, row.created_at);
+  const updatedAt = firstValue(
+    row.updatedAt,
+    row.updated_at,
+    row.filledAt,
+    row.filled_at,
+    row.canceledAt,
+    row.canceled_at,
+    row.cancelledAt,
+    row.cancelled_at,
+  );
   return {
+    id: safeText(firstValue(
+      row.id,
+      row.orderId,
+      row.order_id,
+      row.clientOrderId,
+      row.client_order_id,
+    ), '', 96) || null,
     symbol: safeText(firstValue(row.symbol, 'UNKNOWN'), 'UNKNOWN', 16),
     side: safeText(firstValue(row.side, 'unknown'), 'unknown', 16),
     quantity: nullableNumber(firstValue(row.quantity, row.qty), `openOrders[${index}].quantity`),
@@ -107,6 +125,8 @@ function normalizeOrder(order, index) {
     takeProfit: nullableNumber(firstValue(row.takeProfit, row.take_profit, row.limit_price, row.price), `openOrders[${index}].takeProfit`),
     stopLoss: booleanValue(firstValue(row.stopLoss, row.stop_loss, row.stop_price, row.order_class === 'bracket')),
     valuesMasked: booleanValue(row.valuesMasked),
+    submittedAt: submittedAt ? safeTimestamp(submittedAt) : null,
+    updatedAt: updatedAt ? safeTimestamp(updatedAt) : null,
   };
 }
 

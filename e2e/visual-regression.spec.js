@@ -11,6 +11,7 @@ const LANGUAGES = ['th', 'en'];
 const PRIMARY_ROUTES = [
   { route: '/overview', fixtureName: 'success', readyTestId: 'page-overview' },
   { route: '/portfolio', fixtureName: 'success', readyTestId: 'page-portfolio' },
+  { route: '/orders', fixtureName: 'success', readyTestId: 'page-orders' },
   { route: '/system', fixtureName: 'execution-failure', readyTestId: 'hourly-automation-status' },
 ];
 

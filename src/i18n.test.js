@@ -27,4 +27,14 @@ describe('dashboard language selection', () => {
     expect(translations.en.navOverview).toBeTruthy();
     expect(translations.th.navOverview).toBeTruthy();
   });
+
+  it('keeps English and Thai route copy structurally complete', () => {
+    expect(Object.keys(translations.en).sort()).toEqual(Object.keys(translations.th).sort());
+    expect(Object.keys(translations.en.orderStatusGroups).sort()).toEqual(
+      Object.keys(translations.th.orderStatusGroups).sort(),
+    );
+    expect(Object.keys(translations.en.orderTimelineEvents).sort()).toEqual(
+      Object.keys(translations.th.orderTimelineEvents).sort(),
+    );
+  });
 });

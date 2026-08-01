@@ -47,9 +47,11 @@ async function runAxeAudit(page, testInfo) {
 const auditCases = [
   { route: '/overview', fixtureName: 'success', width: 1280, height: 900 },
   { route: '/portfolio', fixtureName: 'success', width: 1280, height: 900 },
+  { route: '/orders', fixtureName: 'success', width: 1280, height: 900 },
   { route: '/system', fixtureName: 'execution-failure', width: 1280, height: 900 },
   { route: '/overview', fixtureName: 'success', width: 320, height: 800 },
   { route: '/portfolio', fixtureName: 'success', width: 320, height: 800 },
+  { route: '/orders', fixtureName: 'success', width: 320, height: 900 },
   { route: '/system', fixtureName: 'execution-failure', width: 320, height: 800 },
 ];
 

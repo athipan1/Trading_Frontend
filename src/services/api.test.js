@@ -130,6 +130,22 @@ describe('dashboard-snapshot.v2 contract fixtures', () => {
     expect(result.cycle.executionStatus).toBe('partial_fill');
     expect(result.openOrders).toEqual([]);
   });
+
+  it('normalizes Manager-provided order identifiers and lifecycle timestamps', () => {
+    const payload = structuredClone(success);
+    payload.openOrders[0] = {
+      ...payload.openOrders[0],
+      order_id: 'manager-order-42',
+      submitted_at: '2026-07-30T00:01:00-04:00',
+      filled_at: '2026-07-30T00:03:00-04:00',
+    };
+
+    expect(normalizeSnapshot(payload).openOrders[0]).toMatchObject({
+      id: 'manager-order-42',
+      submittedAt: '2026-07-30T04:01:00.000Z',
+      updatedAt: '2026-07-30T04:03:00.000Z',
+    });
+  });
 });
 
 describe('payload validation and v1 compatibility', () => {
@@ -152,6 +168,12 @@ describe('payload validation and v1 compatibility', () => {
     expect(() => normalizeSnapshot({ ...success, positions: {} })).toThrow('positions must be an array');
     expect(() => normalizeSnapshot({ ...success, account: { ...success.account, cash: 'NaN' } })).toThrow('must be finite');
     expect(() => normalizeSnapshot({ ...success, schemaVersion: 'dashboard-snapshot.v3' })).toThrow('Unsupported dashboard schema');
+  });
+
+  it('rejects invalid order lifecycle timestamps supplied by Manager', () => {
+    const payload = structuredClone(success);
+    payload.openOrders[0].submittedAt = 'not-a-timestamp';
+    expect(() => normalizeSnapshot(payload)).toThrow('timestamp is invalid');
   });
 
   it('rejects prototype-pollution keys before rendering', () => {

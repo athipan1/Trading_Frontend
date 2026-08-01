@@ -34,6 +34,11 @@ the Playwright journey for search, view switching, focus-managed details, and fi
 download. Test exports with formula-like symbols and masked financial values; never
 assert privacy only from CSS visibility.
 
+Order changes must test every lifecycle category, unknown-status fallback, empty
+history messaging, formula-safe masked exports, mobile cards, keyboard-accessible
+table scrolling, and the distinction between Manager timestamps and snapshot
+observation time.
+
 When the pinned Playwright browser cannot be installed in a restricted local
 environment, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to a compatible Chromium
 executable. CI leaves this unset and always installs the Playwright-pinned browser.
