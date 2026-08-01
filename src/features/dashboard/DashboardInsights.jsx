@@ -106,7 +106,7 @@ export default function DashboardInsights({ snapshot, language, t }) {
           {safe ? <ShieldCheck aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}
           <div>
             <strong>{safetyLabel}</strong>
-            <span>{t.workflow}: {statusLabel(insights.workflowConclusion)}</span>
+            <span>{t.workflowStatus}: {statusLabel(insights.workflowConclusion)}</span>
           </div>
         </div>
         <RecentActivity insights={insights} language={language} t={t} />

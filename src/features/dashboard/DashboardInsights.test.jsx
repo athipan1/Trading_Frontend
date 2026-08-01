@@ -24,7 +24,9 @@ describe('DashboardInsights', () => {
     expect(screen.getByTestId('allocation-chart')).toHaveTextContent('AAPL75.00%$750.00');
     expect(screen.getByText('$15.00')).toHaveClass('positive');
     expect(screen.getByTestId('recent-automation-activity')).toHaveTextContent('Risk rejected candidate');
-    expect(screen.getByTestId('safety-posture')).toHaveTextContent(translations.en.paperBoundaryActive);
+    expect(screen.getByTestId('safety-posture')).toHaveTextContent(
+      `${translations.en.paperBoundaryActive}${translations.en.workflowStatus}: success`,
+    );
   });
 
   it('shows safe empty states for masked or unavailable insight data', () => {
