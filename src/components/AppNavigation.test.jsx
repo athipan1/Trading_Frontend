@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import AppNavigation from './AppNavigation.jsx';
 
 function TestIcon() {
@@ -19,6 +19,11 @@ const brand = {
   navigationLabel: 'Main navigation',
   closeLabel: 'Close navigation',
 };
+
+afterEach(() => {
+  cleanup();
+  document.documentElement.lang = 'en';
+});
 
 function renderNavigation(activePage = 'overview', onNavigate = vi.fn()) {
   return render(
