@@ -35,6 +35,10 @@ function renderStatus(fixture = successFixture, props = {}) {
   );
 }
 
+function incidentSummary() {
+  return screen.getByTestId('system-incident-summary');
+}
+
 describe('HourlyAutomationStatus', () => {
   it('renders an accessible loading skeleton', () => {
     render(<HourlyAutomationStatus snapshot={null} language="en" isLoading isRefreshing={false} />);
@@ -57,21 +61,46 @@ describe('HourlyAutomationStatus', () => {
   });
 
   it.each([
-    ['no candidate', noCandidateFixture, 'no_preselected_backtest_symbols'],
-    ['risk rejected', riskRejectedFixture, 'risk_rejected'],
-    ['execution success', executionSuccessFixture, 'paper_order_submitted'],
-    ['execution failure', executionFailureFixture, 'paper_broker_rejected'],
-    ['workflow failure', workflowFailureFixture, 'Hourly Auto Trading did not complete successfully.'],
-    ['cancelled', cancelledFixture, 'Hourly Auto Trading was cancelled before completion.'],
-  ])('renders %s state with text and icon semantics', (name, fixture, expectedText) => {
+    ['no candidate', noCandidateFixture, 'normal', 'No symbol passed this cycle'],
+    ['risk rejected', riskRejectedFixture, 'normal', 'Risk Agent rejected the trade'],
+    ['execution submitted', executionSuccessFixture, 'normal', 'A paper-trading order was submitted'],
+    ['execution failure', executionFailureFixture, 'critical', 'Paper-trading execution failed'],
+    ['workflow failure', workflowFailureFixture, 'critical', 'The hourly workflow failed'],
+    ['cancelled', cancelledFixture, 'warning', 'The workflow was cancelled before completion'],
+    ['stale', staleFixture, 'warning', 'The dashboard snapshot is stale'],
+  ])('classifies %s with the expected incident severity', (name, fixture, severity, title) => {
     renderStatus(fixture);
-    expect(screen.getByTestId('hourly-automation-status')).toHaveTextContent(expectedText);
+    expect(incidentSummary()).toHaveAttribute('data-severity', severity);
+    expect(incidentSummary()).toHaveTextContent(title);
   });
 
-  it('shows stale warning without discarding the snapshot', () => {
-    renderStatus(staleFixture);
-    expect(screen.getByRole('alert')).toHaveTextContent('Stale data');
-    expect(screen.getByText('Run #107')).toBeVisible();
+  it('treats partial fills as critical and gives reconciliation guidance', () => {
+    const fixture = structuredClone(executionSuccessFixture);
+    fixture.cycle.executionStatus = 'partial_fill';
+    fixture.cycle.executionReason = 'partial_fill';
+    fixture.cycle.partialFillDetected = true;
+    renderStatus(fixture);
+
+    expect(incidentSummary()).toHaveAttribute('data-severity', 'critical');
+    expect(incidentSummary()).toHaveTextContent('A partially filled order was detected');
+    expect(incidentSummary()).toHaveTextContent('final reconciliation immediately');
+  });
+
+  it('fails closed when runtime leaves the paper or simulator boundary', () => {
+    const fixture = structuredClone(executionSuccessFixture);
+    fixture.runtime.mode = 'LIVE';
+    fixture.runtime.liveTradingEnabled = true;
+    renderStatus(fixture);
+
+    expect(incidentSummary()).toHaveAttribute('data-severity', 'critical');
+    expect(incidentSummary()).toHaveTextContent('Runtime is outside the safe boundary');
+  });
+
+  it('shows a readable reason while preserving the raw reason code', () => {
+    renderStatus(riskRejectedFixture);
+    const reason = screen.getByTestId('execution-reason');
+    expect(reason).toHaveTextContent('Risk Agent rejected the trade');
+    expect(reason).toHaveTextContent('risk_rejected');
   });
 
   it('shows privacy masking and never renders masked account values', () => {
@@ -80,17 +109,30 @@ describe('HourlyAutomationStatus', () => {
     expect(screen.queryByText('48155.5')).not.toBeInTheDocument();
   });
 
-  it('announces partial fills and supports refresh interaction', () => {
-    const fixture = structuredClone(executionSuccessFixture);
-    fixture.cycle.executionStatus = 'partial_fill';
-    fixture.cycle.partialFillDetected = true;
+  it('supports an accessible phase timeline toggle', () => {
+    renderStatus();
+    const toggle = screen.getByRole('button', { name: 'Show all 8 phases' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveAttribute('aria-controls', 'hourly-phase-timeline');
+
+    toggle.focus();
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(toggle).toHaveTextContent('Show incident phases only');
+    expect(screen.getByRole('list')).toHaveClass('expanded');
+  });
+
+  it('keeps the component refresh action for standalone use', () => {
     const onRefresh = vi.fn();
-    renderStatus(fixture, { onRefresh });
-    expect(screen.getByText('Partial fill detected')).toBeVisible();
+    renderStatus(successFixture, { onRefresh });
     const button = screen.getByRole('button', { name: 'Refresh now' });
-    button.focus();
     fireEvent.click(button);
     expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides the component refresh action when the page header owns refresh', () => {
+    renderStatus(successFixture, { showRefreshAction: false });
+    expect(screen.queryByRole('button', { name: 'Refresh now' })).not.toBeInTheDocument();
   });
 
   it('does not render a run link for a non-GitHub host', () => {
