@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SNAPSHOT_URL,
@@ -60,7 +61,25 @@ describe('Manager connection validation', () => {
       runtime: { liveTradingEnabled: false },
       privacy: { mode: 'masked', valuesMasked: true },
       freshness: { isStale: false, policy: 'fail', warnings: [] },
+      agentTelemetryCount: 0,
     });
+  });
+
+  it('validates optional bounded Agent telemetry without requiring it', () => {
+    const result = validateSnapshot(createSnapshot({
+      agents: [{
+        id: 'manager_agent',
+        latencyMs: 25,
+        cpuPercent: 18,
+        memoryMb: 410,
+        lastRunAt: '2026-07-30T04:20:00Z',
+      }],
+    }), { nowMs: NOW, freshnessPolicy: 'warn' });
+    expect(result.agentTelemetryCount).toBe(1);
+
+    expect(() => validateSnapshot(createSnapshot({
+      agents: [{ id: 'risk_agent', cpuPercent: 101 }],
+    }), { nowMs: NOW, freshnessPolicy: 'warn' })).toThrow('between 0 and 100');
   });
 
   it('reports stale upstream data as a warning when connectivity policy is warn', () => {
@@ -123,5 +142,9 @@ describe('Manager connection validation', () => {
         freshnessPolicy: 'warn',
       }),
     ).toThrow('Forbidden sensitive field');
+
+    expect(() => validateSnapshot(createSnapshot({
+      agents: [{ id: 'risk_agent', internalUrl: 'http://risk-agent:8000' }],
+    }), { nowMs: NOW, freshnessPolicy: 'warn' })).toThrow('Forbidden sensitive field');
   });
 });

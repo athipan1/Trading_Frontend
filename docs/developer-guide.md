@@ -39,6 +39,12 @@ history messaging, formula-safe masked exports, mobile cards, keyboard-accessibl
 table scrolling, and the distinction between Manager timestamps and snapshot
 observation time.
 
+Agent Monitor changes must cover the fixed 13-agent registry, alias matching,
+health grouping, missing telemetry, invalid resource ranges, invalid timestamps,
+desktop table/mobile cards, and the Manager-only boundary. Optional `agents[]`
+fixtures may exercise the UI, but absent telemetry must never be replaced with
+derived or mocked production values.
+
 When the pinned Playwright browser cannot be installed in a restricted local
 environment, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to a compatible Chromium
 executable. CI leaves this unset and always installs the Playwright-pinned browser.

@@ -22,7 +22,7 @@ const ALLOWED_CONCLUSIONS = new Set([
   'neutral',
 ]);
 const FORBIDDEN_KEY_PATTERN =
-  /^(?:api[_-]?key|secret|password|token|authorization|database[_-]?url|broker[_-]?order[_-]?id|client[_-]?order[_-]?id|order[_-]?id)$/i;
+  /^(?:api[_-]?key|secret|password|token|authorization|database[_-]?url|internal[_-]?url|service[_-]?url|agent[_-]?url|broker[_-]?order[_-]?id|client[_-]?order[_-]?id|order[_-]?id)$/i;
 const FORBIDDEN_VALUE_PATTERNS = [
   /\bgh[pousr]_[A-Za-z0-9_]{20,}\b/,
   /\bAKIA[0-9A-Z]{16}\b/,
@@ -56,6 +56,33 @@ function requireString(value, path) {
     throw new Error(`${path} must be a non-empty string`);
   }
   return value;
+}
+
+function validateOptionalAgentTelemetry(agents) {
+  if (agents === undefined) return 0;
+  if (!Array.isArray(agents)) throw new Error('agents must be an array');
+  agents.forEach((agent, index) => {
+    const row = requirePlainObject(agent, `agents[${index}]`);
+    requireString(row.id ?? row.agentId ?? row.agent_id ?? row.name, `agents[${index}].id`);
+    const boundedMetrics = [
+      ['latencyMs', row.latencyMs ?? row.latency_ms, 3_600_000],
+      ['cpuPercent', row.cpuPercent ?? row.cpu_percent, 100],
+      ['memoryPercent', row.memoryPercent ?? row.memory_percent, 100],
+      ['memoryMb', row.memoryMb ?? row.memory_mb, 1_000_000],
+    ];
+    boundedMetrics.forEach(([name, value, max]) => {
+      if (value === undefined || value === null) return;
+      const metric = requireFiniteNumber(value, `agents[${index}].${name}`);
+      if (metric < 0 || metric > max) {
+        throw new Error(`agents[${index}].${name} must be between 0 and ${max}`);
+      }
+    });
+    const lastRunAt = row.lastRunAt ?? row.last_run_at ?? row.lastRun ?? row.last_run;
+    if (lastRunAt !== undefined && lastRunAt !== null) {
+      parseTimestamp(lastRunAt, `agents[${index}].lastRunAt`);
+    }
+  });
+  return agents.length;
 }
 
 function parseTimestamp(value, path) {
@@ -164,6 +191,7 @@ export function validateSnapshot(snapshot, options = {}) {
   requirePlainObject(root.summary, 'summary');
   if (!Array.isArray(root.positions)) throw new Error('positions must be an array');
   if (!Array.isArray(root.openOrders)) throw new Error('openOrders must be an array');
+  const agentTelemetryCount = validateOptionalAgentTelemetry(root.agents);
 
   const freshness = requirePlainObject(root.freshness, 'freshness');
   requireFiniteNumber(
@@ -219,6 +247,7 @@ export function validateSnapshot(snapshot, options = {}) {
       liveTradingEnabled: runtime.liveTradingEnabled,
     },
     privacy: { mode: privacy.mode, valuesMasked: privacy.valuesMasked },
+    agentTelemetryCount,
     freshness: {
       policy: freshnessPolicy,
       isStale: uniqueFreshnessWarnings.length > 0,

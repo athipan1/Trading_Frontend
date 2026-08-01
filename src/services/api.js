@@ -53,6 +53,15 @@ function nullableNumber(value, field, fallback = null) {
   return parsed;
 }
 
+function boundedNullableNumber(value, field, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) {
+  const parsed = nullableNumber(value, field);
+  if (parsed === null) return null;
+  if (parsed < min || parsed > max) {
+    throw new Error(`Malformed dashboard payload: ${field} must be between ${min} and ${max}.`);
+  }
+  return parsed;
+}
+
 function booleanValue(value) {
   if (typeof value === 'string') return ['true', '1', 'yes'].includes(value.toLowerCase());
   return Boolean(value);
@@ -141,6 +150,41 @@ function normalizeSignal(signal, index) {
   };
 }
 
+function normalizeAgentTelemetry(agent, index) {
+  const row = requiredObject(agent, `agents[${index}]`);
+  const id = safeText(firstValue(row.id, row.agentId, row.agent_id, row.name), '', 64);
+  if (!id) throw new Error(`Malformed dashboard payload: agents[${index}].id is required.`);
+  const lastRunAt = firstValue(row.lastRunAt, row.last_run_at, row.lastRun, row.last_run);
+  return {
+    id,
+    name: safeText(firstValue(row.name, id), id, 80),
+    health: safeText(firstValue(row.health, 'unknown'), 'unknown', 32),
+    status: safeText(firstValue(row.status, 'unknown'), 'unknown', 64),
+    latencyMs: boundedNullableNumber(
+      firstValue(row.latencyMs, row.latency_ms),
+      `agents[${index}].latencyMs`,
+      { max: 3_600_000 },
+    ),
+    version: safeText(row.version, '', 64) || null,
+    cpuPercent: boundedNullableNumber(
+      firstValue(row.cpuPercent, row.cpu_percent),
+      `agents[${index}].cpuPercent`,
+      { max: 100 },
+    ),
+    memoryPercent: boundedNullableNumber(
+      firstValue(row.memoryPercent, row.memory_percent),
+      `agents[${index}].memoryPercent`,
+      { max: 100 },
+    ),
+    memoryMb: boundedNullableNumber(
+      firstValue(row.memoryMb, row.memory_mb),
+      `agents[${index}].memoryMb`,
+      { max: 1_000_000 },
+    ),
+    lastRunAt: lastRunAt ? safeTimestamp(lastRunAt) : null,
+  };
+}
+
 function freshnessFrom(data, generatedAt) {
   const source = optionalObject(data.freshness);
   const staleAfterMinutes = nullableNumber(source.staleAfterMinutes, 'freshness.staleAfterMinutes', 120);
@@ -163,6 +207,7 @@ function normalizeV2(data) {
   const openOrders = requiredArray(data.openOrders, 'openOrders');
   const signals = requiredArray(data.signals, 'signals');
   const phases = requiredArray(data.phases, 'phases');
+  const agents = data.agents === undefined ? [] : requiredArray(data.agents, 'agents');
   const generatedAt = safeTimestamp(data.generatedAt);
   const normalizedSignals = signals.map(normalizeSignal);
   const normalized = {
@@ -206,6 +251,7 @@ function normalizeV2(data) {
         message: safeText(row.message, '', 280) || null,
       };
     }),
+    agents: agents.map(normalizeAgentTelemetry),
     account: {
       cash: nullableNumber(account.cash, 'account.cash'),
       equity: nullableNumber(account.equity, 'account.equity'),
@@ -262,7 +308,7 @@ function normalizeV1(data) {
     workflow: { runId: null, runNumber: null, runUrl: null, eventName: 'unknown', status: 'unknown', conclusion: 'unknown', startedAt: null, completedAt: generatedAt, durationSeconds: null },
     runtime: { mode: safeText(firstValue(data.mode, account.mode, 'UNKNOWN'), 'UNKNOWN', 32), brokerMode: safeText(data.brokerMode, 'UNKNOWN', 32), dryRun: true, liveTradingEnabled: false, flow: safeText(data.flow, 'portfolio_review', 64) },
     cycle: { id: null, status: 'unknown', marketMode: null, candidateCount: nullableNumber(summary.candidateCount, 'summary.candidateCount', 0), selectedSymbols: [], executionAttempted: !['not_attempted', 'skipped', undefined, null].includes(summary.executionStatus), executionStatus: safeText(summary.executionStatus, 'unknown', 48), executionReason: safeText(summary.executionReason, '', 200) || null, partialFillDetected: false },
-    phases: [],
+    phases: [], agents: [],
     account: { cash: nullableNumber(firstValue(account.cash, account.cash_balance), 'account.cash', 0), equity: nullableNumber(firstValue(account.equity, account.portfolio_value), 'account.equity', 0), buyingPower: nullableNumber(firstValue(account.buyingPower, account.buying_power), 'account.buyingPower', 0), status: safeText(account.status, 'UNKNOWN', 40), mode: safeText(firstValue(account.mode, data.mode, 'UNKNOWN'), 'UNKNOWN', 32), lastSyncedAt: safeTimestamp(firstValue(account.lastSyncedAt, account.last_synced_at, generatedAt)), valuesMasked: false },
     positions: positions.map(normalizePosition), openOrders: openOrders.map(normalizeOrder), signals: normalizedSignals, curatorSignals: normalizedSignals,
     warnings: [], error: null, lastSuccessfulRun: null, summary: { ...summary }, privacy: { mode: 'full', valuesMasked: false },

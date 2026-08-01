@@ -32,6 +32,7 @@ import { formatBangkokDateTime } from './utils/dateTime.js';
 const FinanceAdvisor = lazy(() => import('./components/FinanceAdvisor.jsx'));
 const FinanceLedger = lazy(() => import('./components/FinanceLedger.jsx'));
 const InvestmentCommandCenter = lazy(() => import('./components/InvestmentCommandCenter.jsx'));
+const AgentMonitorPage = lazy(() => import('./features/agents/AgentMonitorPage.jsx'));
 const OrdersPage = lazy(() => import('./features/orders/OrdersPage.jsx'));
 const PortfolioPage = lazy(() => import('./features/portfolio/PortfolioPage.jsx'));
 
@@ -66,6 +67,7 @@ export default function App() {
       { id: 'overview', label: t.navOverview, description: t.navOverviewDescription, icon: Gauge },
       { id: 'portfolio', label: t.navPortfolio, description: t.navPortfolioDescription, icon: WalletCards },
       { id: 'orders', label: t.navOrders, description: t.navOrdersDescription, icon: ListOrdered },
+      { id: 'agents', label: t.navAgents, description: t.navAgentsDescription, icon: Bot },
       { id: 'system', label: t.navSystem, description: t.navSystemDescription, icon: Activity },
     ];
     if (!managerControlAvailable) return publicItems;
@@ -225,6 +227,11 @@ export default function App() {
         {resolvedActivePage === 'orders' ? (
           <Suspense fallback={<div className="panel" role="status" aria-live="polite">{t.loading}</div>}>
             <OrdersPage snapshot={dashboardSnapshot} language={language} t={t} />
+          </Suspense>
+        ) : null}
+        {resolvedActivePage === 'agents' ? (
+          <Suspense fallback={<div className="panel" role="status" aria-live="polite">{t.loading}</div>}>
+            <AgentMonitorPage snapshot={dashboardSnapshot} language={language} t={t} />
           </Suspense>
         ) : null}
         {resolvedActivePage === 'system' ? (

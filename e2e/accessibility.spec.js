@@ -6,7 +6,15 @@ const AXE_PATH = path.resolve(process.cwd(), '.cache', 'axe-core', 'axe.min.js')
 const BLOCKING_IMPACTS = new Set(['serious', 'critical']);
 
 function fixture(name) {
-  return JSON.parse(readFileSync(new URL(`../tests/fixtures/dashboard/${name}.json`, import.meta.url), 'utf8'));
+  const fixtureName = name === 'agent-telemetry' ? 'success' : name;
+  const payload = JSON.parse(readFileSync(new URL(`../tests/fixtures/dashboard/${fixtureName}.json`, import.meta.url), 'utf8'));
+  if (name === 'agent-telemetry') {
+    payload.agents = [
+      { id: 'manager_agent', health: 'healthy', status: 'running', latencyMs: 25, version: '2.4.1', cpuPercent: 17, memoryMb: 410, lastRunAt: '2026-07-30T00:00:00Z' },
+      { id: 'risk_agent', health: 'degraded', status: 'candidate_rejected', latencyMs: 44, version: '2.0.7', cpuPercent: 20, memoryPercent: 41, lastRunAt: '2026-07-29T23:58:30Z' },
+    ];
+  }
+  return payload;
 }
 
 async function mockSnapshot(page, payload) {
@@ -48,10 +56,12 @@ const auditCases = [
   { route: '/overview', fixtureName: 'success', width: 1280, height: 900 },
   { route: '/portfolio', fixtureName: 'success', width: 1280, height: 900 },
   { route: '/orders', fixtureName: 'success', width: 1280, height: 900 },
+  { route: '/agents', fixtureName: 'agent-telemetry', width: 1280, height: 900 },
   { route: '/system', fixtureName: 'execution-failure', width: 1280, height: 900 },
   { route: '/overview', fixtureName: 'success', width: 320, height: 800 },
   { route: '/portfolio', fixtureName: 'success', width: 320, height: 800 },
   { route: '/orders', fixtureName: 'success', width: 320, height: 900 },
+  { route: '/agents', fixtureName: 'agent-telemetry', width: 320, height: 900 },
   { route: '/system', fixtureName: 'execution-failure', width: 320, height: 800 },
 ];
 

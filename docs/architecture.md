@@ -20,6 +20,7 @@ src/
   config/                 validated build/runtime configuration
   data/                   explicit empty and development-only mock models
   features/
+    agents/               Manager-published Agent telemetry and fixed registry
     dashboard/            Overview page composition
     orders/               Read-only order workspace and observation timeline
     portfolio/            Portfolio page composition
@@ -43,13 +44,19 @@ Order status classification, pagination, and timeline derivation live in
 them into a known lifecycle stage. `src/utils/spreadsheet.js` is the shared export
 boundary for Portfolio and Orders, including formula-injection neutralization.
 
+The Agent Monitor joins optional, allowlisted `agents[]` telemetry to a fixed
+13-agent registry in `src/features/agents/agentMonitorModel.js`. Unknown agent IDs
+are ignored, duplicate records do not override the first Manager record, numeric
+resource metrics are range checked, and missing telemetry is displayed as
+unavailable. Workflow phases remain separate orchestration evidence.
+
 ## Routing and loading
 
 The route registry is centralized in `src/routes/routeConfig.js`. Public snapshot
-mode exposes Overview, Portfolio, Orders, and System Status. Manager-only routes are omitted
+mode exposes Overview, Portfolio, Orders, Agents, and System Status. Manager-only routes are omitted
 from navigation and normalized back to Overview when unavailable.
 
-Finance Ledger, AI Finance, and AI Investment are lazy modules. Public production
+Agents, Portfolio, Orders, Finance Ledger, AI Finance, and AI Investment are lazy modules. Public production
 does not download these control chunks unless a Manager-enabled deployment opens
 their routes.
 
