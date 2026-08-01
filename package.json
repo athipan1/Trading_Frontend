@@ -12,7 +12,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test",
+    "prepare:a11y": "node scripts/prepare-axe.mjs",
+    "test:e2e": "npm run prepare:a11y && playwright test",
+    "test:e2e:functional": "playwright test --grep-invert @a11y",
+    "test:a11y": "npm run prepare:a11y && playwright test --grep @a11y",
     "check:bundle": "node scripts/check-bundle-secrets.mjs",
     "check:manager-connection": "node scripts/check-manager-connection.mjs",
     "check:production": "node scripts/check-production-ui.mjs"

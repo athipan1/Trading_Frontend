@@ -3,6 +3,7 @@ dist
 coverage
 playwright-report
 test-results
+.cache
 .env
 .env.local
 .DS_Store

@@ -9,6 +9,7 @@ import './hourlyAutomation.css';
 import './responsiveFixes.css';
 import './navigation.css';
 import './portfolio.css';
+import './accessibility.css';
 
 class DashboardErrorBoundary extends React.Component {
   constructor(props) {
