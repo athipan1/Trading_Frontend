@@ -44,7 +44,7 @@
   border-radius: 4px;
 }
 
-:where(a, button, input, select, textarea, summary, [role="button"]):focus-visible {
+:where(a, button, input, select, textarea, summary, [role="button"], [role="region"][tabindex]):focus-visible {
   outline: 3px solid #7dd3fc;
   outline-offset: 3px;
 }
