@@ -1,5 +1,7 @@
-import { Menu, X } from 'lucide-react';
+import { Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { cloneElement, isValidElement, useEffect, useRef, useState } from 'react';
+
+const SIDEBAR_PREFERENCE_KEY = 'trading-dashboard-sidebar';
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -10,16 +12,27 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
-function NavigationButton({ item, activePage, onNavigate, compact = false }) {
+function readSidebarPreference() {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(SIDEBAR_PREFERENCE_KEY) === 'collapsed';
+  } catch {
+    return false;
+  }
+}
+
+function NavigationButton({ item, activePage, onNavigate, compact = false, collapsed = false }) {
   const Icon = item.icon;
   const isActive = activePage === item.id;
 
   return (
     <button
-      className={`app-nav-button${isActive ? ' active' : ''}${compact ? ' compact' : ''}`}
+      className={`app-nav-button${isActive ? ' active' : ''}${compact ? ' compact' : ''}${collapsed ? ' collapsed' : ''}`}
       type="button"
       onClick={() => onNavigate(item.id)}
       aria-current={isActive ? 'page' : undefined}
+      aria-label={collapsed ? item.label : undefined}
+      data-tooltip={collapsed ? item.label : undefined}
       data-testid={`nav-${item.id}`}
     >
       <Icon aria-hidden="true" />
@@ -35,9 +48,12 @@ export default function AppNavigation({
   brand,
   boundaryLabel,
   moreLabel,
+  collapseLabel = 'Collapse navigation',
+  expandLabel = 'Expand navigation',
   children,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarPreference);
   const dialogRef = useRef(null);
   const closeButtonRef = useRef(null);
   const moreButtonRef = useRef(null);
@@ -50,6 +66,17 @@ export default function AppNavigation({
   const thai = document.documentElement.lang === 'th';
   const skipLabel = thai ? 'ข้ามไปยังเนื้อหาหลัก' : 'Skip to main content';
   const moreNavigationLabel = thai ? 'เมนูเพิ่มเติม' : 'More navigation';
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        SIDEBAR_PREFERENCE_KEY,
+        sidebarCollapsed ? 'collapsed' : 'expanded',
+      );
+    } catch {
+      // The navigation remains usable when storage is unavailable.
+    }
+  }, [sidebarCollapsed]);
 
   const focusPageHeading = () => {
     window.requestAnimationFrame(() => {
@@ -150,8 +177,21 @@ export default function AppNavigation({
   return (
     <>
       <a className="skip-link" href="#main-content" onClick={focusMainContent}>{skipLabel}</a>
-      <div className="app-layout">
+      <div className={`app-layout${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
         <aside className="app-sidebar" aria-label={brand.navigationLabel}>
+          <button
+            className="sidebar-collapse-button"
+            type="button"
+            onClick={() => setSidebarCollapsed((current) => !current)}
+            aria-label={sidebarCollapsed ? expandLabel : collapseLabel}
+            aria-controls="desktop-primary-navigation"
+            aria-expanded={!sidebarCollapsed}
+            title={sidebarCollapsed ? expandLabel : collapseLabel}
+          >
+            {sidebarCollapsed
+              ? <PanelLeftOpen aria-hidden="true" />
+              : <PanelLeftClose aria-hidden="true" />}
+          </button>
           <div className="sidebar-brand">
             <div className="sidebar-logo" aria-hidden="true">AI</div>
             <div>
@@ -160,20 +200,25 @@ export default function AppNavigation({
             </div>
           </div>
 
-          <nav className="sidebar-nav" aria-label={brand.navigationLabel}>
+          <nav
+            id="desktop-primary-navigation"
+            className="sidebar-nav"
+            aria-label={brand.navigationLabel}
+          >
             {items.map((item) => (
               <NavigationButton
                 key={item.id}
                 item={item}
                 activePage={activePage}
                 onNavigate={navigate}
+                collapsed={sidebarCollapsed}
               />
             ))}
           </nav>
 
           <div className="sidebar-boundary">
             <span className="sidebar-boundary-dot" aria-hidden="true" />
-            <p>{boundaryLabel}</p>
+            <p className={sidebarCollapsed ? 'sr-only' : undefined}>{boundaryLabel}</p>
           </div>
         </aside>
 
