@@ -103,12 +103,14 @@ test('collapses the mobile phase timeline to incidents and expands with keyboard
   await page.goto('/system');
 
   await expect(page.locator('.phase-item:visible')).toHaveCount(2);
-  const toggle = page.getByRole('button', { name: 'ดูทั้ง 7 ขั้น' });
+  const toggle = page.locator('.phase-toggle');
+  await expect(toggle).toHaveAccessibleName('ดูทั้ง 7 ขั้น');
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await toggle.focus();
   await expect(toggle).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(toggle).toHaveAccessibleName('แสดงเฉพาะขั้นที่ต้องตรวจสอบ');
   await expect(page.locator('.phase-item:visible')).toHaveCount(7);
 
   const dimensions = await page.evaluate(() => ({
