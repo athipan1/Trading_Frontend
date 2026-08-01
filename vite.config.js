@@ -25,6 +25,7 @@ export default defineConfig({
         'src/config/**/*.js',
         'src/features/dashboard/**/*.js',
         'src/features/agents/**/*.js',
+        'src/features/risk/**/*.js',
         'src/hooks/**/*.js',
         'src/i18n.js',
         'src/services/**/*.js',

@@ -7,6 +7,7 @@ import {
   ListOrdered,
   NotebookTabs,
   RefreshCw,
+  ShieldAlert,
   WalletCards,
   Zap,
 } from 'lucide-react';
@@ -35,6 +36,7 @@ const InvestmentCommandCenter = lazy(() => import('./components/InvestmentComman
 const AgentMonitorPage = lazy(() => import('./features/agents/AgentMonitorPage.jsx'));
 const OrdersPage = lazy(() => import('./features/orders/OrdersPage.jsx'));
 const PortfolioPage = lazy(() => import('./features/portfolio/PortfolioPage.jsx'));
+const RiskDashboardPage = lazy(() => import('./features/risk/RiskDashboardPage.jsx'));
 
 function safeRefreshError(error, language) {
   const fallback = language === 'th' ? 'โหลด Snapshot ไม่สำเร็จ' : 'Snapshot refresh failed';
@@ -68,6 +70,7 @@ export default function App() {
       { id: 'portfolio', label: t.navPortfolio, description: t.navPortfolioDescription, icon: WalletCards },
       { id: 'orders', label: t.navOrders, description: t.navOrdersDescription, icon: ListOrdered },
       { id: 'agents', label: t.navAgents, description: t.navAgentsDescription, icon: Bot },
+      { id: 'risk', label: t.navRisk, description: t.navRiskDescription, icon: ShieldAlert },
       { id: 'system', label: t.navSystem, description: t.navSystemDescription, icon: Activity },
     ];
     if (!managerControlAvailable) return publicItems;
@@ -232,6 +235,11 @@ export default function App() {
         {resolvedActivePage === 'agents' ? (
           <Suspense fallback={<div className="panel" role="status" aria-live="polite">{t.loading}</div>}>
             <AgentMonitorPage snapshot={dashboardSnapshot} language={language} t={t} />
+          </Suspense>
+        ) : null}
+        {resolvedActivePage === 'risk' ? (
+          <Suspense fallback={<div className="panel" role="status" aria-live="polite">{t.loading}</div>}>
+            <RiskDashboardPage snapshot={dashboardSnapshot} language={language} t={t} />
           </Suspense>
         ) : null}
         {resolvedActivePage === 'system' ? (

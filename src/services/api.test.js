@@ -175,6 +175,41 @@ describe('dashboard-snapshot.v2 contract fixtures', () => {
       lastRunAt: '2026-07-30T00:00:00.000Z',
     }]);
   });
+
+  it('normalizes only allowlisted optional Manager risk telemetry', () => {
+    const payload = structuredClone(success);
+    payload.risk = {
+      risk_level: 'high',
+      risk_score: 72,
+      gross_exposure_percent: 48.5,
+      net_exposure_percent: -12.25,
+      drawdown_percent: 6.2,
+      sector_allocation: [{ name: 'Technology', share_percent: 60, market_value: 4000, internalNote: 'dropped' }],
+      limits: { gross_exposure_percent: 65, drawdown_percent: 9 },
+      emergency_halt: {
+        active: true,
+        reason: 'Operator-approved safety stop',
+        updated_at: '2026-07-30T07:00:00+07:00',
+        controlUrl: 'dropped',
+      },
+      directAgentUrl: 'dropped',
+    };
+
+    expect(normalizeSnapshot(payload).risk).toEqual({
+      riskLevel: 'high',
+      riskScore: 72,
+      grossExposurePercent: 48.5,
+      netExposurePercent: -12.25,
+      drawdownPercent: 6.2,
+      sectorAllocation: [{ sector: 'Technology', percent: 60, marketValue: 4000 }],
+      limits: { grossExposurePercent: 65, drawdownPercent: 9 },
+      emergencyHalt: {
+        active: true,
+        reason: 'Operator-approved safety stop',
+        updatedAt: '2026-07-30T00:00:00.000Z',
+      },
+    });
+  });
 });
 
 describe('payload validation and v1 compatibility', () => {
@@ -217,6 +252,24 @@ describe('payload validation and v1 compatibility', () => {
     const invalidArray = structuredClone(success);
     invalidArray.agents = {};
     expect(() => normalizeSnapshot(invalidArray)).toThrow('agents must be an array');
+  });
+
+  it('rejects malformed or out-of-range risk telemetry', () => {
+    const invalidDrawdown = structuredClone(success);
+    invalidDrawdown.risk.drawdownPercent = 101;
+    expect(() => normalizeSnapshot(invalidDrawdown)).toThrow('between 0 and 100');
+
+    const invalidHalt = structuredClone(success);
+    invalidHalt.risk.emergencyHalt.active = 'false';
+    expect(() => normalizeSnapshot(invalidHalt)).toThrow('must be a boolean');
+
+    const invalidTimestamp = structuredClone(success);
+    invalidTimestamp.risk.emergencyHalt.updatedAt = 'not-a-timestamp';
+    expect(() => normalizeSnapshot(invalidTimestamp)).toThrow('timestamp is invalid');
+
+    const invalidAllocation = structuredClone(success);
+    invalidAllocation.risk.sectorAllocation = {};
+    expect(() => normalizeSnapshot(invalidAllocation)).toThrow('risk.sectorAllocation must be an array');
   });
 
   it('rejects prototype-pollution keys before rendering', () => {

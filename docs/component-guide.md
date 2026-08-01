@@ -96,3 +96,15 @@ deduplication, search, and filtering. Preserve these boundaries:
 - ignore unknown telemetry IDs instead of rendering arbitrary Manager strings as new agents;
 - display every expected agent even when telemetry is unavailable;
 - keep the desktop telemetry table keyboard-scrollable and provide equivalent mobile cards.
+
+## Risk Dashboard
+
+`src/features/risk/RiskDashboardPage.jsx` renders Manager-only risk evidence and
+`riskDashboardModel.js` owns derivation. Preserve these boundaries:
+
+- calculate gross/net exposure only from visible position values and positive account equity;
+- never derive drawdown or risk level from unrealized P/L or workflow phase status;
+- prefer Manager `risk.sectorAllocation`; fall back only to explicit `position.sector` metadata;
+- show Emergency Halt as read-only evidence and never add a browser-side control that calls Risk_Agent;
+- keep published limits separate from values so utilization is unavailable when either side is missing;
+- carry account, privacy, and position masking into every financial metric and chart.
