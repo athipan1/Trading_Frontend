@@ -159,6 +159,127 @@ function validateOptionalRiskTelemetry(risk) {
   return true;
 }
 
+function validateBacktestStatistics(value, path) {
+  if (value === undefined || value === null) return;
+  const statistics = requirePlainObject(value, path);
+  validateBoundedOptionalMetric(
+    statistics.sharpeRatio ?? statistics.sharpe_ratio,
+    `${path}.sharpeRatio`,
+    { min: -100, max: 100 },
+  );
+  validateBoundedOptionalMetric(
+    statistics.winRatePercent ?? statistics.win_rate_percent ?? statistics.winRate ?? statistics.win_rate,
+    `${path}.winRatePercent`,
+    { max: 100 },
+  );
+  validateBoundedOptionalMetric(
+    statistics.maxDrawdownPercent ?? statistics.max_drawdown_percent ?? statistics.maxDrawdown ?? statistics.max_drawdown,
+    `${path}.maxDrawdownPercent`,
+    { max: 100 },
+  );
+  validateBoundedOptionalMetric(
+    statistics.totalTrades ?? statistics.total_trades,
+    `${path}.totalTrades`,
+    { max: 1_000_000 },
+  );
+  const netProfit = statistics.netProfit ?? statistics.net_profit;
+  if (netProfit !== undefined && netProfit !== null) {
+    const metric = requireFiniteNumber(netProfit, `${path}.netProfit`);
+    if (metric < -1_000_000_000_000 || metric > 1_000_000_000_000) {
+      throw new Error(`${path}.netProfit must be between -1000000000000 and 1000000000000`);
+    }
+  }
+}
+
+function validateBacktestRun(value, path, includeDetails = false) {
+  const run = requirePlainObject(value, path);
+  const timestamps = [
+    ['requestedAt', run.requestedAt ?? run.requested_at],
+    ['startedAt', run.startedAt ?? run.started_at],
+    ['completedAt', run.completedAt ?? run.completed_at],
+  ];
+  timestamps.forEach(([name, timestamp]) => {
+    if (timestamp !== undefined && timestamp !== null) parseTimestamp(timestamp, `${path}.${name}`);
+  });
+  const symbols = run.symbols;
+  if (symbols !== undefined) {
+    if (!Array.isArray(symbols) || symbols.length > 50) throw new Error(`${path}.symbols must contain at most 50 items`);
+    symbols.forEach((symbol, index) => requireString(symbol, `${path}.symbols[${index}]`));
+  }
+  validateBoundedOptionalMetric(
+    run.initialCapital ?? run.initial_capital,
+    `${path}.initialCapital`,
+    { max: 1_000_000_000_000 },
+  );
+  validateBoundedOptionalMetric(
+    run.finalEquity ?? run.final_equity,
+    `${path}.finalEquity`,
+    { max: 1_000_000_000_000 },
+  );
+  validateBacktestStatistics(run.statistics ?? run.metrics, `${path}.statistics`);
+  if (!includeDetails) return { curvePointCount: 0, tradeCount: 0 };
+
+  const curve = run.equityCurve ?? run.equity_curve ?? [];
+  if (!Array.isArray(curve) || curve.length > 2_000) {
+    throw new Error(`${path}.equityCurve must contain at most 2000 items`);
+  }
+  curve.forEach((point, index) => {
+    const row = requirePlainObject(point, `${path}.equityCurve[${index}]`);
+    parseTimestamp(row.timestamp ?? row.at ?? row.date, `${path}.equityCurve[${index}].timestamp`);
+    validateBoundedOptionalMetric(
+      row.equity ?? row.value,
+      `${path}.equityCurve[${index}].equity`,
+      { max: 1_000_000_000_000 },
+    );
+    validateBoundedOptionalMetric(
+      row.drawdownPercent ?? row.drawdown_percent,
+      `${path}.equityCurve[${index}].drawdownPercent`,
+      { max: 100 },
+    );
+  });
+
+  const trades = run.trades ?? [];
+  if (!Array.isArray(trades) || trades.length > 1_000) {
+    throw new Error(`${path}.trades must contain at most 1000 items`);
+  }
+  trades.forEach((trade, index) => {
+    const row = requirePlainObject(trade, `${path}.trades[${index}]`);
+    requireString(row.symbol, `${path}.trades[${index}].symbol`);
+    const entryAt = row.entryAt ?? row.entry_at;
+    const exitAt = row.exitAt ?? row.exit_at;
+    if (entryAt !== undefined && entryAt !== null) parseTimestamp(entryAt, `${path}.trades[${index}].entryAt`);
+    if (exitAt !== undefined && exitAt !== null) parseTimestamp(exitAt, `${path}.trades[${index}].exitAt`);
+    validateBoundedOptionalMetric(row.quantity ?? row.qty, `${path}.trades[${index}].quantity`, { max: 1_000_000_000 });
+    validateBoundedOptionalMetric(row.entryPrice ?? row.entry_price, `${path}.trades[${index}].entryPrice`, { max: 1_000_000_000 });
+    validateBoundedOptionalMetric(row.exitPrice ?? row.exit_price, `${path}.trades[${index}].exitPrice`, { max: 1_000_000_000 });
+    const pnl = row.pnl ?? row.profitLoss ?? row.profit_loss;
+    if (pnl !== undefined && pnl !== null) {
+      const metric = requireFiniteNumber(pnl, `${path}.trades[${index}].pnl`);
+      if (metric < -1_000_000_000_000 || metric > 1_000_000_000_000) {
+        throw new Error(`${path}.trades[${index}].pnl must be between -1000000000000 and 1000000000000`);
+      }
+    }
+  });
+  return { curvePointCount: curve.length, tradeCount: trades.length };
+}
+
+function validateOptionalBacktest(backtest) {
+  if (backtest === undefined || backtest === null) {
+    return { published: false, historyCount: 0, curvePointCount: 0, tradeCount: 0 };
+  }
+  const row = requirePlainObject(backtest, 'backtest');
+  const latest = row.latestRun ?? row.latest_run;
+  const details = latest
+    ? validateBacktestRun(latest, 'backtest.latestRun', true)
+    : { curvePointCount: 0, tradeCount: 0 };
+  const history = row.history ?? [];
+  if (!Array.isArray(history) || history.length > 50) {
+    throw new Error('backtest.history must contain at most 50 items');
+  }
+  history.forEach((run, index) => validateBacktestRun(run, `backtest.history[${index}]`));
+  return { published: true, historyCount: history.length, ...details };
+}
+
 function parseTimestamp(value, path) {
   const text = requireString(value, path);
   const timestamp = Date.parse(text);
@@ -267,6 +388,7 @@ export function validateSnapshot(snapshot, options = {}) {
   if (!Array.isArray(root.openOrders)) throw new Error('openOrders must be an array');
   const agentTelemetryCount = validateOptionalAgentTelemetry(root.agents);
   const riskTelemetryPublished = validateOptionalRiskTelemetry(root.risk);
+  const backtestTelemetry = validateOptionalBacktest(root.backtest);
 
   const freshness = requirePlainObject(root.freshness, 'freshness');
   requireFiniteNumber(
@@ -324,6 +446,7 @@ export function validateSnapshot(snapshot, options = {}) {
     privacy: { mode: privacy.mode, valuesMasked: privacy.valuesMasked },
     agentTelemetryCount,
     riskTelemetryPublished,
+    backtestTelemetry,
     freshness: {
       policy: freshnessPolicy,
       isStale: uniqueFreshnessWarnings.length > 0,

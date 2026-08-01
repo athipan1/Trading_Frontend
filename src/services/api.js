@@ -5,6 +5,9 @@ import { portfolioSnapshot } from '../data/mockPortfolio.js';
 export const DASHBOARD_SCHEMA_VERSION = 'dashboard-snapshot.v2';
 export const LEGACY_DASHBOARD_SCHEMA_VERSION = 'dashboard-snapshot.v1';
 const REQUEST_TIMEOUT_MS = 10_000;
+const MAX_BACKTEST_HISTORY = 50;
+const MAX_BACKTEST_CURVE_POINTS = 2_000;
+const MAX_BACKTEST_TRADES = 1_000;
 const DANGEROUS_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 
 function isPlainObject(value) {
@@ -40,6 +43,14 @@ function optionalObject(value) {
 function requiredArray(value, field) {
   if (!Array.isArray(value)) throw new Error(`Malformed dashboard payload: ${field} must be an array.`);
   return value;
+}
+
+function boundedArray(value, field, maxLength) {
+  const rows = requiredArray(value, field);
+  if (rows.length > maxLength) {
+    throw new Error(`Malformed dashboard payload: ${field} must contain at most ${maxLength} items.`);
+  }
+  return rows;
 }
 
 function firstValue(...values) {
@@ -182,6 +193,149 @@ function normalizeRiskTelemetry(value) {
         ? safeTimestamp(firstValue(halt.updatedAt, halt.updated_at))
         : null,
     } : null,
+  };
+}
+
+function normalizeBacktestStatistics(value, path) {
+  const statistics = optionalObject(value);
+  return {
+    sharpeRatio: boundedNullableNumber(
+      firstValue(statistics.sharpeRatio, statistics.sharpe_ratio),
+      `${path}.sharpeRatio`,
+      { min: -100, max: 100 },
+    ),
+    winRatePercent: boundedNullableNumber(
+      firstValue(statistics.winRatePercent, statistics.win_rate_percent, statistics.winRate, statistics.win_rate),
+      `${path}.winRatePercent`,
+      { max: 100 },
+    ),
+    maxDrawdownPercent: boundedNullableNumber(
+      firstValue(statistics.maxDrawdownPercent, statistics.max_drawdown_percent, statistics.maxDrawdown, statistics.max_drawdown),
+      `${path}.maxDrawdownPercent`,
+      { max: 100 },
+    ),
+    netProfit: nullableNumber(
+      firstValue(statistics.netProfit, statistics.net_profit),
+      `${path}.netProfit`,
+    ),
+    totalTrades: boundedNullableNumber(
+      firstValue(statistics.totalTrades, statistics.total_trades),
+      `${path}.totalTrades`,
+      { max: 1_000_000 },
+    ),
+  };
+}
+
+function normalizeBacktestCurvePoint(point, index) {
+  const row = requiredObject(point, `backtest.latestRun.equityCurve[${index}]`);
+  return {
+    timestamp: safeTimestamp(firstValue(row.timestamp, row.at, row.date)),
+    equity: boundedNullableNumber(
+      firstValue(row.equity, row.value),
+      `backtest.latestRun.equityCurve[${index}].equity`,
+      { max: 1_000_000_000_000 },
+    ),
+    drawdownPercent: boundedNullableNumber(
+      firstValue(row.drawdownPercent, row.drawdown_percent),
+      `backtest.latestRun.equityCurve[${index}].drawdownPercent`,
+      { max: 100 },
+    ),
+  };
+}
+
+function normalizeBacktestTrade(trade, index) {
+  const row = requiredObject(trade, `backtest.latestRun.trades[${index}]`);
+  return {
+    id: safeText(firstValue(row.id, row.tradeId, row.trade_id), '', 96) || null,
+    symbol: safeText(firstValue(row.symbol, 'UNKNOWN'), 'UNKNOWN', 16),
+    side: safeText(firstValue(row.side, 'unknown'), 'unknown', 16),
+    quantity: boundedNullableNumber(
+      firstValue(row.quantity, row.qty),
+      `backtest.latestRun.trades[${index}].quantity`,
+      { max: 1_000_000_000 },
+    ),
+    entryAt: firstValue(row.entryAt, row.entry_at)
+      ? safeTimestamp(firstValue(row.entryAt, row.entry_at))
+      : null,
+    exitAt: firstValue(row.exitAt, row.exit_at)
+      ? safeTimestamp(firstValue(row.exitAt, row.exit_at))
+      : null,
+    entryPrice: boundedNullableNumber(
+      firstValue(row.entryPrice, row.entry_price),
+      `backtest.latestRun.trades[${index}].entryPrice`,
+      { max: 1_000_000_000 },
+    ),
+    exitPrice: boundedNullableNumber(
+      firstValue(row.exitPrice, row.exit_price),
+      `backtest.latestRun.trades[${index}].exitPrice`,
+      { max: 1_000_000_000 },
+    ),
+    pnl: boundedNullableNumber(
+      firstValue(row.pnl, row.profitLoss, row.profit_loss),
+      `backtest.latestRun.trades[${index}].pnl`,
+      { min: -1_000_000_000_000, max: 1_000_000_000_000 },
+    ),
+    status: safeText(firstValue(row.status, 'closed'), 'closed', 32),
+  };
+}
+
+function normalizeBacktestRun(value, path, includeDetails = false) {
+  const run = requiredObject(value, path);
+  const symbols = run.symbols === undefined ? [] : boundedArray(run.symbols, `${path}.symbols`, 50);
+  const statistics = normalizeBacktestStatistics(
+    firstValue(run.statistics, run.metrics),
+    `${path}.statistics`,
+  );
+  const normalized = {
+    id: safeText(firstValue(run.id, run.runId, run.run_id), '', 96) || null,
+    status: safeText(firstValue(run.status, 'unknown'), 'unknown', 32),
+    strategy: safeText(firstValue(run.strategy, 'unknown'), 'unknown', 64),
+    symbols: symbols.map((symbol) => safeText(symbol, '', 16)).filter(Boolean),
+    requestedAt: firstValue(run.requestedAt, run.requested_at)
+      ? safeTimestamp(firstValue(run.requestedAt, run.requested_at))
+      : null,
+    startedAt: firstValue(run.startedAt, run.started_at)
+      ? safeTimestamp(firstValue(run.startedAt, run.started_at))
+      : null,
+    completedAt: firstValue(run.completedAt, run.completed_at)
+      ? safeTimestamp(firstValue(run.completedAt, run.completed_at))
+      : null,
+    initialCapital: boundedNullableNumber(
+      firstValue(run.initialCapital, run.initial_capital),
+      `${path}.initialCapital`,
+      { max: 1_000_000_000_000 },
+    ),
+    finalEquity: boundedNullableNumber(
+      firstValue(run.finalEquity, run.final_equity),
+      `${path}.finalEquity`,
+      { max: 1_000_000_000_000 },
+    ),
+    statistics,
+  };
+  if (!includeDetails) return normalized;
+  const equityCurve = run.equityCurve === undefined && run.equity_curve === undefined
+    ? []
+    : boundedArray(firstValue(run.equityCurve, run.equity_curve), `${path}.equityCurve`, MAX_BACKTEST_CURVE_POINTS);
+  const trades = run.trades === undefined
+    ? []
+    : boundedArray(run.trades, `${path}.trades`, MAX_BACKTEST_TRADES);
+  return {
+    ...normalized,
+    equityCurve: equityCurve.map(normalizeBacktestCurvePoint),
+    trades: trades.map(normalizeBacktestTrade),
+  };
+}
+
+function normalizeBacktest(value) {
+  if (value === undefined || value === null) return null;
+  const backtest = requiredObject(value, 'backtest');
+  const latestValue = firstValue(backtest.latestRun, backtest.latest_run);
+  const history = backtest.history === undefined
+    ? []
+    : boundedArray(backtest.history, 'backtest.history', MAX_BACKTEST_HISTORY);
+  return {
+    latestRun: latestValue ? normalizeBacktestRun(latestValue, 'backtest.latestRun', true) : null,
+    history: history.map((run, index) => normalizeBacktestRun(run, `backtest.history[${index}]`)),
   };
 }
 
@@ -334,6 +488,7 @@ function normalizeV2(data) {
     }),
     agents: agents.map(normalizeAgentTelemetry),
     risk: normalizeRiskTelemetry(data.risk),
+    backtest: normalizeBacktest(data.backtest),
     account: {
       cash: nullableNumber(account.cash, 'account.cash'),
       equity: nullableNumber(account.equity, 'account.equity'),
@@ -390,7 +545,7 @@ function normalizeV1(data) {
     workflow: { runId: null, runNumber: null, runUrl: null, eventName: 'unknown', status: 'unknown', conclusion: 'unknown', startedAt: null, completedAt: generatedAt, durationSeconds: null },
     runtime: { mode: safeText(firstValue(data.mode, account.mode, 'UNKNOWN'), 'UNKNOWN', 32), brokerMode: safeText(data.brokerMode, 'UNKNOWN', 32), dryRun: true, liveTradingEnabled: false, flow: safeText(data.flow, 'portfolio_review', 64) },
     cycle: { id: null, status: 'unknown', marketMode: null, candidateCount: nullableNumber(summary.candidateCount, 'summary.candidateCount', 0), selectedSymbols: [], executionAttempted: !['not_attempted', 'skipped', undefined, null].includes(summary.executionStatus), executionStatus: safeText(summary.executionStatus, 'unknown', 48), executionReason: safeText(summary.executionReason, '', 200) || null, partialFillDetected: false },
-    phases: [], agents: [], risk: null,
+    phases: [], agents: [], risk: null, backtest: null,
     account: { cash: nullableNumber(firstValue(account.cash, account.cash_balance), 'account.cash', 0), equity: nullableNumber(firstValue(account.equity, account.portfolio_value), 'account.equity', 0), buyingPower: nullableNumber(firstValue(account.buyingPower, account.buying_power), 'account.buyingPower', 0), status: safeText(account.status, 'UNKNOWN', 40), mode: safeText(firstValue(account.mode, data.mode, 'UNKNOWN'), 'UNKNOWN', 32), lastSyncedAt: safeTimestamp(firstValue(account.lastSyncedAt, account.last_synced_at, generatedAt)), valuesMasked: false },
     positions: positions.map(normalizePosition), openOrders: openOrders.map(normalizeOrder), signals: normalizedSignals, curatorSignals: normalizedSignals,
     warnings: [], error: null, lastSuccessfulRun: null, summary: { ...summary }, privacy: { mode: 'full', valuesMasked: false },

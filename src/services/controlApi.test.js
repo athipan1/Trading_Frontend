@@ -9,6 +9,7 @@ import {
   getControlCapabilities,
   getFinanceState,
   getInvestmentPlan,
+  requestBacktestRun,
   updateFinanceBudgets,
 } from './controlApi.js';
 
@@ -91,6 +92,16 @@ describe('Manager-only control API', () => {
     await createInvestmentPlan({ ...auth, ticker: 'AAPL', userGoal: 'paper only' });
     await getInvestmentPlan({ operatorToken: 'token', tradePlanId: 'plan/1' });
     await confirmInvestmentPlan({ ...auth, tradePlanId: 'plan/1', confirmationText: 'CONFIRM' });
+    await requestBacktestRun({
+      ...auth,
+      request: {
+        strategy: 'momentum',
+        symbols: ['AAPL', 'MSFT'],
+        startDate: '2026-01-01',
+        endDate: '2026-06-30',
+        initialCapital: 50000,
+      },
+    });
 
     expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual([
       '/api/web-control/finance-state?account_id=acct%2F1',
@@ -101,6 +112,7 @@ describe('Manager-only control API', () => {
       '/api/web-control/investment-plans-persisted',
       '/api/web-control/investment-plans/plan%2F1',
       '/api/web-control/investment-plans/plan%2F1/confirm',
+      '/api/web-control/backtests',
     ]);
     expect(JSON.parse(fetchImpl.mock.calls[1][1].body)).toEqual(expect.objectContaining({
       account_id: 'acct/1',
@@ -110,5 +122,13 @@ describe('Manager-only control API', () => {
       ticker: 'AAPL',
       period: '1mo',
     }));
+    expect(JSON.parse(fetchImpl.mock.calls[8][1].body)).toEqual({
+      account_id: 'acct/1',
+      strategy: 'momentum',
+      symbols: ['AAPL', 'MSFT'],
+      start_date: '2026-01-01',
+      end_date: '2026-06-30',
+      initial_capital: 50000,
+    });
   });
 });

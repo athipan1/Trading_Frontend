@@ -108,3 +108,18 @@ deduplication, search, and filtering. Preserve these boundaries:
 - show Emergency Halt as read-only evidence and never add a browser-side control that calls Risk_Agent;
 - keep published limits separate from values so utilization is unavailable when either side is missing;
 - carry account, privacy, and position masking into every financial metric and chart.
+
+## Backtest workspace
+
+`src/features/backtest/BacktestPage.jsx` renders the run form, statistics, SVG
+profit curve, history, and simulated trades. `backtestModel.js` owns request
+validation and chart derivation. Preserve these boundaries:
+
+- keep result/history/trade data inside the bounded normalized Manager contract;
+- never reconstruct a profit curve or trade from live positions or broker orders;
+- keep the Run button disabled unless Manager API authentication is connected and
+  `backtest_run_enabled` is explicitly true;
+- submit only the allowlisted strategy, symbols, dates, and initial capital to the
+  fixed Manager Web Control route;
+- never interpret a backtest result as permission to trade or send a broker order;
+- use the responsive cards below tablet width and retain named, keyboard-scrollable tables on desktop.

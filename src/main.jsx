@@ -13,6 +13,7 @@ import './features/portfolio/portfolioWorkspace.css';
 import './features/orders/ordersWorkspace.css';
 import './features/agents/agentMonitor.css';
 import './features/risk/riskDashboard.css';
+import './features/backtest/backtest.css';
 import './accessibility.css';
 
 class DashboardErrorBoundary extends React.Component {

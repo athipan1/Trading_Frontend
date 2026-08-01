@@ -21,6 +21,7 @@ src/
   data/                   explicit empty and development-only mock models
   features/
     agents/               Manager-published Agent telemetry and fixed registry
+    backtest/             Backtest request validation, analytics, history, and trades
     dashboard/            Overview page composition
     orders/               Read-only order workspace and observation timeline
     portfolio/            Portfolio page composition
@@ -58,13 +59,20 @@ exposure may be calculated from visible position market values and account equit
 privacy masking disables that calculation. The page is read-only and has no direct
 Risk_Agent or emergency-control client.
 
+The Backtest workspace consumes an optional, bounded `backtest` projection. History
+is capped at 50 runs, the latest equity curve at 2,000 points, and simulated trades
+at 1,000 records before rendering. Public snapshot mode is read-only. A new run can
+be requested only through the fixed Manager `/web-control/backtests` endpoint when
+Manager API mode is active, an in-memory operator token is connected, and Manager
+publishes `backtest_run_enabled`. This capability never calls a broker from React.
+
 ## Routing and loading
 
 The route registry is centralized in `src/routes/routeConfig.js`. Public snapshot
-mode exposes Overview, Portfolio, Orders, Agents, Risk, and System Status. Manager-only routes are omitted
+mode exposes Overview, Portfolio, Orders, Agents, Risk, Backtest, and System Status. Manager-only routes are omitted
 from navigation and normalized back to Overview when unavailable.
 
-Agents, Risk, Portfolio, Orders, Finance Ledger, AI Finance, and AI Investment are lazy modules. Public production
+Agents, Risk, Backtest, Portfolio, Orders, Finance Ledger, AI Finance, and AI Investment are lazy modules. Public production
 does not download these control chunks unless a Manager-enabled deployment opens
 their routes.
 

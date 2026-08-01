@@ -33,7 +33,7 @@ No GitHub token, broker credential, API key, database credential, service URL, o
 
 Production defaults to `public-snapshot` and fails its build when the snapshot URL is missing. It never silently falls back to mock data.
 
-`dashboard-snapshot.v2` includes workflow metadata, Paper runtime, cycle result, phase timeline, freshness, last successful run, masked account state, safe warnings, and a bounded public error. It may also include optional, allowlisted `agents[]` telemetry and `risk` projections. The frontend temporarily accepts `dashboard-snapshot.v1`, converts it to the same internal model, and emits a development-only deprecation warning.
+`dashboard-snapshot.v2` includes workflow metadata, Paper runtime, cycle result, phase timeline, freshness, last successful run, masked account state, safe warnings, and a bounded public error. It may also include optional, allowlisted `agents[]`, `risk`, and `backtest` projections. The frontend temporarily accepts `dashboard-snapshot.v1`, converts it to the same internal model, and emits a development-only deprecation warning.
 
 ## Vercel production
 
@@ -92,6 +92,13 @@ sector allocation, and Emergency Halt state are rendered only from the optional
 Manager `risk` projection (with an explicit `position.sector` fallback for the
 allocation chart). Missing evidence remains unavailable. Emergency Halt is status
 only: the public browser exposes no halt command and never calls Risk_Agent.
+
+The Backtest workspace renders Manager-published Sharpe ratio, win rate, maximum
+drawdown, net profit, a bounded equity curve, previous runs, and simulated trades.
+Public snapshot mode cannot request a run. In Manager API mode, Run remains disabled
+until an operator token is connected and Manager explicitly publishes the
+`backtest_run_enabled` capability; the request goes only to the fixed Manager Web
+Control endpoint and cannot place a broker order.
 
 ## Optional Web Control
 

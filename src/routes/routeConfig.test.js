@@ -9,6 +9,7 @@ describe('route configuration', () => {
     ['/orders', 'orders'],
     ['/agents', 'agents'],
     ['/risk', 'risk'],
+    ['/backtest', 'backtest'],
     ['/system', 'system'],
     ['/ledger', 'ledger'],
     ['/unknown', 'overview'],
@@ -22,6 +23,7 @@ describe('route configuration', () => {
     expect(pathForPage('orders')).toBe('/orders');
     expect(pathForPage('agents')).toBe('/agents');
     expect(pathForPage('risk')).toBe('/risk');
+    expect(pathForPage('backtest')).toBe('/backtest');
     expect(pathForPage('missing')).toBe('/overview');
   });
 
@@ -33,5 +35,6 @@ describe('route configuration', () => {
     expect(isManagerControlPage('orders')).toBe(false);
     expect(isManagerControlPage('agents')).toBe(false);
     expect(isManagerControlPage('risk')).toBe(false);
+    expect(isManagerControlPage('backtest')).toBe(false);
   });
 });

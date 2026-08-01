@@ -210,6 +210,52 @@ describe('dashboard-snapshot.v2 contract fixtures', () => {
       },
     });
   });
+
+  it('normalizes a bounded optional Manager backtest projection', () => {
+    const payload = structuredClone(success);
+    payload.backtest = {
+      latest_run: {
+        run_id: 'bt-42',
+        status: 'completed',
+        strategy: 'momentum',
+        symbols: ['AAPL'],
+        started_at: '2026-01-01T00:00:00Z',
+        completed_at: '2026-02-01T00:00:00Z',
+        initial_capital: 10000,
+        final_equity: 11000,
+        metrics: {
+          sharpe_ratio: 1.5,
+          win_rate_percent: 60,
+          max_drawdown_percent: 5,
+          net_profit: 1000,
+          total_trades: 10,
+          secretMetric: 'dropped',
+        },
+        equity_curve: [{ at: '2026-01-01T00:00:00Z', value: 10000, drawdown_percent: 0 }],
+        trades: [{ trade_id: 'trade-1', symbol: 'AAPL', side: 'buy', qty: 2, entry_at: '2026-01-02T00:00:00Z', exit_at: '2026-01-10T00:00:00Z', entry_price: 100, exit_price: 110, profit_loss: 20, status: 'closed', brokerOrderId: 'dropped' }],
+        internalUrl: 'dropped',
+      },
+      history: [],
+    };
+
+    expect(normalizeSnapshot(payload).backtest).toEqual({
+      latestRun: {
+        id: 'bt-42',
+        status: 'completed',
+        strategy: 'momentum',
+        symbols: ['AAPL'],
+        requestedAt: null,
+        startedAt: '2026-01-01T00:00:00.000Z',
+        completedAt: '2026-02-01T00:00:00.000Z',
+        initialCapital: 10000,
+        finalEquity: 11000,
+        statistics: { sharpeRatio: 1.5, winRatePercent: 60, maxDrawdownPercent: 5, netProfit: 1000, totalTrades: 10 },
+        equityCurve: [{ timestamp: '2026-01-01T00:00:00.000Z', equity: 10000, drawdownPercent: 0 }],
+        trades: [{ id: 'trade-1', symbol: 'AAPL', side: 'buy', quantity: 2, entryAt: '2026-01-02T00:00:00.000Z', exitAt: '2026-01-10T00:00:00.000Z', entryPrice: 100, exitPrice: 110, pnl: 20, status: 'closed' }],
+      },
+      history: [],
+    });
+  });
 });
 
 describe('payload validation and v1 compatibility', () => {
@@ -270,6 +316,28 @@ describe('payload validation and v1 compatibility', () => {
     const invalidAllocation = structuredClone(success);
     invalidAllocation.risk.sectorAllocation = {};
     expect(() => normalizeSnapshot(invalidAllocation)).toThrow('risk.sectorAllocation must be an array');
+  });
+
+  it('rejects malformed, oversized, or out-of-range backtest telemetry', () => {
+    const invalidWinRate = structuredClone(success);
+    invalidWinRate.backtest.latestRun.statistics.winRatePercent = 101;
+    expect(() => normalizeSnapshot(invalidWinRate)).toThrow('between 0 and 100');
+
+    const invalidTimestamp = structuredClone(success);
+    invalidTimestamp.backtest.latestRun.equityCurve[0].timestamp = 'not-a-timestamp';
+    expect(() => normalizeSnapshot(invalidTimestamp)).toThrow('timestamp is invalid');
+
+    const tooMuchHistory = structuredClone(success);
+    tooMuchHistory.backtest.history = Array.from({ length: 51 }, (_, index) => ({ id: `run-${index}` }));
+    expect(() => normalizeSnapshot(tooMuchHistory)).toThrow('at most 50 items');
+
+    const tooManyCurvePoints = structuredClone(success);
+    tooManyCurvePoints.backtest.latestRun.equityCurve = Array.from({ length: 2001 }, () => ({ timestamp: '2026-01-01T00:00:00Z', equity: 100 }));
+    expect(() => normalizeSnapshot(tooManyCurvePoints)).toThrow('at most 2000 items');
+
+    const invalidTradePnl = structuredClone(success);
+    invalidTradePnl.backtest.latestRun.trades[0].pnl = 2_000_000_000_000;
+    expect(() => normalizeSnapshot(invalidTradePnl)).toThrow('between -1000000000000 and 1000000000000');
   });
 
   it('rejects prototype-pollution keys before rendering', () => {
