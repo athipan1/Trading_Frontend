@@ -45,6 +45,12 @@ desktop table/mobile cards, and the Manager-only boundary. Optional `agents[]`
 fixtures may exercise the UI, but absent telemetry must never be replaced with
 derived or mocked production values.
 
+Risk Dashboard changes must cover published and absent optional `risk` contracts,
+bounded percentages, emergency-halt booleans/timestamps, masked exposure, sector
+fallbacks, mobile overflow, and the lack of a browser halt control. Fixtures may
+publish risk evidence through Manager, but tests must prove that drawdown and risk
+level remain unavailable when Manager omits them.
+
 When the pinned Playwright browser cannot be installed in a restricted local
 environment, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to a compatible Chromium
 executable. CI leaves this unset and always installs the Playwright-pinned browser.

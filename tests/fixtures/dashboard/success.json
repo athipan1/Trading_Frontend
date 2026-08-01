@@ -64,6 +64,7 @@
       "marketValue": 5624.37,
       "unrealizedPnL": -2.43,
       "bucket": "value_rebound",
+      "sector": "Financials",
       "valuesMasked": false,
       "protection": {
         "status": "bracket_protected",
@@ -73,6 +74,29 @@
       }
     }
   ],
+  "risk": {
+    "riskLevel": "moderate",
+    "riskScore": 32,
+    "grossExposurePercent": 7.84,
+    "netExposurePercent": 7.84,
+    "drawdownPercent": 1.2,
+    "sectorAllocation": [
+      {
+        "sector": "Financials",
+        "percent": 100,
+        "marketValue": 5624.37
+      }
+    ],
+    "limits": {
+      "grossExposurePercent": 35,
+      "drawdownPercent": 8
+    },
+    "emergencyHalt": {
+      "active": false,
+      "reason": "No emergency halt requested by Manager_Agent.",
+      "updatedAt": "2026-07-30T00:00:00Z"
+    }
+  },
   "openOrders": [
     {
       "symbol": "ACGL",

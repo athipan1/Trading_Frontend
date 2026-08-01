@@ -62,6 +62,7 @@ describe('Manager connection validation', () => {
       privacy: { mode: 'masked', valuesMasked: true },
       freshness: { isStale: false, policy: 'fail', warnings: [] },
       agentTelemetryCount: 0,
+      riskTelemetryPublished: false,
     });
   });
 
@@ -80,6 +81,29 @@ describe('Manager connection validation', () => {
     expect(() => validateSnapshot(createSnapshot({
       agents: [{ id: 'risk_agent', cpuPercent: 101 }],
     }), { nowMs: NOW, freshnessPolicy: 'warn' })).toThrow('between 0 and 100');
+  });
+
+  it('validates optional bounded risk telemetry without exposing a control channel', () => {
+    const result = validateSnapshot(createSnapshot({
+      risk: {
+        riskLevel: 'moderate',
+        riskScore: 35,
+        grossExposurePercent: 28,
+        netExposurePercent: -4,
+        drawdownPercent: 2.5,
+        sectorAllocation: [{ sector: 'Technology', percent: 55 }],
+        limits: { grossExposurePercent: 70, drawdownPercent: 10 },
+        emergencyHalt: { active: false, updatedAt: '2026-07-30T04:20:00Z' },
+      },
+    }), { nowMs: NOW, freshnessPolicy: 'warn' });
+    expect(result.riskTelemetryPublished).toBe(true);
+
+    expect(() => validateSnapshot(createSnapshot({
+      risk: { drawdownPercent: 120 },
+    }), { nowMs: NOW, freshnessPolicy: 'warn' })).toThrow('between 0 and 100');
+    expect(() => validateSnapshot(createSnapshot({
+      risk: { emergencyHalt: { active: 'false' } },
+    }), { nowMs: NOW, freshnessPolicy: 'warn' })).toThrow('must be a boolean');
   });
 
   it('reports stale upstream data as a warning when connectivity policy is warn', () => {

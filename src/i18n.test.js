@@ -48,5 +48,14 @@ describe('dashboard language selection', () => {
     expect(Object.keys(translations.en.agentHealthGroups).sort()).toEqual(
       Object.keys(translations.th.agentHealthGroups).sort(),
     );
+    expect(Object.keys(translations.en.riskLevelLabels).sort()).toEqual(
+      Object.keys(translations.th.riskLevelLabels).sort(),
+    );
+    expect(Object.keys(translations.en.riskSources).sort()).toEqual(
+      Object.keys(translations.th.riskSources).sort(),
+    );
+    expect(Object.keys(translations.en.emergencyHaltStates).sort()).toEqual(
+      Object.keys(translations.th.emergencyHaltStates).sort(),
+    );
   });
 });

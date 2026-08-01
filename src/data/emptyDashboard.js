@@ -36,6 +36,7 @@ export const emptyDashboardSnapshot = Object.freeze({
   }),
   phases: Object.freeze([]),
   agents: Object.freeze([]),
+  risk: null,
   freshness: Object.freeze({
     expectedIntervalMinutes: 60,
     ageMinutes: null,

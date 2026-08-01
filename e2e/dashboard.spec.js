@@ -36,13 +36,48 @@ test('uses route-aware navigation and hides unavailable control pages', async ({
   await expect(page).toHaveURL(/\/agents$/);
   await expect(page.getByTestId('page-agents')).toBeVisible();
 
+  await page.getByTestId('nav-risk').first().click();
+  await expect(page).toHaveURL(/\/risk$/);
+  await expect(page.getByTestId('page-risk')).toBeVisible();
+
   await page.getByTestId('nav-system').first().click();
   await expect(page).toHaveURL(/\/system$/);
   await expect(page.getByTestId('hourly-automation-status')).toBeVisible();
 
   await page.goBack();
-  await expect(page).toHaveURL(/\/agents$/);
-  await expect(page.getByTestId('page-agents')).toBeVisible();
+  await expect(page).toHaveURL(/\/risk$/);
+  await expect(page.getByTestId('page-risk')).toBeVisible();
+});
+
+test('renders Manager-only risk evidence without exposing a browser halt control', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('trading-dashboard-language', 'en');
+  });
+  await mockSnapshot(page, fixture('success'));
+  await page.goto('/risk');
+
+  await expect(page.getByTestId('risk-level')).toContainText('Moderate');
+  await expect(page.getByTestId('gross-exposure')).toContainText('7.8%');
+  await expect(page.getByTestId('drawdown')).toContainText('1.2%');
+  await expect(page.getByTestId('sector-allocation')).toContainText('Financials');
+  await expect(page.getByTestId('emergency-halt')).toContainText('Inactive');
+  await expect(page.getByTestId('emergency-halt')).toContainText('Read-only');
+  await expect(page.getByRole('button', { name: /emergency halt/i })).toHaveCount(0);
+});
+
+test('keeps the Risk Dashboard inside a 320px viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await mockSnapshot(page, fixture('success'));
+  await page.goto('/risk');
+
+  await expect(page.getByTestId('page-risk')).toBeVisible();
+  await expect(page.getByTestId('risk-gauge')).toBeVisible();
+  await expect(page.getByTestId('emergency-halt')).toBeVisible();
+  const dimensions = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    page: document.documentElement.scrollWidth,
+  }));
+  expect(dimensions.page).toBeLessThanOrEqual(dimensions.viewport);
 });
 
 test('renders Manager-only agent telemetry and keeps unknown metrics unavailable', async ({ page }) => {

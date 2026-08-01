@@ -85,6 +85,80 @@ function validateOptionalAgentTelemetry(agents) {
   return agents.length;
 }
 
+function validateBoundedOptionalMetric(value, path, { min = 0, max }) {
+  if (value === undefined || value === null) return;
+  const metric = requireFiniteNumber(value, path);
+  if (metric < min || metric > max) {
+    throw new Error(`${path} must be between ${min} and ${max}`);
+  }
+}
+
+function validateOptionalRiskTelemetry(risk) {
+  if (risk === undefined || risk === null) return false;
+  const row = requirePlainObject(risk, 'risk');
+  validateBoundedOptionalMetric(row.riskScore ?? row.risk_score, 'risk.riskScore', { max: 100 });
+  validateBoundedOptionalMetric(
+    row.grossExposurePercent ?? row.gross_exposure_percent,
+    'risk.grossExposurePercent',
+    { max: 1_000 },
+  );
+  validateBoundedOptionalMetric(
+    row.netExposurePercent ?? row.net_exposure_percent,
+    'risk.netExposurePercent',
+    { min: -1_000, max: 1_000 },
+  );
+  validateBoundedOptionalMetric(
+    row.drawdownPercent ?? row.drawdown_percent,
+    'risk.drawdownPercent',
+    { max: 100 },
+  );
+
+  const limits = row.limits;
+  if (limits !== undefined && limits !== null) {
+    const limitRow = requirePlainObject(limits, 'risk.limits');
+    validateBoundedOptionalMetric(
+      limitRow.grossExposurePercent ?? limitRow.gross_exposure_percent,
+      'risk.limits.grossExposurePercent',
+      { max: 1_000 },
+    );
+    validateBoundedOptionalMetric(
+      limitRow.drawdownPercent ?? limitRow.drawdown_percent,
+      'risk.limits.drawdownPercent',
+      { max: 100 },
+    );
+  }
+
+  const allocations = row.sectorAllocation ?? row.sector_allocation;
+  if (allocations !== undefined && allocations !== null) {
+    if (!Array.isArray(allocations)) throw new Error('risk.sectorAllocation must be an array');
+    allocations.forEach((allocation, index) => {
+      const item = requirePlainObject(allocation, `risk.sectorAllocation[${index}]`);
+      requireString(item.sector ?? item.name, `risk.sectorAllocation[${index}].sector`);
+      validateBoundedOptionalMetric(
+        item.percent ?? item.percentage ?? item.sharePercent ?? item.share_percent,
+        `risk.sectorAllocation[${index}].percent`,
+        { max: 100 },
+      );
+      validateBoundedOptionalMetric(
+        item.marketValue ?? item.market_value,
+        `risk.sectorAllocation[${index}].marketValue`,
+        { max: 1_000_000_000_000 },
+      );
+    });
+  }
+
+  const halt = row.emergencyHalt ?? row.emergency_halt;
+  if (halt !== undefined && halt !== null) {
+    const haltRow = requirePlainObject(halt, 'risk.emergencyHalt');
+    requireBoolean(haltRow.active, 'risk.emergencyHalt.active');
+    const updatedAt = haltRow.updatedAt ?? haltRow.updated_at;
+    if (updatedAt !== undefined && updatedAt !== null) {
+      parseTimestamp(updatedAt, 'risk.emergencyHalt.updatedAt');
+    }
+  }
+  return true;
+}
+
 function parseTimestamp(value, path) {
   const text = requireString(value, path);
   const timestamp = Date.parse(text);
@@ -192,6 +266,7 @@ export function validateSnapshot(snapshot, options = {}) {
   if (!Array.isArray(root.positions)) throw new Error('positions must be an array');
   if (!Array.isArray(root.openOrders)) throw new Error('openOrders must be an array');
   const agentTelemetryCount = validateOptionalAgentTelemetry(root.agents);
+  const riskTelemetryPublished = validateOptionalRiskTelemetry(root.risk);
 
   const freshness = requirePlainObject(root.freshness, 'freshness');
   requireFiniteNumber(
@@ -248,6 +323,7 @@ export function validateSnapshot(snapshot, options = {}) {
     },
     privacy: { mode: privacy.mode, valuesMasked: privacy.valuesMasked },
     agentTelemetryCount,
+    riskTelemetryPublished,
     freshness: {
       policy: freshnessPolicy,
       isStale: uniqueFreshnessWarnings.length > 0,

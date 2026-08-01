@@ -67,6 +67,14 @@ function booleanValue(value) {
   return Boolean(value);
 }
 
+function nullableBoolean(value, field) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'boolean') {
+    throw new Error(`Malformed dashboard payload: ${field} must be a boolean.`);
+  }
+  return value;
+}
+
 function safeText(value, fallback = '', limit = 280) {
   if (value === undefined || value === null) return fallback;
   const printable = Array.from(String(value), (character) => {
@@ -94,6 +102,7 @@ function normalizePosition(position, index) {
     marketValue: nullableNumber(firstValue(row.marketValue, row.market_value), `positions[${index}].marketValue`),
     unrealizedPnL: nullableNumber(firstValue(row.unrealizedPnL, row.unrealized_pl), `positions[${index}].unrealizedPnL`),
     bucket: safeText(firstValue(row.bucket, row.strategy_bucket, 'unassigned'), 'unassigned', 48),
+    sector: safeText(row.sector, '', 64) || null,
     valuesMasked: booleanValue(row.valuesMasked),
     protection: {
       status: safeText(firstValue(protection.status, 'unknown'), 'unknown', 48),
@@ -101,6 +110,78 @@ function normalizePosition(position, index) {
       hasTakeProfit: booleanValue(firstValue(protection.hasTakeProfit, row.hasTakeProfit, false)),
       hasBracket: booleanValue(firstValue(protection.hasBracket, row.hasBracket, false)),
     },
+  };
+}
+
+function normalizeSectorAllocation(allocation, index) {
+  const row = requiredObject(allocation, `risk.sectorAllocation[${index}]`);
+  return {
+    sector: safeText(firstValue(row.sector, row.name), '', 64),
+    percent: boundedNullableNumber(
+      firstValue(row.percent, row.percentage, row.sharePercent, row.share_percent),
+      `risk.sectorAllocation[${index}].percent`,
+      { max: 100 },
+    ),
+    marketValue: boundedNullableNumber(
+      firstValue(row.marketValue, row.market_value),
+      `risk.sectorAllocation[${index}].marketValue`,
+      { max: 1_000_000_000_000 },
+    ),
+  };
+}
+
+function normalizeRiskTelemetry(value) {
+  if (value === undefined || value === null) return null;
+  const risk = requiredObject(value, 'risk');
+  const halt = risk.emergencyHalt === undefined && risk.emergency_halt === undefined
+    ? null
+    : requiredObject(firstValue(risk.emergencyHalt, risk.emergency_halt), 'risk.emergencyHalt');
+  const limits = optionalObject(risk.limits);
+  const sectorAllocation = risk.sectorAllocation === undefined && risk.sector_allocation === undefined
+    ? []
+    : requiredArray(firstValue(risk.sectorAllocation, risk.sector_allocation), 'risk.sectorAllocation');
+  return {
+    riskLevel: safeText(firstValue(risk.riskLevel, risk.risk_level), '', 32) || null,
+    riskScore: boundedNullableNumber(
+      firstValue(risk.riskScore, risk.risk_score),
+      'risk.riskScore',
+      { max: 100 },
+    ),
+    grossExposurePercent: boundedNullableNumber(
+      firstValue(risk.grossExposurePercent, risk.gross_exposure_percent),
+      'risk.grossExposurePercent',
+      { max: 1_000 },
+    ),
+    netExposurePercent: boundedNullableNumber(
+      firstValue(risk.netExposurePercent, risk.net_exposure_percent),
+      'risk.netExposurePercent',
+      { min: -1_000, max: 1_000 },
+    ),
+    drawdownPercent: boundedNullableNumber(
+      firstValue(risk.drawdownPercent, risk.drawdown_percent),
+      'risk.drawdownPercent',
+      { max: 100 },
+    ),
+    sectorAllocation: sectorAllocation.map(normalizeSectorAllocation).filter((row) => row.sector),
+    limits: {
+      grossExposurePercent: boundedNullableNumber(
+        firstValue(limits.grossExposurePercent, limits.gross_exposure_percent),
+        'risk.limits.grossExposurePercent',
+        { max: 1_000 },
+      ),
+      drawdownPercent: boundedNullableNumber(
+        firstValue(limits.drawdownPercent, limits.drawdown_percent),
+        'risk.limits.drawdownPercent',
+        { max: 100 },
+      ),
+    },
+    emergencyHalt: halt ? {
+      active: nullableBoolean(halt.active, 'risk.emergencyHalt.active'),
+      reason: safeText(halt.reason, '', 200) || null,
+      updatedAt: halt.updatedAt || halt.updated_at
+        ? safeTimestamp(firstValue(halt.updatedAt, halt.updated_at))
+        : null,
+    } : null,
   };
 }
 
@@ -252,6 +333,7 @@ function normalizeV2(data) {
       };
     }),
     agents: agents.map(normalizeAgentTelemetry),
+    risk: normalizeRiskTelemetry(data.risk),
     account: {
       cash: nullableNumber(account.cash, 'account.cash'),
       equity: nullableNumber(account.equity, 'account.equity'),
@@ -308,7 +390,7 @@ function normalizeV1(data) {
     workflow: { runId: null, runNumber: null, runUrl: null, eventName: 'unknown', status: 'unknown', conclusion: 'unknown', startedAt: null, completedAt: generatedAt, durationSeconds: null },
     runtime: { mode: safeText(firstValue(data.mode, account.mode, 'UNKNOWN'), 'UNKNOWN', 32), brokerMode: safeText(data.brokerMode, 'UNKNOWN', 32), dryRun: true, liveTradingEnabled: false, flow: safeText(data.flow, 'portfolio_review', 64) },
     cycle: { id: null, status: 'unknown', marketMode: null, candidateCount: nullableNumber(summary.candidateCount, 'summary.candidateCount', 0), selectedSymbols: [], executionAttempted: !['not_attempted', 'skipped', undefined, null].includes(summary.executionStatus), executionStatus: safeText(summary.executionStatus, 'unknown', 48), executionReason: safeText(summary.executionReason, '', 200) || null, partialFillDetected: false },
-    phases: [], agents: [],
+    phases: [], agents: [], risk: null,
     account: { cash: nullableNumber(firstValue(account.cash, account.cash_balance), 'account.cash', 0), equity: nullableNumber(firstValue(account.equity, account.portfolio_value), 'account.equity', 0), buyingPower: nullableNumber(firstValue(account.buyingPower, account.buying_power), 'account.buyingPower', 0), status: safeText(account.status, 'UNKNOWN', 40), mode: safeText(firstValue(account.mode, data.mode, 'UNKNOWN'), 'UNKNOWN', 32), lastSyncedAt: safeTimestamp(firstValue(account.lastSyncedAt, account.last_synced_at, generatedAt)), valuesMasked: false },
     positions: positions.map(normalizePosition), openOrders: openOrders.map(normalizeOrder), signals: normalizedSignals, curatorSignals: normalizedSignals,
     warnings: [], error: null, lastSuccessfulRun: null, summary: { ...summary }, privacy: { mode: 'full', valuesMasked: false },

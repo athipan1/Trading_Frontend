@@ -24,6 +24,7 @@ src/
     dashboard/            Overview page composition
     orders/               Read-only order workspace and observation timeline
     portfolio/            Portfolio page composition
+    risk/                 Risk derivation, gauges, allocation, and halt evidence
   hooks/                  reusable polling and route-state hooks
   routes/                 route IDs, paths, and access classification
   services/               sanitized snapshot and Manager-only control clients
@@ -50,13 +51,20 @@ are ignored, duplicate records do not override the first Manager record, numeric
 resource metrics are range checked, and missing telemetry is displayed as
 unavailable. Workflow phases remain separate orchestration evidence.
 
+The Risk Dashboard consumes an optional, allowlisted `risk` projection normalized
+by `src/services/api.js`. Manager-published drawdown, risk level, limits, sector
+allocation, and emergency-halt state are never inferred when absent. Gross and net
+exposure may be calculated from visible position market values and account equity;
+privacy masking disables that calculation. The page is read-only and has no direct
+Risk_Agent or emergency-control client.
+
 ## Routing and loading
 
 The route registry is centralized in `src/routes/routeConfig.js`. Public snapshot
-mode exposes Overview, Portfolio, Orders, Agents, and System Status. Manager-only routes are omitted
+mode exposes Overview, Portfolio, Orders, Agents, Risk, and System Status. Manager-only routes are omitted
 from navigation and normalized back to Overview when unavailable.
 
-Agents, Portfolio, Orders, Finance Ledger, AI Finance, and AI Investment are lazy modules. Public production
+Agents, Risk, Portfolio, Orders, Finance Ledger, AI Finance, and AI Investment are lazy modules. Public production
 does not download these control chunks unless a Manager-enabled deployment opens
 their routes.
 

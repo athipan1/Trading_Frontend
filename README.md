@@ -33,7 +33,7 @@ No GitHub token, broker credential, API key, database credential, service URL, o
 
 Production defaults to `public-snapshot` and fails its build when the snapshot URL is missing. It never silently falls back to mock data.
 
-`dashboard-snapshot.v2` includes workflow metadata, Paper runtime, cycle result, phase timeline, freshness, last successful run, masked account state, safe warnings, and a bounded public error. It may also include an optional, allowlisted `agents[]` telemetry projection. The frontend temporarily accepts `dashboard-snapshot.v1`, converts it to the same internal model, and emits a development-only deprecation warning.
+`dashboard-snapshot.v2` includes workflow metadata, Paper runtime, cycle result, phase timeline, freshness, last successful run, masked account state, safe warnings, and a bounded public error. It may also include optional, allowlisted `agents[]` telemetry and `risk` projections. The frontend temporarily accepts `dashboard-snapshot.v1`, converts it to the same internal model, and emits a development-only deprecation warning.
 
 ## Vercel production
 
@@ -85,6 +85,13 @@ latency, version, CPU, memory, status, and last-run values only when they arrive
 Manager-published `agents[]` telemetry. Missing values remain visibly unavailable;
 workflow phase results are never promoted to process-health evidence. The browser
 does not probe individual agent endpoints.
+
+The Risk Dashboard calculates gross/net exposure only when the sanitized snapshot
+contains visible position values and account equity. Drawdown, risk level, limits,
+sector allocation, and Emergency Halt state are rendered only from the optional
+Manager `risk` projection (with an explicit `position.sector` fallback for the
+allocation chart). Missing evidence remains unavailable. Emergency Halt is status
+only: the public browser exposes no halt command and never calls Risk_Agent.
 
 ## Optional Web Control
 

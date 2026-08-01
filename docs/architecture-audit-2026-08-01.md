@@ -20,6 +20,9 @@ collapsible navigation, the professional Portfolio workspace, the read-only
 Orders workspace, and a Manager-only Agent Monitor. Phase 6 deliberately uses only the current Manager `openOrders`
 snapshot: Filled, Rejected, and Cancelled views are supported when Manager publishes
 such records, while empty views explicitly avoid claiming complete broker history.
+Phase 8 adds a read-only Risk Dashboard with calculated visible exposure plus an
+optional bounded Manager `risk` projection for drawdown, level, limits, sectors,
+and emergency-halt evidence. It does not add a direct Risk_Agent control path.
 
 ## Inventory and evidence
 
@@ -29,7 +32,7 @@ such records, while empty views explicitly avoid claiming complete broker histor
 | Data boundary | `public-snapshot`, optional `manager-api`, mock only when explicit | Strong; browser does not call trading agents or Alpaca |
 | Security | allowlisted normalizer, dangerous-key rejection, no-store fetch, CSP, bundle secret scan | Strong; keep fail-closed behavior |
 | Accessibility | skip link, focus management, mobile modal containment, axe CI | Strong and blocking |
-| Responsive UI | 320/768/1280 Playwright and visual baselines | Strong for current three public routes |
+| Responsive UI | 320/768/1280 Playwright and visual baselines | Strong for the delivered public operational routes |
 | Testing | 59 unit tests before this phase plus functional, axe, and visual suites | Coverage command was broken and CI did not enforce a threshold |
 | Architecture | `App.jsx` owns routing, page composition, control authentication, finance state, and mutations | High coupling; split by feature in Phase 2 |
 | Styling | Seven global CSS files; largest files are 502, 493, 412, and 312 lines | Token and feature-layer consolidation required |
@@ -82,7 +85,7 @@ such records, while empty views explicitly avoid claiming complete broker histor
 | 5 Portfolio | Delivered | Table/cards, search/filter/sort, pagination, safe exports and focus-managed detail |
 | 6 Orders | Delivered for current contract | Status views, search/filter/sort, pagination, safe exports and honest snapshot timeline; full history still requires Manager data |
 | 7 Agents | Delivered with optional contract | All 13 expected agents render; bounded Manager `agents[]` telemetry is used when published and missing fields remain explicitly unavailable |
-| 8 Risk | Not started | Requires Manager risk snapshot contract |
+| 8 Risk | Delivered with optional contract | Exposure, protection, gauge, sector/limit charts and read-only halt evidence; unavailable fields are never inferred |
 | 9 Backtest | Not started | Requires Manager backtest summary contract |
 | 10 Settings | Not started | Theme/language/refresh preferences can be client-side; API URL stays build-time validated |
 
