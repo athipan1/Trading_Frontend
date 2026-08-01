@@ -146,6 +146,35 @@ describe('dashboard-snapshot.v2 contract fixtures', () => {
       updatedAt: '2026-07-30T04:03:00.000Z',
     });
   });
+
+  it('normalizes optional Manager-published agent telemetry', () => {
+    const payload = structuredClone(success);
+    payload.agents = [{
+      agent_id: 'risk_agent',
+      name: 'Risk Agent',
+      health: 'degraded',
+      status: 'rate_limited',
+      latency_ms: 140,
+      version: '2.1.0',
+      cpu_percent: 42.5,
+      memory_mb: 768,
+      last_run_at: '2026-07-30T07:00:00+07:00',
+      internalUrl: 'not-allowlisted',
+    }];
+
+    expect(normalizeSnapshot(payload).agents).toEqual([{
+      id: 'risk_agent',
+      name: 'Risk Agent',
+      health: 'degraded',
+      status: 'rate_limited',
+      latencyMs: 140,
+      version: '2.1.0',
+      cpuPercent: 42.5,
+      memoryPercent: null,
+      memoryMb: 768,
+      lastRunAt: '2026-07-30T00:00:00.000Z',
+    }]);
+  });
 });
 
 describe('payload validation and v1 compatibility', () => {
@@ -174,6 +203,20 @@ describe('payload validation and v1 compatibility', () => {
     const payload = structuredClone(success);
     payload.openOrders[0].submittedAt = 'not-a-timestamp';
     expect(() => normalizeSnapshot(payload)).toThrow('timestamp is invalid');
+  });
+
+  it('rejects malformed or out-of-range agent telemetry', () => {
+    const invalidCpu = structuredClone(success);
+    invalidCpu.agents = [{ id: 'risk', cpuPercent: 101 }];
+    expect(() => normalizeSnapshot(invalidCpu)).toThrow('must be between 0 and 100');
+
+    const invalidTimestamp = structuredClone(success);
+    invalidTimestamp.agents = [{ id: 'risk', lastRunAt: 'not-a-timestamp' }];
+    expect(() => normalizeSnapshot(invalidTimestamp)).toThrow('timestamp is invalid');
+
+    const invalidArray = structuredClone(success);
+    invalidArray.agents = {};
+    expect(() => normalizeSnapshot(invalidArray)).toThrow('agents must be an array');
   });
 
   it('rejects prototype-pollution keys before rendering', () => {

@@ -84,3 +84,15 @@ responsive table/cards, and the snapshot observation timeline. Keep these invari
 - use Manager timestamps when present and label `generatedAt` as an observation, not a broker event;
 - carry account/order privacy masking into quantity, prices, ordering, and exports;
 - keep horizontally scrollable tables keyboard-focusable and named as a region.
+
+## Agent Monitor
+
+`src/features/agents/AgentMonitorPage.jsx` renders the fixed registry and optional
+Manager telemetry. `agentMonitorModel.js` owns alias matching, health grouping,
+deduplication, search, and filtering. Preserve these boundaries:
+
+- never request an individual Agent, Alpaca, database, or internal service URL;
+- never infer health, latency, CPU, memory, version, or last run from a workflow phase;
+- ignore unknown telemetry IDs instead of rendering arbitrary Manager strings as new agents;
+- display every expected agent even when telemetry is unavailable;
+- keep the desktop telemetry table keyboard-scrollable and provide equivalent mobile cards.

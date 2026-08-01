@@ -12,6 +12,7 @@ const PRIMARY_ROUTES = [
   { route: '/overview', fixtureName: 'success', readyTestId: 'page-overview' },
   { route: '/portfolio', fixtureName: 'success', readyTestId: 'page-portfolio' },
   { route: '/orders', fixtureName: 'success', readyTestId: 'page-orders' },
+  { route: '/agents', fixtureName: 'agent-telemetry', readyTestId: 'page-agents' },
   { route: '/system', fixtureName: 'execution-failure', readyTestId: 'hourly-automation-status' },
 ];
 
@@ -44,8 +45,21 @@ function partialFillFixture() {
   return payload;
 }
 
+function agentTelemetryFixture() {
+  const payload = fixture('success');
+  payload.agents = [
+    { id: 'manager_agent', name: 'Manager Agent', health: 'healthy', status: 'running', latencyMs: 24, version: '2.4.1', cpuPercent: 18, memoryMb: 412, lastRunAt: '2026-07-30T00:00:00Z' },
+    { id: 'database_agent', name: 'Database Agent', health: 'healthy', status: 'connected', latencyMs: 11, version: '1.8.0', cpuPercent: 9, memoryPercent: 34, lastRunAt: '2026-07-29T23:59:52Z' },
+    { id: 'scanner_agent', name: 'Scanner Agent', health: 'healthy', status: 'completed', latencyMs: 182, version: '3.2.0', cpuPercent: 37, memoryMb: 684, lastRunAt: '2026-07-29T23:56:00Z' },
+    { id: 'risk_agent', name: 'Risk Agent', health: 'degraded', status: 'candidate_rejected', latencyMs: 46, version: '2.0.7', cpuPercent: 21, memoryMb: 305, lastRunAt: '2026-07-29T23:58:30Z' },
+  ];
+  return payload;
+}
+
 function visualFixture(name) {
-  return name === 'partial-fill' ? partialFillFixture() : fixture(name);
+  if (name === 'partial-fill') return partialFillFixture();
+  if (name === 'agent-telemetry') return agentTelemetryFixture();
+  return fixture(name);
 }
 
 async function mockSnapshot(page, payload) {

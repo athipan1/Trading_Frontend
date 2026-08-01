@@ -16,8 +16,8 @@ move feature-by-feature instead of replacing the validated snapshot contract.
 
 The audit remains anchored to PR #20 for traceability. Subsequent production work
 has delivered route-level lazy loading, Dashboard insights, responsive and
-collapsible navigation, the professional Portfolio workspace, and the read-only
-Orders workspace. Phase 6 deliberately uses only the current Manager `openOrders`
+collapsible navigation, the professional Portfolio workspace, the read-only
+Orders workspace, and a Manager-only Agent Monitor. Phase 6 deliberately uses only the current Manager `openOrders`
 snapshot: Filled, Rejected, and Cancelled views are supported when Manager publishes
 such records, while empty views explicitly avoid claiming complete broker history.
 
@@ -81,7 +81,7 @@ such records, while empty views explicitly avoid claiming complete broker histor
 | 4 Sidebar | Delivered | Responsive desktop/mobile navigation, collapse state, overflow dialog and keyboard support |
 | 5 Portfolio | Delivered | Table/cards, search/filter/sort, pagination, safe exports and focus-managed detail |
 | 6 Orders | Delivered for current contract | Status views, search/filter/sort, pagination, safe exports and honest snapshot timeline; full history still requires Manager data |
-| 7 Agents | Not started | Requires Manager telemetry contract |
+| 7 Agents | Delivered with optional contract | All 13 expected agents render; bounded Manager `agents[]` telemetry is used when published and missing fields remain explicitly unavailable |
 | 8 Risk | Not started | Requires Manager risk snapshot contract |
 | 9 Backtest | Not started | Requires Manager backtest summary contract |
 | 10 Settings | Not started | Theme/language/refresh preferences can be client-side; API URL stays build-time validated |

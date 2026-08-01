@@ -9,7 +9,11 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    include: ['src/**/*.test.{js,jsx}'],
+    include: [
+      'src/**/*.test.{js,jsx}',
+      'tests/checkManagerConnection.test.js',
+      'tests/checkProductionUi.test.js',
+    ],
     setupFiles: ['./src/test/setup.js'],
     restoreMocks: true,
     clearMocks: true,
@@ -20,6 +24,7 @@ export default defineConfig({
         'src/components/systemIncidentModel.js',
         'src/config/**/*.js',
         'src/features/dashboard/**/*.js',
+        'src/features/agents/**/*.js',
         'src/hooks/**/*.js',
         'src/i18n.js',
         'src/services/**/*.js',

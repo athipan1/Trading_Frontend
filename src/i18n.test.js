@@ -36,5 +36,17 @@ describe('dashboard language selection', () => {
     expect(Object.keys(translations.en.orderTimelineEvents).sort()).toEqual(
       Object.keys(translations.th.orderTimelineEvents).sort(),
     );
+    expect(Object.keys(translations.en.agentSummaryLabels).sort()).toEqual(
+      Object.keys(translations.th.agentSummaryLabels).sort(),
+    );
+    expect(Object.keys(translations.en.agentRoles).sort()).toEqual(
+      Object.keys(translations.th.agentRoles).sort(),
+    );
+    expect(Object.keys(translations.en.agentFilterLabels).sort()).toEqual(
+      Object.keys(translations.th.agentFilterLabels).sort(),
+    );
+    expect(Object.keys(translations.en.agentHealthGroups).sort()).toEqual(
+      Object.keys(translations.th.agentHealthGroups).sort(),
+    );
   });
 });

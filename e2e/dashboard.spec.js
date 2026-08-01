@@ -32,13 +32,55 @@ test('uses route-aware navigation and hides unavailable control pages', async ({
   await expect(page).toHaveURL(/\/orders$/);
   await expect(page.getByTestId('page-orders')).toBeVisible();
 
+  await page.getByTestId('nav-agents').first().click();
+  await expect(page).toHaveURL(/\/agents$/);
+  await expect(page.getByTestId('page-agents')).toBeVisible();
+
   await page.getByTestId('nav-system').first().click();
   await expect(page).toHaveURL(/\/system$/);
   await expect(page.getByTestId('hourly-automation-status')).toBeVisible();
 
   await page.goBack();
-  await expect(page).toHaveURL(/\/orders$/);
-  await expect(page.getByTestId('page-orders')).toBeVisible();
+  await expect(page).toHaveURL(/\/agents$/);
+  await expect(page.getByTestId('page-agents')).toBeVisible();
+});
+
+test('renders Manager-only agent telemetry and keeps unknown metrics unavailable', async ({ page }) => {
+  const payload = fixture('success');
+  payload.agents = [
+    { id: 'manager_agent', health: 'healthy', status: 'running', latencyMs: 25, version: '2.4.1', cpuPercent: 17, memoryMb: 410, lastRunAt: '2026-07-30T00:00:00Z' },
+    { id: 'risk_agent', health: 'degraded', status: 'candidate_rejected', latencyMs: 44, version: '2.0.7', cpuPercent: 20, memoryPercent: 41, lastRunAt: '2026-07-29T23:58:30Z' },
+  ];
+  await page.addInitScript(() => {
+    window.localStorage.setItem('trading-dashboard-language', 'en');
+  });
+  await mockSnapshot(page, payload);
+  await page.goto('/agents');
+
+  const manager = page.getByTestId('agent-card-manager');
+  await expect(manager).toContainText('Healthy');
+  await expect(manager).toContainText('25 ms');
+  await expect(manager).toContainText('410 MB');
+  await expect(page.getByTestId('agent-card-database')).toContainText('Not published by Manager');
+  await page.getByRole('button', { name: 'Needs attention' }).click();
+  await expect(page.getByTestId('agent-table-view').getByText('Risk', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('agent-card-manager')).toHaveCount(0);
+});
+
+test('keeps the full Agent registry usable at 320px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await mockSnapshot(page, fixture('success'));
+  await page.goto('/agents');
+
+  await expect(page.getByTestId('page-agents')).toBeVisible();
+  await expect(page.getByTestId('agent-card-manager')).toBeVisible();
+  await expect(page.getByTestId('agent-card-curator')).toBeVisible();
+  await expect(page.getByTestId('agent-table-view')).toBeHidden();
+  const dimensions = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    page: document.documentElement.scrollWidth,
+  }));
+  expect(dimensions.page).toBeLessThanOrEqual(dimensions.viewport);
 });
 
 test('persists the collapsible desktop navigation', async ({ page }) => {

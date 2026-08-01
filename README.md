@@ -33,7 +33,7 @@ No GitHub token, broker credential, API key, database credential, service URL, o
 
 Production defaults to `public-snapshot` and fails its build when the snapshot URL is missing. It never silently falls back to mock data.
 
-`dashboard-snapshot.v2` includes workflow metadata, Paper runtime, cycle result, phase timeline, freshness, last successful run, masked account state, safe warnings, and a bounded public error. The frontend temporarily accepts `dashboard-snapshot.v1`, converts it to the same internal model, and emits a development-only deprecation warning.
+`dashboard-snapshot.v2` includes workflow metadata, Paper runtime, cycle result, phase timeline, freshness, last successful run, masked account state, safe warnings, and a bounded public error. It may also include an optional, allowlisted `agents[]` telemetry projection. The frontend temporarily accepts `dashboard-snapshot.v1`, converts it to the same internal model, and emits a development-only deprecation warning.
 
 ## Vercel production
 
@@ -79,6 +79,12 @@ filters, deterministic sorting, pagination, responsive table/cards, and filtered
 CSV/Excel-compatible exports. Its timeline uses only timestamps supplied by Manager
 and the current snapshot observation time. It never reconstructs or implies missing
 broker history.
+
+The Agent Monitor always lists the 13 expected system agents and renders health,
+latency, version, CPU, memory, status, and last-run values only when they arrive in
+Manager-published `agents[]` telemetry. Missing values remain visibly unavailable;
+workflow phase results are never promoted to process-health evidence. The browser
+does not probe individual agent endpoints.
 
 ## Optional Web Control
 
