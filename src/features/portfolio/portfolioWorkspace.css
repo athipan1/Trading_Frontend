@@ -2,6 +2,11 @@
   overflow: visible;
 }
 
+.portfolio-position-workspace,
+.portfolio-secondary-grid {
+  min-width: 0;
+}
+
 .portfolio-workspace-heading {
   margin-bottom: 16px;
 }

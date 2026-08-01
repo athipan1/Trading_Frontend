@@ -99,6 +99,19 @@ test('searches portfolio positions, opens details, and exports the filtered view
   expect(download.suggestedFilename()).toBe('portfolio-2026-07-30.csv');
 });
 
+test('keeps the professional portfolio workspace inside a 768px tablet viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await mockSnapshot(page, fixture('success'));
+  await page.goto('/portfolio');
+  await expect(page.getByTestId('page-portfolio')).toBeVisible();
+
+  const dimensions = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    page: document.documentElement.scrollWidth,
+  }));
+  expect(dimensions.page).toBeLessThanOrEqual(dimensions.viewport);
+});
+
 test('renders a successful hourly run with run link and keyboard refresh', async ({ page }) => {
   let requests = 0;
   await mockSnapshot(page, () => {
