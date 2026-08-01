@@ -1,3 +1,5 @@
+import { createTabularExport, safeSpreadsheetText } from './spreadsheet.js';
+
 export const PORTFOLIO_PAGE_SIZE = 8;
 
 export function isPositionProtected(position, order) {
@@ -74,27 +76,6 @@ export function derivePortfolioWorkspace({
   };
 }
 
-function safeSpreadsheetText(value) {
-  const text = String(value ?? '').replace(/[\r\n\t]+/g, ' ').trim();
-  return /^[=+\-@]/.test(text) ? `'${text}` : text;
-}
-
-function csvCell(cell) {
-  const value = cell.type === 'Number' && Number.isFinite(Number(cell.value))
-    ? String(cell.value)
-    : safeSpreadsheetText(cell.value);
-  return `"${value.replaceAll('"', '""')}"`;
-}
-
-function escapeXml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
 export function createPortfolioExport({
   positions,
   openOrders,
@@ -136,26 +117,5 @@ export function createPortfolioExport({
       },
     ];
   });
-  const headerCells = headers.map((value) => ({ value, type: 'String' }));
-
-  if (format === 'excel') {
-    const rowXml = (cells) => `<Row>${cells.map((cell) => (
-      `<Cell><Data ss:Type="${cell.type}">${escapeXml(cell.value)}</Data></Cell>`
-    )).join('')}</Row>`;
-    return {
-      content: `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>\n`
-        + `<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" `
-        + `xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">`
-        + `<Worksheet ss:Name="Portfolio"><Table>${rowXml(headerCells)}`
-        + `${rows.map(rowXml).join('')}</Table></Worksheet></Workbook>`,
-      extension: 'xls',
-      mimeType: 'application/vnd.ms-excel;charset=utf-8',
-    };
-  }
-
-  return {
-    content: `\uFEFF${[headerCells, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')}`,
-    extension: 'csv',
-    mimeType: 'text/csv;charset=utf-8',
-  };
+  return createTabularExport({ format, sheetName: 'Portfolio', headers, rows });
 }

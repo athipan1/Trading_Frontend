@@ -72,3 +72,15 @@ is the tested derivation and export boundary:
 - the detail drawer traps focus, closes on Escape/backdrop, and restores the trigger focus.
 - desktop defaults to the table view and mobile defaults to cards, while operators
   can switch views without changing the underlying result set.
+
+## Orders workspace
+
+`src/features/orders/OrdersPage.jsx` is a read-only projection of normalized
+`openOrders`. The page owns search, status/side filters, sorting, pagination, exports,
+responsive table/cards, and the snapshot observation timeline. Keep these invariants:
+
+- classify statuses through `src/utils/orders.js`; unknown values remain `other`;
+- do not claim an empty Filled/Rejected/Cancelled tab means no historical order existed;
+- use Manager timestamps when present and label `generatedAt` as an observation, not a broker event;
+- carry account/order privacy masking into quantity, prices, ordering, and exports;
+- keep horizontally scrollable tables keyboard-focusable and named as a region.

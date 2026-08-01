@@ -73,6 +73,13 @@ details, and filtered CSV/Excel-compatible exports. All financial presentation a
 exports inherit Manager privacy masking, and export text is neutralized against
 spreadsheet formula injection.
 
+The Orders workspace classifies the latest Manager `openOrders` snapshot into
+Pending, Filled, Rejected, Cancelled, and Other states; supports search, side/status
+filters, deterministic sorting, pagination, responsive table/cards, and filtered
+CSV/Excel-compatible exports. Its timeline uses only timestamps supplied by Manager
+and the current snapshot observation time. It never reconstructs or implies missing
+broker history.
+
 ## Optional Web Control
 
 `manager-api` remains available for trusted environments that deploy Manager_Agent and need the existing finance or planning controls. The operator token is held only in React memory and is never persisted. In `public-snapshot` mode those controls are disabled and the dashboard remains read-only.

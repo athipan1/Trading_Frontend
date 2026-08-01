@@ -6,6 +6,7 @@ describe('route configuration', () => {
     ['/', 'overview'],
     ['/overview/', 'overview'],
     ['/portfolio', 'portfolio'],
+    ['/orders', 'orders'],
     ['/system', 'system'],
     ['/ledger', 'ledger'],
     ['/unknown', 'overview'],
@@ -16,6 +17,7 @@ describe('route configuration', () => {
 
   it('returns only registered paths', () => {
     expect(pathForPage('portfolio')).toBe('/portfolio');
+    expect(pathForPage('orders')).toBe('/orders');
     expect(pathForPage('missing')).toBe('/overview');
   });
 
@@ -24,5 +26,6 @@ describe('route configuration', () => {
     expect(isManagerControlPage('advisor')).toBe(true);
     expect(isManagerControlPage('investment')).toBe(true);
     expect(isManagerControlPage('overview')).toBe(false);
+    expect(isManagerControlPage('orders')).toBe(false);
   });
 });

@@ -12,6 +12,15 @@ orchestrator, more than 2,000 lines of global CSS, and only three public operati
 routes. The next work should preserve the existing Manager-only trust boundary and
 move feature-by-feature instead of replacing the validated snapshot contract.
 
+## Delivery progress after the audit baseline
+
+The audit remains anchored to PR #20 for traceability. Subsequent production work
+has delivered route-level lazy loading, Dashboard insights, responsive and
+collapsible navigation, the professional Portfolio workspace, and the read-only
+Orders workspace. Phase 6 deliberately uses only the current Manager `openOrders`
+snapshot: Filled, Rejected, and Cancelled views are supported when Manager publishes
+such records, while empty views explicitly avoid claiming complete broker history.
+
 ## Inventory and evidence
 
 | Area | Current evidence | Assessment |
@@ -67,11 +76,11 @@ move feature-by-feature instead of replacing the validated snapshot contract.
 | Requested phase | Status on audited main | Delivery direction |
 |---|---|---|
 | 1 Audit | In progress in this PR | Report plus executable quality gate |
-| 2 Architecture | Partial | Feature folders, route registry, strict boundary types |
-| 3 Dashboard | Partial | Current Overview is operational; charts/activity absent |
-| 4 Sidebar | Partial | Responsive sidebar/bottom navigation exists; target routes absent |
-| 5 Portfolio | Partial | Table/cards/action center exist; tooling and detail absent |
-| 6 Orders | Not started | Requires Manager order-history contract |
+| 2 Architecture | In progress | Feature folders, route registry, lazy loading delivered; strict TypeScript migration remains |
+| 3 Dashboard | In progress | Operational insights, allocation, performance and activity delivered; richer charting remains |
+| 4 Sidebar | Delivered | Responsive desktop/mobile navigation, collapse state, overflow dialog and keyboard support |
+| 5 Portfolio | Delivered | Table/cards, search/filter/sort, pagination, safe exports and focus-managed detail |
+| 6 Orders | Delivered for current contract | Status views, search/filter/sort, pagination, safe exports and honest snapshot timeline; full history still requires Manager data |
 | 7 Agents | Not started | Requires Manager telemetry contract |
 | 8 Risk | Not started | Requires Manager risk snapshot contract |
 | 9 Backtest | Not started | Requires Manager backtest summary contract |

@@ -9,6 +9,7 @@ import {
   derivePortfolioWorkspace,
   PORTFOLIO_PAGE_SIZE,
 } from '../../utils/portfolio.js';
+import { downloadClientFile } from '../../utils/spreadsheet.js';
 import PositionDetailDrawer from './PositionDetailDrawer.jsx';
 
 function initialViewMode() {
@@ -80,15 +81,9 @@ export default function PortfolioPage({ snapshot, t }) {
         needsReview: t.needsReview,
       },
     });
-    const blobUrl = URL.createObjectURL(new Blob([file.content], { type: file.mimeType }));
-    const link = document.createElement('a');
     const snapshotDate = String(snapshot.generatedAt || '').slice(0, 10) || 'snapshot';
-    link.href = blobUrl;
-    link.download = `portfolio-${snapshotDate}.${file.extension}`;
-    link.rel = 'noopener';
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
-    setExportStatus(`${t.exportReady}: ${link.download}`);
+    const filename = downloadClientFile(file, `portfolio-${snapshotDate}.${file.extension}`);
+    setExportStatus(`${t.exportReady}: ${filename}`);
   };
 
   const hasFilters = Boolean(query || bucket !== 'all' || protection !== 'all');

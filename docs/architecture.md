@@ -21,6 +21,7 @@ src/
   data/                   explicit empty and development-only mock models
   features/
     dashboard/            Overview page composition
+    orders/               Read-only order workspace and observation timeline
     portfolio/            Portfolio page composition
   hooks/                  reusable polling and route-state hooks
   routes/                 route IDs, paths, and access classification
@@ -37,10 +38,15 @@ pure view-model layer in `src/utils/portfolio.js`. It consumes only the normaliz
 read-only Manager snapshot and deliberately carries privacy masking through sorting,
 rendering, the detail drawer, and generated files.
 
+Order status classification, pagination, and timeline derivation live in
+`src/utils/orders.js`. Unknown broker states remain `other`; the UI never coerces
+them into a known lifecycle stage. `src/utils/spreadsheet.js` is the shared export
+boundary for Portfolio and Orders, including formula-injection neutralization.
+
 ## Routing and loading
 
 The route registry is centralized in `src/routes/routeConfig.js`. Public snapshot
-mode exposes Overview, Portfolio, and System Status. Manager-only routes are omitted
+mode exposes Overview, Portfolio, Orders, and System Status. Manager-only routes are omitted
 from navigation and normalized back to Overview when unavailable.
 
 Finance Ledger, AI Finance, and AI Investment are lazy modules. Public production
