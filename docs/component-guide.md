@@ -56,3 +56,19 @@ navigation, overflow dialog, focus restoration, and skip link. The desktop rail 
 be collapsed without changing routes; its preference is stored locally and every
 icon-only item retains an accessible name plus a hover/focus tooltip. Mobile
 navigation stays independent from the desktop preference.
+
+## Portfolio workspace
+
+`src/features/portfolio/PortfolioPage.jsx` owns the search, strategy/protection
+filters, sorting, pagination, view selection, exports, and selected-position state.
+`src/components/PositionsTable.jsx` remains presentational so it can render either
+table, card, or responsive views without fetching data. `src/utils/portfolio.js`
+is the tested derivation and export boundary:
+
+- all rows come from the normalized Manager snapshot;
+- account/privacy masking propagates to every position and export;
+- masked rows keep source order instead of leaking relative financial values through sorting;
+- CSV formula-like strings are neutralized and the Excel download is typed SpreadsheetML;
+- the detail drawer traps focus, closes on Escape/backdrop, and restores the trigger focus.
+- desktop defaults to the table view and mobile defaults to cards, while operators
+  can switch views without changing the underlying result set.

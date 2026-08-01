@@ -58,6 +58,47 @@ test('persists the collapsible desktop navigation', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Expand navigation' })).toBeVisible();
 });
 
+test('searches portfolio positions, opens details, and exports the filtered view', async ({ page }) => {
+  const payload = fixture('success');
+  payload.positions.push({
+    ...payload.positions[0],
+    symbol: 'AMD',
+    bucket: 'growth',
+    quantity: 10,
+    marketValue: 1550,
+    unrealizedPnL: 75,
+    protection: {
+      status: 'missing',
+      hasStopLoss: false,
+      hasTakeProfit: false,
+      hasBracket: false,
+    },
+  });
+  await page.addInitScript(() => {
+    window.localStorage.setItem('trading-dashboard-language', 'en');
+  });
+  await mockSnapshot(page, payload);
+  await page.goto('/portfolio');
+
+  await page.getByRole('searchbox', { name: 'Search positions' }).fill('AMD');
+  await expect(page.getByTestId('position-table-view')).toContainText('AMD');
+  await expect(page.getByTestId('position-table-view')).not.toContainText('ACGL');
+
+  await page.getByRole('button', { name: 'Cards' }).click();
+  const detailButton = page.getByRole('button', { name: 'View position details: AMD' });
+  await detailButton.click();
+  await expect(page.getByRole('dialog', { name: 'AMD' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Close position details' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'AMD' })).toHaveCount(0);
+  await expect(detailButton).toBeFocused();
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'CSV' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('portfolio-2026-07-30.csv');
+});
+
 test('renders a successful hourly run with run link and keyboard refresh', async ({ page }) => {
   let requests = 0;
   await mockSnapshot(page, () => {

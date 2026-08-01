@@ -25,12 +25,17 @@ src/
   hooks/                  reusable polling and route-state hooks
   routes/                 route IDs, paths, and access classification
   services/               sanitized snapshot and Manager-only control clients
-  utils/                  locale-safe display helpers
+  utils/                  locale-safe display helpers and pure view models
 ```
 
 Feature pages may compose shared components, hooks, and services. Shared layers
 must not import feature pages. Services normalize external data before UI code sees
 it. New operational fields require a versioned Manager contract and fixtures first.
+
+Portfolio filtering, protection classification, pagination, and safe export are a
+pure view-model layer in `src/utils/portfolio.js`. It consumes only the normalized,
+read-only Manager snapshot and deliberately carries privacy masking through sorting,
+rendering, the detail drawer, and generated files.
 
 ## Routing and loading
 

@@ -67,6 +67,12 @@ The Hourly Automation Status section shows:
 
 Timestamps use `Asia/Bangkok` for display while retaining absolute ISO timestamps in the contract. Statuses include text and icons, not color alone. The layout is mobile-first down to 320px and supports keyboard navigation and reduced motion.
 
+The Portfolio workspace supports card and table views, symbol/strategy search,
+strategy and protection filters, deterministic sorting, pagination, position
+details, and filtered CSV/Excel-compatible exports. All financial presentation and
+exports inherit Manager privacy masking, and export text is neutralized against
+spreadsheet formula injection.
+
 ## Optional Web Control
 
 `manager-api` remains available for trusted environments that deploy Manager_Agent and need the existing finance or planning controls. The operator token is held only in React memory and is never persisted. In `public-snapshot` mode those controls are disabled and the dashboard remains read-only.
