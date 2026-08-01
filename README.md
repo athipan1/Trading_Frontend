@@ -120,6 +120,7 @@ Vitest imports every fixture through the real normalizer. Playwright serves the 
 npm ci
 npm run lint
 npm test
+npm run test:coverage
 VITE_DATA_SOURCE=public-snapshot \
 VITE_DASHBOARD_SNAPSHOT_URL=https://raw.githubusercontent.com/athipan1/Manager_Agent/dashboard-data/docs/dashboard/latest-dashboard-snapshot.json \
 npm run build
@@ -127,5 +128,11 @@ npm run check:bundle
 npm audit --omit=dev --audit-level=high
 npm run test:e2e
 ```
+
+The blocking unit-coverage gate protects configuration, API normalization,
+polling, incident classification, and formatting modules. The initial ratchet is
+90% for statements, functions, and lines and 80% for branches. Rendered UI is
+additionally blocked by component tests, functional Playwright tests, axe scans,
+and committed visual-regression baselines.
 
 The production dependency audit remains blocking. See [README_MVP.md](README_MVP.md) for legacy dashboard details and [docs/realtime-api-plan.md](docs/realtime-api-plan.md) for optional real-time deployment boundaries.
