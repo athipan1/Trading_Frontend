@@ -136,3 +136,10 @@ additionally blocked by component tests, functional Playwright tests, axe scans,
 and committed visual-regression baselines.
 
 The production dependency audit remains blocking. See [README_MVP.md](README_MVP.md) for legacy dashboard details and [docs/realtime-api-plan.md](docs/realtime-api-plan.md) for optional real-time deployment boundaries.
+
+## Engineering guides
+
+- [Architecture](docs/architecture.md)
+- [Component guide](docs/component-guide.md)
+- [Developer guide](docs/developer-guide.md)
+- [Architecture audit and Phase 1–10 gap map](docs/architecture-audit-2026-08-01.md)
