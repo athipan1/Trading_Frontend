@@ -14,7 +14,6 @@ import HourlyAutomationStatus from './components/HourlyAutomationStatus.jsx';
 import { DATA_SOURCES } from './config/dashboardConfig.js';
 import { emptyDashboardSnapshot } from './data/emptyDashboard.js';
 import OverviewPage from './features/dashboard/OverviewPage.jsx';
-import PortfolioPage from './features/portfolio/PortfolioPage.jsx';
 import { useDashboardSnapshot } from './hooks/useDashboardSnapshot.js';
 import { useRouteNavigation } from './hooks/useRouteNavigation.js';
 import { getInitialLanguage, translations } from './i18n.js';
@@ -32,6 +31,7 @@ import { formatBangkokDateTime } from './utils/dateTime.js';
 const FinanceAdvisor = lazy(() => import('./components/FinanceAdvisor.jsx'));
 const FinanceLedger = lazy(() => import('./components/FinanceLedger.jsx'));
 const InvestmentCommandCenter = lazy(() => import('./components/InvestmentCommandCenter.jsx'));
+const PortfolioPage = lazy(() => import('./features/portfolio/PortfolioPage.jsx'));
 
 function safeRefreshError(error, language) {
   const fallback = language === 'th' ? 'โหลด Snapshot ไม่สำเร็จ' : 'Snapshot refresh failed';
@@ -214,7 +214,11 @@ export default function App() {
             readOnlyMessage={readOnlyMessage}
           />
         ) : null}
-        {resolvedActivePage === 'portfolio' ? <PortfolioPage snapshot={dashboardSnapshot} t={t} /> : null}
+        {resolvedActivePage === 'portfolio' ? (
+          <Suspense fallback={<div className="panel" role="status" aria-live="polite">{t.loading}</div>}>
+            <PortfolioPage snapshot={dashboardSnapshot} t={t} />
+          </Suspense>
+        ) : null}
         {resolvedActivePage === 'system' ? (
           <HourlyAutomationStatus
             snapshot={dashboardSnapshot}

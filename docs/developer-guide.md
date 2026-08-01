@@ -29,6 +29,11 @@ Intentional visual changes require `npm run test:visual:update`, manual inspecti
 every changed image, and baseline files committed in the same PR. CI never rewrites
 visual baselines.
 
+Portfolio changes must cover the pure workspace model, component interactions, and
+the Playwright journey for search, view switching, focus-managed details, and file
+download. Test exports with formula-like symbols and masked financial values; never
+assert privacy only from CSS visibility.
+
 When the pinned Playwright browser cannot be installed in a restricted local
 environment, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to a compatible Chromium
 executable. CI leaves this unset and always installs the Playwright-pinned browser.
