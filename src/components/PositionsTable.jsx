@@ -39,7 +39,12 @@ export default function PositionsTable({ positions, openOrders, t }) {
           />
         ) : (
           <>
-            <div className="table-wrap desktop-position-table">
+            <div
+              className="table-wrap desktop-position-table"
+              role="region"
+              aria-label={`${t.positions} ${t.livePortfolio}`}
+              tabIndex={0}
+            >
               <table>
                 <thead>
                   <tr>
