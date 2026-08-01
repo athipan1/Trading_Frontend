@@ -2,6 +2,11 @@
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
   min-height: 100vh;
+  transition: grid-template-columns 180ms ease;
+}
+
+.app-layout.sidebar-collapsed {
+  grid-template-columns: 88px minmax(0, 1fr);
 }
 
 .app-sidebar {
@@ -18,12 +23,52 @@
   z-index: 30;
 }
 
+.sidebar-collapse-button {
+  position: absolute;
+  top: 30px;
+  right: -16px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 10px;
+  color: #bae6fd;
+  background: #0f172a;
+  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.42);
+  cursor: pointer;
+}
+
+.sidebar-collapse-button:hover {
+  color: #f0f9ff;
+  background: #172554;
+}
+
+.sidebar-collapse-button svg {
+  width: 16px;
+  height: 16px;
+}
+
 .sidebar-brand {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
   padding: 4px 8px 22px;
+}
+
+.sidebar-collapsed .app-sidebar {
+  padding-inline: 12px;
+}
+
+.sidebar-collapsed .sidebar-brand {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.sidebar-collapsed .sidebar-brand > div:last-child {
+  display: none;
 }
 
 .sidebar-brand > div:last-child {
@@ -107,6 +152,44 @@
   white-space: nowrap;
 }
 
+.app-nav-button.collapsed {
+  position: relative;
+  justify-content: center;
+  padding-inline: 8px;
+}
+
+.app-nav-button.collapsed > span {
+  display: none;
+}
+
+.app-nav-button.collapsed::after {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 12px);
+  z-index: 80;
+  width: max-content;
+  max-width: 220px;
+  padding: 7px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 9px;
+  color: #e2e8f0;
+  background: #0f172a;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.45);
+  content: attr(data-tooltip);
+  font-size: 0.76rem;
+  font-weight: 700;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(4px, -50%);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.app-nav-button.collapsed:hover::after,
+.app-nav-button.collapsed:focus-visible::after {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
 .app-nav-button:focus-visible,
 .header-refresh-button:focus-visible,
 .mobile-nav-sheet-heading button:focus-visible,
@@ -134,6 +217,11 @@
   border-radius: 50%;
   background: #22c55e;
   box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.1);
+}
+
+.sidebar-collapsed .sidebar-boundary {
+  justify-content: center;
+  padding-inline: 0;
 }
 
 .app-main {
@@ -493,7 +581,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .app-layout,
   .app-nav-button,
+  .sidebar-collapse-button,
   .header-refresh-button,
   .secondary-action {
     scroll-behavior: auto;

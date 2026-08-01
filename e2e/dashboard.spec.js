@@ -37,6 +37,27 @@ test('uses route-aware navigation and hides unavailable control pages', async ({
   await expect(page.getByTestId('page-portfolio')).toBeVisible();
 });
 
+test('persists the collapsible desktop navigation', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.addInitScript(() => {
+    window.localStorage.setItem('trading-dashboard-language', 'en');
+  });
+  await mockSnapshot(page, fixture('success'));
+  await page.goto('/overview');
+
+  await page.getByRole('button', { name: 'Collapse navigation' }).click();
+  await expect(page.locator('.app-layout')).toHaveClass(/sidebar-collapsed/);
+  await expect(page.getByTestId('nav-portfolio').first()).toHaveAccessibleName('Portfolio');
+  await expect(page.getByRole('button', { name: 'Expand navigation' })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+
+  await page.reload();
+  await expect(page.locator('.app-layout')).toHaveClass(/sidebar-collapsed/);
+  await expect(page.getByRole('button', { name: 'Expand navigation' })).toBeVisible();
+});
+
 test('renders a successful hourly run with run link and keyboard refresh', async ({ page }) => {
   let requests = 0;
   await mockSnapshot(page, () => {

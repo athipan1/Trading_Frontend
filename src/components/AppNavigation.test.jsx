@@ -22,6 +22,7 @@ const brand = {
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
   document.documentElement.lang = 'en';
 });
 
@@ -49,6 +50,25 @@ describe('AppNavigation accessibility', () => {
     const skipLink = screen.getByRole('link', { name: 'Skip to main content' });
     fireEvent.click(skipLink);
     expect(document.getElementById('main-content')).toHaveFocus();
+  });
+
+  it('persists the collapsed desktop navigation without losing accessible names', () => {
+    const view = renderNavigation();
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse navigation' }));
+
+    expect(view.container.querySelector('.app-layout')).toHaveClass('sidebar-collapsed');
+    expect(
+      view.container.querySelector('.app-sidebar [data-testid="nav-portfolio"]'),
+    ).toHaveAccessibleName('Portfolio');
+    expect(screen.getByRole('button', { name: 'Expand navigation' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(window.localStorage.getItem('trading-dashboard-sidebar')).toBe('collapsed');
+
+    cleanup();
+    renderNavigation();
+    expect(screen.getByRole('button', { name: 'Expand navigation' })).toBeVisible();
   });
 
   it('opens the mobile dialog with focus, closes on Escape, and restores focus', async () => {

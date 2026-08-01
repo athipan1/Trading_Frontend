@@ -156,6 +156,8 @@ export default function App() {
       }}
       boundaryLabel={t.paperBoundary}
       moreLabel={t.navMore}
+      collapseLabel={t.collapseNavigation}
+      expandLabel={t.expandNavigation}
     >
       <main className="app-shell">
         <header className="dashboard-header">

@@ -48,3 +48,11 @@ so privacy and safety rules can be tested without a browser:
   explicitly `false`; missing runtime evidence is shown as unknown, never safe;
 - recent activity is derived from the latest Manager phases and does not imply a
   broker execution when a phase was not attempted.
+
+## Application navigation
+
+`src/components/AppNavigation.jsx` owns the desktop sidebar, mobile bottom
+navigation, overflow dialog, focus restoration, and skip link. The desktop rail can
+be collapsed without changing routes; its preference is stored locally and every
+icon-only item retains an accessible name plus a hover/focus tooltip. Mobile
+navigation stays independent from the desktop preference.
