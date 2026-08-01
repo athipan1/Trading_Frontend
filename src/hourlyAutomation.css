@@ -6,11 +6,13 @@
 .automation-actions,
 .automation-meta-row,
 .read-only-banner,
-.workflow-error,
-.stale-banner,
 .run-link,
 .icon-action,
-.automation-status {
+.automation-status,
+.incident-summary,
+.incident-title-row,
+.phase-section-heading,
+.phase-toggle {
   display: flex;
   align-items: center;
 }
@@ -34,10 +36,10 @@
 .automation-status svg,
 .masked-indicator svg,
 .run-link svg,
-.stale-banner > svg,
-.workflow-error > svg,
 .icon-action svg,
-.read-only-banner svg {
+.read-only-banner svg,
+.incident-summary > svg,
+.phase-toggle svg {
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
@@ -63,9 +65,83 @@
 .icon-action:focus-visible,
 .run-link:focus-visible,
 .error-banner button:focus-visible,
-.control-nav button:focus-visible {
+.control-nav button:focus-visible,
+.phase-toggle:focus-visible {
   outline: 3px solid #7dd3fc;
   outline-offset: 3px;
+}
+
+.incident-summary {
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 18px;
+}
+
+.incident-summary > svg {
+  width: 24px;
+  height: 24px;
+  margin-top: 2px;
+}
+
+.incident-copy {
+  min-width: 0;
+}
+
+.incident-title-row {
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+
+.incident-title-row strong,
+.incident-copy p {
+  overflow-wrap: anywhere;
+}
+
+.incident-severity {
+  padding: 4px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.incident-copy p {
+  margin: 7px 0 0;
+  color: #cbd5e1;
+  line-height: 1.55;
+}
+
+.incident-copy .incident-action {
+  color: #e2e8f0;
+}
+
+.incident-critical {
+  border-color: rgba(248, 113, 113, 0.48);
+  background: rgba(127, 29, 29, 0.3);
+  color: #fecaca;
+}
+
+.incident-warning {
+  border-color: rgba(245, 158, 11, 0.42);
+  background: rgba(120, 53, 15, 0.28);
+  color: #fde68a;
+}
+
+.incident-normal {
+  border-color: rgba(74, 222, 128, 0.3);
+  background: rgba(20, 83, 45, 0.22);
+  color: #bbf7d0;
+}
+
+.incident-info {
+  border-color: rgba(56, 189, 248, 0.3);
+  background: rgba(14, 116, 144, 0.16);
+  color: #bae6fd;
 }
 
 .automation-grid {
@@ -84,8 +160,7 @@
 
 .automation-stat > span,
 .automation-stat small,
-.phase-item span,
-.stale-banner span {
+.phase-item span {
   color: #a8b5c7;
   font-size: 0.78rem;
 }
@@ -131,35 +206,10 @@
   color: #cbd5e1;
 }
 
-.stale-banner,
-.workflow-error,
 .read-only-banner {
   gap: 12px;
   padding: 13px 15px;
   border-radius: 16px;
-}
-
-.stale-banner {
-  margin-bottom: 18px;
-  border: 1px solid rgba(245, 158, 11, 0.38);
-  background: rgba(120, 53, 15, 0.28);
-  color: #fde68a;
-}
-
-.stale-banner div {
-  display: grid;
-  gap: 3px;
-}
-
-.workflow-error {
-  margin-bottom: 18px;
-  border: 1px solid rgba(248, 113, 113, 0.34);
-  background: rgba(127, 29, 29, 0.24);
-  color: #fecaca;
-  overflow-wrap: anywhere;
-}
-
-.read-only-banner {
   margin-top: 16px;
   border: 1px solid rgba(56, 189, 248, 0.24);
   background: rgba(14, 116, 144, 0.14);
@@ -172,6 +222,22 @@
   border-left: 3px solid #38bdf8;
   color: #cbd5e1;
   overflow-wrap: anywhere;
+}
+
+.automation-reason p {
+  margin: 0;
+}
+
+.automation-reason p + p {
+  margin-top: 5px;
+}
+
+.automation-reason code {
+  padding: 2px 6px;
+  border-radius: 7px;
+  color: #bae6fd;
+  background: rgba(15, 23, 42, 0.72);
+  font-size: 0.78rem;
 }
 
 .automation-meta-row {
@@ -202,9 +268,41 @@
   margin-top: 22px;
 }
 
+.phase-section-heading {
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 .phase-section h3 {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 1rem;
+}
+
+.phase-toggle,
+.mobile-phase-note {
+  display: none;
+}
+
+.phase-toggle {
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  border-radius: 12px;
+  padding: 9px 11px;
+  color: #bae6fd;
+  background: rgba(14, 116, 144, 0.16);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mobile-phase-note {
+  margin: 5px 0 0;
+  color: #a8b5c7;
+  font-size: 0.78rem;
 }
 
 .phase-timeline {
@@ -225,6 +323,17 @@
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 16px;
   background: rgba(2, 6, 23, 0.3);
+}
+
+.phase-item.phase-primary {
+  border-color: rgba(245, 158, 11, 0.32);
+  background: rgba(120, 53, 15, 0.12);
+}
+
+.phase-item.status-failure,
+.phase-item.status-cancelled {
+  border-color: rgba(248, 113, 113, 0.32);
+  background: rgba(127, 29, 29, 0.16);
 }
 
 .phase-item > svg {
@@ -325,7 +434,8 @@
   .automation-heading,
   .automation-meta-row,
   .error-banner,
-  .read-only-banner {
+  .read-only-banner,
+  .incident-summary {
     align-items: stretch;
     flex-direction: column;
   }
@@ -338,16 +448,39 @@
   .automation-stat,
   .phase-item,
   .automation-reason,
-  .workflow-error,
-  .stale-banner {
+  .incident-summary {
     min-width: 0;
     max-width: 100%;
   }
 
+  .incident-summary > svg {
+    width: 28px;
+    height: 28px;
+  }
+
   .run-link,
-  .error-banner button {
+  .error-banner button,
+  .phase-toggle {
     width: 100%;
     justify-content: center;
+  }
+
+  .phase-section-heading {
+    flex-direction: column;
+  }
+
+  .phase-section-heading > div,
+  .phase-toggle {
+    width: 100%;
+  }
+
+  .phase-toggle,
+  .mobile-phase-note {
+    display: flex;
+  }
+
+  .phase-timeline:not(.expanded) .phase-secondary {
+    display: none;
   }
 }
 
