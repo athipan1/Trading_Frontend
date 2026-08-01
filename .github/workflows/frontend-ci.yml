@@ -66,8 +66,17 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Unit tests
-        run: npm test
+      - name: Unit tests and coverage gate
+        run: npm run test:coverage
+
+      - name: Upload unit coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-unit-coverage
+          path: coverage
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Production public-snapshot build
         run: npm run build
