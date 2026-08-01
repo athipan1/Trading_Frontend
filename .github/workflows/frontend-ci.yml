@@ -191,16 +191,12 @@ jobs:
           retention-days: 7
 
   visual-regression:
-    name: Visual baseline generation
+    name: Visual regression gate
     runs-on: ubuntu-latest
     needs: quality
-    permissions:
-      contents: write
     steps:
-      - name: Checkout source branch
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -214,29 +210,16 @@ jobs:
       - name: Install pinned Playwright browser
         run: npx playwright install --with-deps chromium
 
-      - name: Generate deterministic visual baselines
-        run: npm run test:visual:update
+      - name: Compare UI against committed baselines
+        run: npm run test:visual
 
-      - name: Commit generated baselines to the source branch
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          HEAD_BRANCH: ${{ github.head_ref }}
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add e2e/visual-regression.spec.js-snapshots
-          if git diff --cached --quiet; then
-            echo "Visual baselines already match the current UI."
-            exit 0
-          fi
-          git commit -m "test: add visual regression baselines [skip ci]"
-          git push origin "HEAD:${HEAD_BRANCH}"
-
-      - name: Upload generated visual baselines
+      - name: Upload visual actual, expected, and diff artifacts
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-visual-baselines
-          path: e2e/visual-regression.spec.js-snapshots
-          if-no-files-found: error
+          name: frontend-visual-regression-failure
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
           retention-days: 7
