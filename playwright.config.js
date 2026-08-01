@@ -2,9 +2,15 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: ['dashboard.spec.js', 'accessibility.spec.js'],
+  testMatch: ['dashboard.spec.js', 'accessibility.spec.js', 'visual-regression.spec.js'],
   timeout: 30_000,
   retries: process.env.CI ? 1 : 0,
+  expect: {
+    toHaveScreenshot: {
+      maxDiffPixelRatio: 0.002,
+      threshold: 0.2,
+    },
+  },
   use: {
     baseURL: 'http://127.0.0.1:4173',
     locale: 'th-TH',
