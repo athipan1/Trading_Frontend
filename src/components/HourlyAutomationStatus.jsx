@@ -1,14 +1,28 @@
+import { useState } from 'react';
 import {
   Ban,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   CircleDashed,
   Clock3,
   ExternalLink,
+  Info,
   RefreshCw,
+  ShieldAlert,
   ShieldCheck,
   TriangleAlert,
   XCircle,
 } from 'lucide-react';
+import {
+  deriveSystemIncident,
+  INCIDENT_PHASE_STATUSES,
+  PHASE_LABELS,
+  severityLabel,
+  statusLabel,
+  SYSTEM_COPY,
+  translatedReason,
+} from './systemIncidentModel.js';
 
 function StatusIcon({ status }) {
   if (status === 'success' || status === 'completed') return <CheckCircle2 aria-hidden="true" />;
@@ -20,28 +34,11 @@ function StatusIcon({ status }) {
   return <CircleDashed aria-hidden="true" />;
 }
 
-const COPY = {
-  th: {
-    title: 'สถานะระบบเทรดรายชั่วโมง', latestRun: 'รอบล่าสุด', runNumber: 'Run', trigger: 'รูปแบบการรัน', runtime: 'โหมดระบบ', workflow: 'Workflow', cycle: 'รอบการทำงาน', execution: 'การส่งคำสั่ง', attempted: 'มีการพยายามส่งคำสั่ง', notAttempted: 'ไม่ได้ส่งคำสั่ง', reason: 'เหตุผล', candidates: 'Candidate', positions: 'Position', orders: 'Open order', lastSuccess: 'รอบสำเร็จล่าสุด', snapshotAge: 'อายุ Snapshot', minutes: 'นาที', stale: 'ข้อมูลเก่าเกินกำหนด', staleDetail: 'Snapshot อาจไม่สะท้อนรอบล่าสุด กรุณาตรวจ GitHub Actions', masked: 'ข้อมูลการเงินถูกปกปิด', openRun: 'เปิด GitHub Actions run', phases: 'ลำดับการทำงาน', refresh: 'รีเฟรชตอนนี้', scheduled: 'ตามเวลา', manual: 'สั่งรันเอง', noData: 'ยังไม่มีข้อมูลรอบการทำงาน', loading: 'กำลังโหลดสถานะรายชั่วโมง', partialFill: 'พบ Partial fill', absolute: 'เวลาไทย', relativeNow: 'เมื่อสักครู่', safe: 'Paper-only',
-  },
-  en: {
-    title: 'Hourly Automation Status', latestRun: 'Latest run', runNumber: 'Run', trigger: 'Trigger', runtime: 'Runtime', workflow: 'Workflow', cycle: 'Cycle', execution: 'Execution', attempted: 'Execution attempted', notAttempted: 'Not attempted', reason: 'Reason', candidates: 'Candidates', positions: 'Positions', orders: 'Open orders', lastSuccess: 'Last successful run', snapshotAge: 'Snapshot age', minutes: 'minutes', stale: 'Stale data', staleDetail: 'The snapshot may not reflect the latest run. Check GitHub Actions.', masked: 'Financial values are masked', openRun: 'Open GitHub Actions run', phases: 'Execution phases', refresh: 'Refresh now', scheduled: 'Scheduled', manual: 'Manual', noData: 'No hourly run data is available yet', loading: 'Loading hourly automation status', partialFill: 'Partial fill detected', absolute: 'Bangkok time', relativeNow: 'just now', safe: 'Paper-only',
-  },
-};
-
-const PHASE_LABELS = {
-  preflight: ['Preflight', 'Preflight'],
-  portfolio_review: ['ตรวจพอร์ต', 'Portfolio Review'],
-  protection_reconciliation: ['ตรวจ TP/SL', 'Protection Reconciliation'],
-  scanner: ['Scanner', 'Scanner'],
-  backtest: ['Backtest', 'Backtest'],
-  risk: ['Risk', 'Risk'],
-  execution: ['Execution', 'Execution'],
-  final_reconciliation: ['ตรวจสอบหลังรัน', 'Final Reconciliation'],
-};
-
-function statusLabel(status) {
-  return String(status || 'unknown').replaceAll('_', ' ');
+function IncidentIcon({ severity }) {
+  if (severity === 'critical') return <ShieldAlert aria-hidden="true" />;
+  if (severity === 'warning') return <TriangleAlert aria-hidden="true" />;
+  if (severity === 'normal') return <CheckCircle2 aria-hidden="true" />;
+  return <Info aria-hidden="true" />;
 }
 
 function formatAbsolute(value, language) {
@@ -82,8 +79,40 @@ function StatusValue({ label, status }) {
   );
 }
 
-export default function HourlyAutomationStatus({ snapshot, language = 'th', isLoading, isRefreshing, onRefresh }) {
-  const copy = COPY[language] || COPY.en;
+function IncidentSummary({ incident, copy }) {
+  const role = incident.severity === 'critical' || incident.severity === 'warning' ? 'alert' : 'status';
+  return (
+    <div
+      className={`incident-summary incident-${incident.severity}`}
+      role={role}
+      aria-live={incident.severity === 'critical' ? 'assertive' : 'polite'}
+      data-testid="system-incident-summary"
+      data-severity={incident.severity}
+    >
+      <IncidentIcon severity={incident.severity} />
+      <div className="incident-copy">
+        <div className="incident-title-row">
+          <span className="incident-severity">{severityLabel(incident.severity, copy)}</span>
+          <strong>{incident.title}</strong>
+        </div>
+        <p>{incident.detail}</p>
+        <p className="incident-action"><b>{copy.nextAction}:</b> {incident.action}</p>
+      </div>
+    </div>
+  );
+}
+
+export default function HourlyAutomationStatus({
+  snapshot,
+  language = 'th',
+  isLoading,
+  isRefreshing,
+  onRefresh,
+  showRefreshAction = true,
+}) {
+  const [timelineExpanded, setTimelineExpanded] = useState(false);
+  const copy = SYSTEM_COPY[language] || SYSTEM_COPY.en;
+
   if (isLoading && !snapshot?.generatedAt) {
     return (
       <section className="panel automation-panel automation-skeleton" aria-busy="true" aria-label={copy.loading}>
@@ -99,23 +128,16 @@ export default function HourlyAutomationStatus({ snapshot, language = 'th', isLo
   const freshness = snapshot?.freshness || {};
   const summary = snapshot?.summary || {};
   const privacy = snapshot?.privacy || {};
+  const phases = snapshot?.phases || [];
+  const incident = deriveSystemIncident(snapshot, copy);
+  const incidentPhaseCount = phases.filter((phase) => INCIDENT_PHASE_STATUSES.has(phase.status)).length;
   const runUrl = validRunUrl(workflow.runUrl);
   const trigger = workflow.eventName === 'schedule' ? copy.scheduled : copy.manual;
   const generatedAt = snapshot?.generatedAt;
+  const readableReason = translatedReason(cycle.executionReason, copy);
 
   return (
     <section className="panel automation-panel" aria-labelledby="hourly-automation-title" data-testid="hourly-automation-status">
-      {freshness.isStale ? (
-        <div className="stale-banner" role="alert">
-          <TriangleAlert aria-hidden="true" />
-          <div><strong>{copy.stale}</strong><span>{copy.staleDetail}</span></div>
-        </div>
-      ) : null}
-      {snapshot?.error ? (
-        <div className="workflow-error" role="status">
-          <XCircle aria-hidden="true" /><span>{snapshot.error.message}</span>
-        </div>
-      ) : null}
       <div className="section-heading automation-heading">
         <div>
           <p className="eyebrow">GitHub Actions snapshot</p>
@@ -123,11 +145,15 @@ export default function HourlyAutomationStatus({ snapshot, language = 'th', isLo
         </div>
         <div className="automation-actions">
           <span className="status good"><ShieldCheck aria-hidden="true" /> {copy.safe}</span>
-          <button className="icon-action" type="button" onClick={() => onRefresh?.()} disabled={isRefreshing} aria-label={copy.refresh}>
-            <RefreshCw className={isRefreshing ? 'spinning' : ''} aria-hidden="true" />
-          </button>
+          {showRefreshAction ? (
+            <button className="icon-action" type="button" onClick={() => onRefresh?.()} disabled={isRefreshing} aria-label={copy.refresh}>
+              <RefreshCw className={isRefreshing ? 'spinning' : ''} aria-hidden="true" />
+            </button>
+          ) : null}
         </div>
       </div>
+
+      <IncidentSummary incident={incident} copy={copy} />
 
       <div className="automation-grid">
         <div className="automation-stat">
@@ -149,7 +175,12 @@ export default function HourlyAutomationStatus({ snapshot, language = 'th', isLo
         <div className="automation-stat"><span>{copy.snapshotAge}</span><strong>{freshness.ageMinutes == null ? '—' : Math.round(freshness.ageMinutes)}</strong><small>{copy.minutes}</small></div>
       </div>
 
-      {cycle.executionReason ? <p className="automation-reason"><strong>{copy.reason}:</strong> {cycle.executionReason}</p> : null}
+      {cycle.executionReason ? (
+        <div className="automation-reason" data-testid="execution-reason">
+          <p><strong>{copy.reason}:</strong> {readableReason}</p>
+          <p><strong>{copy.rawCode}:</strong> <code>{cycle.executionReason}</code></p>
+        </div>
+      ) : null}
 
       <div className="automation-meta-row">
         <span><strong>{copy.lastSuccess}:</strong> {formatAbsolute(snapshot?.lastSuccessfulRun?.generatedAt, language)}</span>
@@ -158,13 +189,36 @@ export default function HourlyAutomationStatus({ snapshot, language = 'th', isLo
       </div>
 
       <div className="phase-section">
-        <h3>{copy.phases}</h3>
-        {snapshot?.phases?.length ? (
-          <ol className="phase-timeline">
-            {snapshot.phases.map((item, index) => {
+        <div className="phase-section-heading">
+          <div>
+            <h3>{copy.phases}</h3>
+            {!timelineExpanded && incidentPhaseCount === 0 ? <p className="mobile-phase-note">{copy.noIncidentPhases}</p> : null}
+          </div>
+          {phases.length ? (
+            <button
+              className="phase-toggle"
+              type="button"
+              aria-expanded={timelineExpanded}
+              aria-controls="hourly-phase-timeline"
+              onClick={() => setTimelineExpanded((current) => !current)}
+            >
+              {timelineExpanded ? copy.showIncidentPhases : copy.showAllPhases(phases.length)}
+              {timelineExpanded ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
+            </button>
+          ) : null}
+        </div>
+
+        {phases.length ? (
+          <ol id="hourly-phase-timeline" className={`phase-timeline${timelineExpanded ? ' expanded' : ''}`}>
+            {phases.map((item, index) => {
               const labels = PHASE_LABELS[item.name] || [item.name, item.name];
+              const incidentPhase = INCIDENT_PHASE_STATUSES.has(item.status);
               return (
-                <li key={`${item.name}-${index}`} className={`phase-item status-${item.status}`}>
+                <li
+                  key={`${item.name}-${index}`}
+                  className={`phase-item status-${item.status} ${incidentPhase ? 'phase-primary' : 'phase-secondary'}`}
+                  data-phase-status={item.status}
+                >
                   <StatusIcon status={item.status} />
                   <div><strong>{labels[language === 'th' ? 0 : 1]}</strong><span>{statusLabel(item.status)}{item.message ? ` · ${item.message}` : ''}</span></div>
                 </li>

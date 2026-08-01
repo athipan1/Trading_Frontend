@@ -52,16 +52,34 @@ test('renders a successful hourly run with run link and keyboard refresh', async
   );
 
   const refresh = page.getByRole('button', { name: 'รีเฟรชข้อมูล Dashboard' });
+  await expect(refresh).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'รีเฟรชตอนนี้' })).toHaveCount(0);
   await refresh.focus();
   await expect(refresh).toBeFocused();
   await page.keyboard.press('Enter');
   await expect.poll(() => requests).toBeGreaterThanOrEqual(2);
 });
 
+test('prioritizes a critical incident summary before system details', async ({ page }) => {
+  await mockSnapshot(page, fixture('execution-failure'));
+  await page.goto('/system');
+
+  const summary = page.getByTestId('system-incident-summary');
+  await expect(summary).toHaveAttribute('data-severity', 'critical');
+  await expect(summary).toContainText('การส่งคำสั่ง Paper Trading ล้มเหลว');
+  await expect(page.getByTestId('execution-reason')).toContainText('Alpaca Paper ปฏิเสธคำสั่ง');
+  await expect(page.getByTestId('execution-reason')).toContainText('paper_broker_rejected');
+
+  const appearsBeforeDetails = await summary.evaluate((element) => Boolean(
+    element.compareDocumentPosition(document.querySelector('.automation-grid')) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ));
+  expect(appearsBeforeDetails).toBe(true);
+});
+
 test('renders workflow failure and preserves the last successful run', async ({ page }) => {
   await mockSnapshot(page, fixture('workflow-failure'));
   await page.goto('/system');
-  await expect(page.getByTestId('hourly-automation-status')).toContainText('failure');
+  await expect(page.getByTestId('system-incident-summary')).toHaveAttribute('data-severity', 'critical');
   await expect(page.getByText('Hourly Auto Trading did not complete successfully.')).toBeVisible();
   await expect(page.getByTestId('hourly-automation-status')).toContainText('30 ก.ค. 2569 06:00:00');
 });
@@ -69,13 +87,55 @@ test('renders workflow failure and preserves the last successful run', async ({ 
 test('renders cancelled workflow and stale warning states', async ({ page }) => {
   await mockSnapshot(page, fixture('cancelled'));
   await page.goto('/system');
-  await expect(page.getByTestId('hourly-automation-status')).toContainText('cancelled');
+  await expect(page.getByTestId('system-incident-summary')).toHaveAttribute('data-severity', 'warning');
   await expect(page.getByText('Hourly Auto Trading was cancelled before completion.')).toBeVisible();
 
   await page.unrouteAll({ behavior: 'wait' });
   await mockSnapshot(page, fixture('stale'));
   await page.getByRole('button', { name: 'รีเฟรชข้อมูล Dashboard' }).click();
-  await expect(page.getByRole('alert')).toContainText('ข้อมูลเก่าเกินกำหนด');
+  await expect(page.getByTestId('system-incident-summary')).toHaveAttribute('data-severity', 'warning');
+  await expect(page.getByTestId('system-incident-summary')).toContainText('Snapshot เก่าเกินกำหนด');
+});
+
+test('collapses the mobile phase timeline to incidents and expands with keyboard', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await mockSnapshot(page, fixture('execution-failure'));
+  await page.goto('/system');
+
+  await expect(page.locator('.phase-item:visible')).toHaveCount(2);
+  const toggle = page.locator('.phase-toggle');
+  await expect(toggle).toHaveAccessibleName('ดูทั้ง 7 ขั้น');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.focus();
+  await expect(toggle).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(toggle).toHaveAccessibleName('แสดงเฉพาะขั้นที่ต้องตรวจสอบ');
+  await expect(page.locator('.phase-item:visible')).toHaveCount(7);
+
+  const dimensions = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    page: document.documentElement.scrollWidth,
+  }));
+  expect(dimensions.page).toBeLessThanOrEqual(dimensions.viewport);
+});
+
+test('shows the complete phase timeline at tablet width without a mobile toggle', async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1000 });
+  await mockSnapshot(page, fixture('execution-failure'));
+  await page.goto('/system');
+
+  await expect(page.locator('.phase-item:visible')).toHaveCount(7);
+  await expect(page.locator('.phase-toggle')).toBeHidden();
+});
+
+test('shows the complete phase timeline on desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await mockSnapshot(page, fixture('success'));
+  await page.goto('/system');
+
+  await expect(page.locator('.phase-item:visible')).toHaveCount(8);
+  await expect(page.locator('.phase-toggle')).toBeHidden();
 });
 
 test('keeps the previous snapshot when a refresh returns HTTP 500', async ({ page }) => {
