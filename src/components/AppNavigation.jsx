@@ -53,7 +53,8 @@ export default function AppNavigation({
 
   const focusPageHeading = () => {
     window.requestAnimationFrame(() => {
-      const heading = document.querySelector('#main-content h1');
+      const main = document.getElementById('main-content');
+      const heading = main?.querySelector('h1');
       if (!heading) return;
       heading.setAttribute('tabindex', '-1');
       heading.focus({ preventScroll: true });
@@ -134,7 +135,9 @@ export default function AppNavigation({
     event.preventDefault();
     const main = document.getElementById('main-content');
     main?.focus();
-    main?.scrollIntoView({ block: 'start' });
+    if (typeof main?.scrollIntoView === 'function') {
+      main.scrollIntoView({ block: 'start' });
+    }
   };
 
   const mainContent = isValidElement(children)
