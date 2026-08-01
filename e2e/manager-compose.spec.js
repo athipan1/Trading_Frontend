@@ -12,7 +12,7 @@ test('loads the real Manager snapshot through the same-origin proxy', async ({ p
   await page.goto('/overview');
   await expect(page.getByTestId('data-source')).toContainText('manager-api');
   await expect(page.getByTestId('trading-mode')).toHaveText('PAPER');
-  await expect(page.getByTestId('schema-version')).toContainText('dashboard-snapshot.v1');
+  await expect(page.getByTestId('schema-version')).toContainText('dashboard-snapshot.v2');
   await expect(page.getByTestId('schema-version')).toContainText('web-control.v1');
 
   await expect(page.getByText('Cash').first()).toBeVisible();
