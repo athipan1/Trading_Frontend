@@ -19,6 +19,9 @@ test('uses route-aware navigation and hides unavailable control pages', async ({
 
   await expect(page).toHaveURL(/\/overview$/);
   await expect(page.getByTestId('page-overview')).toBeVisible();
+  await expect(page.getByTestId('dashboard-insights')).toBeVisible();
+  await expect(page.getByTestId('allocation-chart')).toContainText('ACGL');
+  await expect(page.getByTestId('safety-posture')).toContainText('Paper-only');
   await expect(page.getByTestId('nav-ledger')).toHaveCount(0);
 
   await page.getByTestId('nav-portfolio').first().click();

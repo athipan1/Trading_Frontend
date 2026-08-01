@@ -19,6 +19,7 @@ export default defineConfig({
       include: [
         'src/components/systemIncidentModel.js',
         'src/config/**/*.js',
+        'src/features/dashboard/**/*.js',
         'src/hooks/**/*.js',
         'src/i18n.js',
         'src/services/**/*.js',

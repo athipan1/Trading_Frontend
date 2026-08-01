@@ -35,3 +35,16 @@ Every new operational component should provide:
 - Keep derived lists memoized only when profiling shows meaningful work.
 - Prefer CSS transitions that honor `prefers-reduced-motion`.
 - Add a bundle budget before introducing charting or table-virtualization packages.
+
+## Dashboard insights
+
+`src/features/dashboard/DashboardInsights.jsx` renders only values already present
+in the normalized Manager snapshot. Its derivation model is intentionally separate
+so privacy and safety rules can be tested without a browser:
+
+- any account, privacy, or position-level masking hides allocation and aggregate P/L;
+- long and short positions use absolute exposure for allocation weights;
+- the paper-only safety badge appears only when `runtime.liveTradingEnabled` is
+  explicitly `false`; missing runtime evidence is shown as unknown, never safe;
+- recent activity is derived from the latest Manager phases and does not imply a
+  broker execution when a phase was not attempted.

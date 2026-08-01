@@ -29,6 +29,10 @@ Intentional visual changes require `npm run test:visual:update`, manual inspecti
 every changed image, and baseline files committed in the same PR. CI never rewrites
 visual baselines.
 
+When the pinned Playwright browser cannot be installed in a restricted local
+environment, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to a compatible Chromium
+executable. CI leaves this unset and always installs the Playwright-pinned browser.
+
 ## Adding a route
 
 1. Add the route ID/path to `src/routes/routeConfig.js`.

@@ -6,7 +6,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default [
   {
-    ignores: ['dist/**', 'coverage/**', 'playwright-report/**', 'test-results/**'],
+    ignores: ['.cache/**', 'dist/**', 'coverage/**', 'playwright-report/**', 'test-results/**'],
   },
   js.configs.recommended,
   {
