@@ -2,6 +2,7 @@ import { Activity, ChevronRight, ShieldCheck, WalletCards, Zap } from 'lucide-re
 import MetricCard from '../../components/MetricCard.jsx';
 import { formatBangkokDateTime } from '../../utils/dateTime.js';
 import { formatCurrency } from '../../utils/formatters.js';
+import DashboardInsights from './DashboardInsights.jsx';
 
 function AccountMetrics({ snapshot, language, t }) {
   const { account, positions } = snapshot;
@@ -77,6 +78,7 @@ export default function OverviewPage({ snapshot, language, t, onNavigate, readOn
         onOpenPortfolio={() => onNavigate('portfolio')}
       />
       <AccountMetrics snapshot={snapshot} language={language} t={t} />
+      <DashboardInsights snapshot={snapshot} language={language} t={t} />
       <PortfolioHealth snapshot={snapshot} t={t} />
       {readOnlyMessage ? (
         <section className="read-only-banner" aria-label="Read-only public snapshot mode">
