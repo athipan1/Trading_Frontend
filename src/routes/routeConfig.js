@@ -6,6 +6,7 @@ export const PAGE_PATHS = Object.freeze({
   risk: '/risk',
   backtest: '/backtest',
   system: '/system',
+  settings: '/settings',
   ledger: '/ledger',
   advisor: '/advisor',
   investment: '/investment',
