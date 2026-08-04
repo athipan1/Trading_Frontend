@@ -8,6 +8,7 @@ import {
   ListOrdered,
   NotebookTabs,
   RefreshCw,
+  Settings,
   ShieldAlert,
   WalletCards,
   Zap,
@@ -31,6 +32,12 @@ import {
 import { getDashboardDataSource } from './services/api.js';
 import { isManagerControlPage } from './routes/routeConfig.js';
 import { formatBangkokDateTime } from './utils/dateTime.js';
+import {
+  applyPreferences,
+  clearPreferences,
+  loadPreferences,
+  savePreferences,
+} from './features/settings/preferences.js';
 
 const FinanceAdvisor = lazy(() => import('./components/FinanceAdvisor.jsx'));
 const FinanceLedger = lazy(() => import('./components/FinanceLedger.jsx'));
@@ -40,6 +47,7 @@ const BacktestPage = lazy(() => import('./features/backtest/BacktestPage.jsx'));
 const OrdersPage = lazy(() => import('./features/orders/OrdersPage.jsx'));
 const PortfolioPage = lazy(() => import('./features/portfolio/PortfolioPage.jsx'));
 const RiskDashboardPage = lazy(() => import('./features/risk/RiskDashboardPage.jsx'));
+const SettingsPage = lazy(() => import('./features/settings/SettingsPage.jsx'));
 
 function safeRefreshError(error, language) {
   const fallback = language === 'th' ? 'โหลด Snapshot ไม่สำเร็จ' : 'Snapshot refresh failed';
@@ -53,6 +61,7 @@ function safeRefreshError(error, language) {
 
 export default function App() {
   const [language, setLanguage] = useState(getInitialLanguage);
+  const [preferences, setPreferences] = useState(loadPreferences);
   const [entries, setEntries] = useState([]);
   const [financeBudgetThb, setFinanceBudgetThb] = useState('0');
   const [tradeBudgetUsd, setTradeBudgetUsd] = useState('0');
@@ -77,6 +86,12 @@ export default function App() {
       { id: 'risk', label: t.navRisk, description: t.navRiskDescription, icon: ShieldAlert },
       { id: 'backtest', label: t.navBacktest, description: t.navBacktestDescription, icon: FlaskConical },
       { id: 'system', label: t.navSystem, description: t.navSystemDescription, icon: Activity },
+      {
+        id: 'settings',
+        label: language === 'th' ? 'ตั้งค่า' : 'Settings',
+        description: language === 'th' ? 'ปรับรูปลักษณ์ การรีเฟรช และความเป็นส่วนตัว' : 'Appearance, refresh, and privacy preferences',
+        icon: Settings,
+      },
     ];
     if (!managerControlAvailable) return publicItems;
     return [
@@ -85,7 +100,7 @@ export default function App() {
       { id: 'advisor', label: t.navAdvisor, description: t.navAdvisorDescription, icon: Bot },
       { id: 'investment', label: t.navInvestment, description: t.navInvestmentDescription, icon: Zap },
     ];
-  }, [managerControlAvailable, t]);
+  }, [language, managerControlAvailable, t]);
 
   const { activePage: resolvedActivePage, navigateToPage } = useRouteNavigation(navigationItems);
   const activePageMeta = navigationItems.find((item) => item.id === resolvedActivePage) ?? navigationItems[0];
@@ -96,6 +111,11 @@ export default function App() {
     window.localStorage.setItem('trading-dashboard-language', language);
     document.documentElement.lang = language;
   }, [language]);
+
+  useEffect(() => {
+    const safe = savePreferences(preferences);
+    applyPreferences(safe);
+  }, [preferences]);
 
   const loadFinanceState = async () => {
     const response = await getFinanceState({ operatorToken, accountId });
@@ -157,11 +177,8 @@ export default function App() {
   };
 
   const toggleLanguage = () => setLanguage((current) => (current === 'th' ? 'en' : 'th'));
-  const runBacktest = (request) => requestBacktestRun({
-    operatorToken,
-    accountId,
-    request,
-  });
+  const runBacktest = (request) => requestBacktestRun({ operatorToken, accountId, request });
+  const resetPreferences = () => setPreferences(clearPreferences());
   const readOnlyMessage = managerControlAvailable ? null : t.readOnlySnapshotMessage;
 
   return (
@@ -169,12 +186,7 @@ export default function App() {
       items={navigationItems}
       activePage={resolvedActivePage}
       onNavigate={navigateToPage}
-      brand={{
-        title: t.appName,
-        subtitle: t.appTagline,
-        navigationLabel: t.mainNavigation,
-        closeLabel: t.close,
-      }}
+      brand={{ title: t.appName, subtitle: t.appTagline, navigationLabel: t.mainNavigation, closeLabel: t.close }}
       boundaryLabel={t.paperBoundary}
       moreLabel={t.navMore}
       collapseLabel={t.collapseNavigation}
@@ -187,26 +199,20 @@ export default function App() {
             <h1>{activePageMeta.label}</h1>
             <p>{activePageMeta.description}</p>
           </div>
-
           <div className="dashboard-header-actions">
             <button className="language-switcher" type="button" onClick={toggleLanguage} aria-label="Switch language">
               <Languages aria-hidden="true" /><span>{language === 'th' ? 'EN' : 'ไทย'}</span>
             </button>
             <button className="header-refresh-button" type="button" onClick={() => refresh()} disabled={isRefreshing} aria-label={t.refreshNow}>
-              <RefreshCw className={isRefreshing ? 'spinning' : ''} aria-hidden="true" />
-              <span>{t.refresh}</span>
+              <RefreshCw className={isRefreshing ? 'spinning' : ''} aria-hidden="true" /><span>{t.refresh}</span>
             </button>
           </div>
-
           <div className="dashboard-status-row">
-            <span className={`status ${mockMode ? 'warn' : 'good'}`} data-testid="data-source">
-              {mockMode ? t.mockMode : `${t.liveMode}: ${dataSource}`}
-            </span>
+            <span className={`status ${mockMode ? 'warn' : 'good'}`} data-testid="data-source">{mockMode ? t.mockMode : `${t.liveMode}: ${dataSource}`}</span>
             <span className="status neutral-status" data-testid="trading-mode">{dashboardSnapshot.runtime.mode}</span>
             <span className="sync-text">{t.lastUpdated}: {formatBangkokDateTime(lastUpdatedAt || dashboardSnapshot.generatedAt, language, t.notUpdated)}</span>
             <span className="sync-text">{t.autoRefresh}: {Math.round(refreshMs / 1000)}s</span>
           </div>
-
           {error ? (
             <div className="error-banner" role="alert">
               <span>{t.apiFailed}: {safeRefreshError(error, language)} {snapshot ? t.showingLastSnapshot : t.noSnapshotAvailable}</span>
@@ -226,65 +232,25 @@ export default function App() {
           </section>
         ) : null}
 
-        {resolvedActivePage === 'overview' ? (
-          <OverviewPage
-            snapshot={dashboardSnapshot}
-            language={language}
-            t={t}
-            onNavigate={navigateToPage}
-            readOnlyMessage={readOnlyMessage}
-          />
-        ) : null}
-        {resolvedActivePage === 'portfolio' ? (
-          <Suspense fallback={<div className="panel" role="status" aria-live="polite">{t.loading}</div>}>
-            <PortfolioPage snapshot={dashboardSnapshot} t={t} />
-          </Suspense>
-        ) : null}
-        {resolvedActivePage === 'orders' ? (
-          <Suspense fallback={<div className="panel" role="status" aria-live="polite">{t.loading}</div>}>
-            <OrdersPage snapshot={dashboardSnapshot} language={language} t={t} />
-          </Suspense>
-        ) : null}
-        {resolvedActivePage === 'agents' ? (
-          <Suspense fallback={<div className="panel" role="status" aria-live="polite">{t.loading}</div>}>
-            <AgentMonitorPage snapshot={dashboardSnapshot} language={language} t={t} />
-          </Suspense>
-        ) : null}
-        {resolvedActivePage === 'risk' ? (
-          <Suspense fallback={<div className="panel" role="status" aria-live="polite">{t.loading}</div>}>
-            <RiskDashboardPage snapshot={dashboardSnapshot} language={language} t={t} />
-          </Suspense>
-        ) : null}
+        {resolvedActivePage === 'overview' ? <OverviewPage snapshot={dashboardSnapshot} language={language} t={t} onNavigate={navigateToPage} readOnlyMessage={readOnlyMessage} /> : null}
+        {resolvedActivePage === 'portfolio' ? <Suspense fallback={<div className="panel" role="status">{t.loading}</div>}><PortfolioPage snapshot={dashboardSnapshot} t={t} /></Suspense> : null}
+        {resolvedActivePage === 'orders' ? <Suspense fallback={<div className="panel" role="status">{t.loading}</div>}><OrdersPage snapshot={dashboardSnapshot} language={language} t={t} /></Suspense> : null}
+        {resolvedActivePage === 'agents' ? <Suspense fallback={<div className="panel" role="status">{t.loading}</div>}><AgentMonitorPage snapshot={dashboardSnapshot} language={language} t={t} /></Suspense> : null}
+        {resolvedActivePage === 'risk' ? <Suspense fallback={<div className="panel" role="status">{t.loading}</div>}><RiskDashboardPage snapshot={dashboardSnapshot} language={language} t={t} /></Suspense> : null}
         {resolvedActivePage === 'backtest' ? (
-          <Suspense fallback={<div className="panel" role="status" aria-live="polite">{t.loading}</div>}>
-            <BacktestPage
-              snapshot={dashboardSnapshot}
-              language={language}
-              t={t}
-              managerControlAvailable={managerControlAvailable}
-              canRunBacktest={Boolean(isControlConnected && controlCapabilities?.backtest_run_enabled)}
-              onRunBacktest={runBacktest}
-            />
+          <Suspense fallback={<div className="panel" role="status">{t.loading}</div>}>
+            <BacktestPage snapshot={dashboardSnapshot} language={language} t={t} managerControlAvailable={managerControlAvailable} canRunBacktest={Boolean(isControlConnected && controlCapabilities?.backtest_run_enabled)} onRunBacktest={runBacktest} />
           </Suspense>
         ) : null}
-        {resolvedActivePage === 'system' ? (
-          <HourlyAutomationStatus
-            snapshot={dashboardSnapshot}
-            language={language}
-            isLoading={isLoading}
-            isRefreshing={isRefreshing}
-            onRefresh={refresh}
-            showRefreshAction={false}
-          />
-        ) : null}
+        {resolvedActivePage === 'system' ? <HourlyAutomationStatus snapshot={dashboardSnapshot} language={language} isLoading={isLoading} isRefreshing={isRefreshing} onRefresh={refresh} showRefreshAction={false} /> : null}
+        {resolvedActivePage === 'settings' ? <Suspense fallback={<div className="panel" role="status">{t.loading}</div>}><SettingsPage language={language} preferences={preferences} onChange={setPreferences} onReset={resetPreferences} /></Suspense> : null}
         {managerPageActive ? (
-          <Suspense fallback={<div className="panel" role="status" aria-live="polite">{t.loading}</div>}>
+          <Suspense fallback={<div className="panel" role="status">{t.loading}</div>}>
             {resolvedActivePage === 'ledger' ? <FinanceLedger entries={entries} onCreate={handleCreateEntry} onDelete={handleDeleteEntry} isConnected={isControlConnected} /> : null}
             {resolvedActivePage === 'advisor' ? <FinanceAdvisor accountId={accountId} operatorToken={operatorToken} availableCapital={financeBudgetThb} onAvailableCapitalChange={setFinanceBudgetThb} onSaveBudget={saveBudgets} isConnected={isControlConnected} /> : null}
             {resolvedActivePage === 'investment' ? <InvestmentCommandCenter accountId={accountId} operatorToken={operatorToken} snapshot={dashboardSnapshot} t={t} availableCapital={tradeBudgetUsd} onAvailableCapitalChange={setTradeBudgetUsd} onSaveBudget={saveBudgets} isConnected={isControlConnected} /> : null}
           </Suspense>
         ) : null}
-
         <p className="schema-version" data-testid="schema-version">{dashboardSnapshot.schemaVersion} · web-control.v1</p>
       </main>
     </AppNavigation>
