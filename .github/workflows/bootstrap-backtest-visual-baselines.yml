@@ -54,7 +54,7 @@ jobs:
             fi
           done
 
-          npx playwright test --grep '/backtest' --workers=1 --update-snapshots
+          npx playwright test e2e/visual-regression.spec.js --grep '/backtest' --workers=1 --update-snapshots
 
           mapfile -t added < <(git ls-files --others --exclude-standard "$snapshot_dir" | sort)
           mapfile -t modified < <(git diff --name-only -- "$snapshot_dir" | sort)
