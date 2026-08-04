@@ -14,6 +14,7 @@ import './features/orders/ordersWorkspace.css';
 import './features/agents/agentMonitor.css';
 import './features/risk/riskDashboard.css';
 import './features/backtest/backtest.css';
+import './features/settings/settings.css';
 import './accessibility.css';
 
 class DashboardErrorBoundary extends React.Component {
