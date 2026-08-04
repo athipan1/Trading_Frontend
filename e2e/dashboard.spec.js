@@ -40,13 +40,47 @@ test('uses route-aware navigation and hides unavailable control pages', async ({
   await expect(page).toHaveURL(/\/risk$/);
   await expect(page.getByTestId('page-risk')).toBeVisible();
 
+  await page.getByTestId('nav-backtest').first().click();
+  await expect(page).toHaveURL(/\/backtest$/);
+  await expect(page.getByTestId('page-backtest')).toBeVisible();
+
   await page.getByTestId('nav-system').first().click();
   await expect(page).toHaveURL(/\/system$/);
   await expect(page.getByTestId('hourly-automation-status')).toBeVisible();
 
   await page.goBack();
-  await expect(page).toHaveURL(/\/risk$/);
-  await expect(page.getByTestId('page-risk')).toBeVisible();
+  await expect(page).toHaveURL(/\/backtest$/);
+  await expect(page.getByTestId('page-backtest')).toBeVisible();
+});
+
+test('renders bounded Manager backtest evidence and keeps public Run disabled', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('trading-dashboard-language', 'en');
+  });
+  await mockSnapshot(page, fixture('success'));
+  await page.goto('/backtest');
+
+  await expect(page.getByTestId('backtest-profit-curve')).toBeVisible();
+  await expect(page.getByTestId('backtest-history-table')).toContainText('bt-2026-07-29-value-rebound');
+  await expect(page.getByTestId('backtest-trade-table')).toContainText('ACGL');
+  await expect(page.getByRole('button', { name: 'Run backtest' })).toBeDisabled();
+  await expect(page.getByText(/Public snapshot mode is read-only/)).toBeVisible();
+});
+
+test('keeps Backtest history and trades usable at 320px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await mockSnapshot(page, fixture('success'));
+  await page.goto('/backtest');
+
+  await expect(page.getByTestId('page-backtest')).toBeVisible();
+  await expect(page.getByTestId('backtest-history-cards')).toBeVisible();
+  await expect(page.getByTestId('backtest-trade-cards')).toBeVisible();
+  await expect(page.getByTestId('backtest-history-table')).toBeHidden();
+  const dimensions = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    page: document.documentElement.scrollWidth,
+  }));
+  expect(dimensions.page).toBeLessThanOrEqual(dimensions.viewport);
 });
 
 test('renders Manager-only risk evidence without exposing a browser halt control', async ({ page }) => {

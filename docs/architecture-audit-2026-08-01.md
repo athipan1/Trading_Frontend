@@ -23,6 +23,9 @@ such records, while empty views explicitly avoid claiming complete broker histor
 Phase 8 adds a read-only Risk Dashboard with calculated visible exposure plus an
 optional bounded Manager `risk` projection for drawdown, level, limits, sectors,
 and emergency-halt evidence. It does not add a direct Risk_Agent control path.
+Phase 9 adds bounded Backtest results, statistics, an SVG profit curve, run history,
+and simulated trades. Public mode stays read-only; requesting a new run requires an
+authenticated Manager API capability and never produces a browser-to-broker path.
 
 ## Inventory and evidence
 
@@ -86,7 +89,7 @@ and emergency-halt evidence. It does not add a direct Risk_Agent control path.
 | 6 Orders | Delivered for current contract | Status views, search/filter/sort, pagination, safe exports and honest snapshot timeline; full history still requires Manager data |
 | 7 Agents | Delivered with optional contract | All 13 expected agents render; bounded Manager `agents[]` telemetry is used when published and missing fields remain explicitly unavailable |
 | 8 Risk | Delivered with optional contract | Exposure, protection, gauge, sector/limit charts and read-only halt evidence; unavailable fields are never inferred |
-| 9 Backtest | Not started | Requires Manager backtest summary contract |
+| 9 Backtest | Delivered with optional contract | Capability-gated Manager run request, bounded history/statistics, Sharpe/Win Rate/Drawdown, profit curve and simulated trades |
 | 10 Settings | Not started | Theme/language/refresh preferences can be client-side; API URL stays build-time validated |
 
 ## Validation baseline

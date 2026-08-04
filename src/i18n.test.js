@@ -57,5 +57,11 @@ describe('dashboard language selection', () => {
     expect(Object.keys(translations.en.emergencyHaltStates).sort()).toEqual(
       Object.keys(translations.th.emergencyHaltStates).sort(),
     );
+    expect(Object.keys(translations.en.backtestStrategies).sort()).toEqual(
+      Object.keys(translations.th.backtestStrategies).sort(),
+    );
+    expect(Object.keys(translations.en.backtestValidationErrors).sort()).toEqual(
+      Object.keys(translations.th.backtestValidationErrors).sort(),
+    );
   });
 });

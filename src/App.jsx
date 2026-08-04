@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   Bot,
+  FlaskConical,
   Gauge,
   Languages,
   ListOrdered,
@@ -25,6 +26,7 @@ import {
   getControlCapabilities,
   getFinanceState,
   updateFinanceBudgets,
+  requestBacktestRun,
 } from './services/controlApi.js';
 import { getDashboardDataSource } from './services/api.js';
 import { isManagerControlPage } from './routes/routeConfig.js';
@@ -34,6 +36,7 @@ const FinanceAdvisor = lazy(() => import('./components/FinanceAdvisor.jsx'));
 const FinanceLedger = lazy(() => import('./components/FinanceLedger.jsx'));
 const InvestmentCommandCenter = lazy(() => import('./components/InvestmentCommandCenter.jsx'));
 const AgentMonitorPage = lazy(() => import('./features/agents/AgentMonitorPage.jsx'));
+const BacktestPage = lazy(() => import('./features/backtest/BacktestPage.jsx'));
 const OrdersPage = lazy(() => import('./features/orders/OrdersPage.jsx'));
 const PortfolioPage = lazy(() => import('./features/portfolio/PortfolioPage.jsx'));
 const RiskDashboardPage = lazy(() => import('./features/risk/RiskDashboardPage.jsx'));
@@ -55,6 +58,7 @@ export default function App() {
   const [tradeBudgetUsd, setTradeBudgetUsd] = useState('0');
   const [operatorToken, setOperatorToken] = useState('');
   const [isControlConnected, setIsControlConnected] = useState(false);
+  const [controlCapabilities, setControlCapabilities] = useState(null);
   const [controlStatus, setControlStatus] = useState({ state: 'locked', message: 'ยังไม่ได้เชื่อมต่อ Manager_Agent' });
   const t = useMemo(() => translations[language], [language]);
   const { snapshot, isLoading, isRefreshing, error, lastUpdatedAt, refresh, refreshMs } = useDashboardSnapshot();
@@ -71,6 +75,7 @@ export default function App() {
       { id: 'orders', label: t.navOrders, description: t.navOrdersDescription, icon: ListOrdered },
       { id: 'agents', label: t.navAgents, description: t.navAgentsDescription, icon: Bot },
       { id: 'risk', label: t.navRisk, description: t.navRiskDescription, icon: ShieldAlert },
+      { id: 'backtest', label: t.navBacktest, description: t.navBacktestDescription, icon: FlaskConical },
       { id: 'system', label: t.navSystem, description: t.navSystemDescription, icon: Activity },
     ];
     if (!managerControlAvailable) return publicItems;
@@ -85,6 +90,7 @@ export default function App() {
   const { activePage: resolvedActivePage, navigateToPage } = useRouteNavigation(navigationItems);
   const activePageMeta = navigationItems.find((item) => item.id === resolvedActivePage) ?? navigationItems[0];
   const managerPageActive = isManagerControlPage(resolvedActivePage);
+  const controlAuthenticationActive = managerPageActive || resolvedActivePage === 'backtest';
 
   useEffect(() => {
     window.localStorage.setItem('trading-dashboard-language', language);
@@ -108,6 +114,7 @@ export default function App() {
       const response = await getControlCapabilities(operatorToken);
       await loadFinanceState();
       const capabilities = response.data;
+      setControlCapabilities(capabilities);
       setIsControlConnected(true);
       setControlStatus({
         state: capabilities.execution_enabled ? 'ready' : 'planning',
@@ -123,6 +130,7 @@ export default function App() {
   const handleOperatorTokenChange = (value) => {
     setOperatorToken(value);
     setIsControlConnected(false);
+    setControlCapabilities(null);
     setControlStatus({ state: 'locked', message: 'Token เปลี่ยนแล้ว กรุณาเชื่อมต่อใหม่' });
   };
 
@@ -149,6 +157,11 @@ export default function App() {
   };
 
   const toggleLanguage = () => setLanguage((current) => (current === 'th' ? 'en' : 'th'));
+  const runBacktest = (request) => requestBacktestRun({
+    operatorToken,
+    accountId,
+    request,
+  });
   const readOnlyMessage = managerControlAvailable ? null : t.readOnlySnapshotMessage;
 
   return (
@@ -202,7 +215,7 @@ export default function App() {
           ) : null}
         </header>
 
-        {managerControlAvailable && managerPageActive ? (
+        {managerControlAvailable && controlAuthenticationActive ? (
           <section className="operator-bar">
             <label>
               <span>Operator Token ไม่ถูกบันทึกในเบราว์เซอร์</span>
@@ -240,6 +253,18 @@ export default function App() {
         {resolvedActivePage === 'risk' ? (
           <Suspense fallback={<div className="panel" role="status" aria-live="polite">{t.loading}</div>}>
             <RiskDashboardPage snapshot={dashboardSnapshot} language={language} t={t} />
+          </Suspense>
+        ) : null}
+        {resolvedActivePage === 'backtest' ? (
+          <Suspense fallback={<div className="panel" role="status" aria-live="polite">{t.loading}</div>}>
+            <BacktestPage
+              snapshot={dashboardSnapshot}
+              language={language}
+              t={t}
+              managerControlAvailable={managerControlAvailable}
+              canRunBacktest={Boolean(isControlConnected && controlCapabilities?.backtest_run_enabled)}
+              onRunBacktest={runBacktest}
+            />
           </Suspense>
         ) : null}
         {resolvedActivePage === 'system' ? (

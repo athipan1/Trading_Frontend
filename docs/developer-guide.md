@@ -51,6 +51,11 @@ fallbacks, mobile overflow, and the lack of a browser halt control. Fixtures may
 publish risk evidence through Manager, but tests must prove that drawdown and risk
 level remain unavailable when Manager omits them.
 
+Backtest changes must cover request allowlists, date/capital bounds, disabled public
+mode, Manager capability gating, optional/oversized contract payloads, invalid
+metrics/timestamps, profit-curve derivation, empty states, desktop tables, mobile
+cards, and the fact that simulated trades never become broker instructions.
+
 When the pinned Playwright browser cannot be installed in a restricted local
 environment, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to a compatible Chromium
 executable. CI leaves this unset and always installs the Playwright-pinned browser.

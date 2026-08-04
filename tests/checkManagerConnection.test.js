@@ -63,6 +63,7 @@ describe('Manager connection validation', () => {
       freshness: { isStale: false, policy: 'fail', warnings: [] },
       agentTelemetryCount: 0,
       riskTelemetryPublished: false,
+      backtestTelemetry: { published: false, historyCount: 0, curvePointCount: 0, tradeCount: 0 },
     });
   });
 
@@ -104,6 +105,38 @@ describe('Manager connection validation', () => {
     expect(() => validateSnapshot(createSnapshot({
       risk: { emergencyHalt: { active: 'false' } },
     }), { nowMs: NOW, freshnessPolicy: 'warn' })).toThrow('must be a boolean');
+  });
+
+  it('validates optional bounded backtest evidence without accepting broker identifiers', () => {
+    const result = validateSnapshot(createSnapshot({
+      backtest: {
+        latestRun: {
+          id: 'bt-1',
+          status: 'completed',
+          strategy: 'momentum',
+          symbols: ['AAPL'],
+          startedAt: '2026-01-01T00:00:00Z',
+          completedAt: '2026-02-01T00:00:00Z',
+          statistics: { sharpeRatio: 1.2, winRatePercent: 60, maxDrawdownPercent: 5, totalTrades: 2 },
+          equityCurve: [{ timestamp: '2026-01-01T00:00:00Z', equity: 10000, drawdownPercent: 0 }],
+          trades: [{ symbol: 'AAPL', quantity: 1, entryPrice: 100, exitPrice: 110, pnl: 10 }],
+        },
+        history: [{ id: 'bt-1', statistics: {} }],
+      },
+    }), { nowMs: NOW, freshnessPolicy: 'warn' });
+    expect(result.backtestTelemetry).toEqual({
+      published: true,
+      historyCount: 1,
+      curvePointCount: 1,
+      tradeCount: 1,
+    });
+
+    expect(() => validateSnapshot(createSnapshot({
+      backtest: { latestRun: { statistics: { winRatePercent: 101 } }, history: [] },
+    }), { nowMs: NOW, freshnessPolicy: 'warn' })).toThrow('between 0 and 100');
+    expect(() => validateSnapshot(createSnapshot({
+      backtest: { latestRun: { trades: [{ symbol: 'AAPL', brokerOrderId: 'secret' }] }, history: [] },
+    }), { nowMs: NOW, freshnessPolicy: 'warn' })).toThrow('Forbidden sensitive field');
   });
 
   it('reports stale upstream data as a warning when connectivity policy is warn', () => {

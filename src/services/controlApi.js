@@ -140,3 +140,18 @@ export function confirmInvestmentPlan({ operatorToken, accountId, tradePlanId, c
     },
   });
 }
+
+export function requestBacktestRun({ operatorToken, accountId, request }) {
+  return requestJson('/web-control/backtests', {
+    method: 'POST',
+    operatorToken,
+    body: {
+      account_id: accountId,
+      strategy: request.strategy,
+      symbols: request.symbols,
+      start_date: request.startDate,
+      end_date: request.endDate,
+      initial_capital: request.initialCapital,
+    },
+  });
+}

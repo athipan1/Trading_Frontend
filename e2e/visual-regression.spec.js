@@ -14,6 +14,7 @@ const PRIMARY_ROUTES = [
   { route: '/orders', fixtureName: 'success', readyTestId: 'page-orders' },
   { route: '/agents', fixtureName: 'agent-telemetry', readyTestId: 'page-agents' },
   { route: '/risk', fixtureName: 'success', readyTestId: 'page-risk' },
+  { route: '/backtest', fixtureName: 'success', readyTestId: 'page-backtest' },
   { route: '/system', fixtureName: 'execution-failure', readyTestId: 'hourly-automation-status' },
 ];
 
