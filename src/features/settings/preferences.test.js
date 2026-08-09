@@ -3,6 +3,7 @@ import {
   DEFAULT_PREFERENCES,
   PREFERENCES_STORAGE_KEY,
   applyPreferences,
+  applyPrivacyPreferences,
   clearPreferences,
   loadPreferences,
   sanitizePreferences,
@@ -49,5 +50,32 @@ describe('settings preferences', () => {
     savePreferences({ ...DEFAULT_PREFERENCES, theme: 'light' });
     expect(clearPreferences()).toEqual(DEFAULT_PREFERENCES);
     expect(window.localStorage.getItem(PREFERENCES_STORAGE_KEY)).toBeNull();
+  });
+
+  it('adds presentation-only privacy flags without mutating the source snapshot', () => {
+    const snapshot = {
+      account: { cash: 1000, valuesMasked: false },
+      positions: [{ symbol: 'ACGL', quantity: 4, marketValue: 500, valuesMasked: false }],
+    };
+
+    const masked = applyPrivacyPreferences(snapshot, {
+      ...DEFAULT_PREFERENCES,
+      maskAccountValues: true,
+      maskPositionSizes: true,
+    });
+
+    expect(masked).not.toBe(snapshot);
+    expect(masked.account.valuesMasked).toBe(true);
+    expect(masked.positions[0].valuesMasked).toBe(true);
+    expect(masked.positions[0].quantityMasked).toBe(true);
+    expect(masked.privacy).toEqual({ valuesMasked: true, positionSizesMasked: true });
+    expect(snapshot.account.valuesMasked).toBe(false);
+    expect(snapshot.positions[0].quantityMasked).toBeUndefined();
+  });
+
+  it('reuses the original snapshot when no local privacy mask is enabled', () => {
+    const snapshot = { account: { valuesMasked: false }, positions: [] };
+    expect(applyPrivacyPreferences(snapshot, DEFAULT_PREFERENCES)).toBe(snapshot);
+    expect(applyPrivacyPreferences(null, DEFAULT_PREFERENCES)).toBeNull();
   });
 });
