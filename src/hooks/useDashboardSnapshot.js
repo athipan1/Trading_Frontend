@@ -93,16 +93,20 @@ export function useDashboardSnapshot(options = {}) {
   }, [refresh, refreshMs, refreshOnFocus]);
 
   useEffect(() => {
+    const resetTimerId = window.setTimeout(() => setIsStale(false), 0);
     if (!lastUpdatedAt || staleAfterMs <= 0) {
-      setIsStale(false);
-      return undefined;
+      return () => window.clearTimeout(resetTimerId);
     }
+
     const staleAt = new Date(lastUpdatedAt).getTime() + staleAfterMs;
-    const timerId = window.setTimeout(
+    const staleTimerId = window.setTimeout(
       () => setIsStale(true),
       Math.max(0, staleAt - Date.now()),
     );
-    return () => window.clearTimeout(timerId);
+    return () => {
+      window.clearTimeout(resetTimerId);
+      window.clearTimeout(staleTimerId);
+    };
   }, [lastUpdatedAt, staleAfterMs]);
 
   return {
