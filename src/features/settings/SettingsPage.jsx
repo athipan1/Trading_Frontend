@@ -59,7 +59,7 @@ function Field({ label, children, hint }) {
   );
 }
 
-function Toggle({ checked, onChange, label }) {
+function Toggle({ checked, onChange, label, testId }) {
   return (
     <button
       className={`settings-toggle ${checked ? 'is-on' : ''}`}
@@ -67,6 +67,7 @@ function Toggle({ checked, onChange, label }) {
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
+      data-testid={testId}
     >
       <span aria-hidden="true" />
       <strong>{label}</strong>
@@ -93,7 +94,7 @@ export default function SettingsPage({ language, preferences, onChange, onReset 
         <section className="panel settings-card" data-testid="settings-theme-group">
           <h3>{text.themeGroup}</h3>
           <Field label={text.theme}>
-            <select value={preferences.theme} onChange={(event) => update('theme', event.target.value)}>
+            <select data-testid="settings-theme-select" value={preferences.theme} onChange={(event) => update('theme', event.target.value)}>
               <option value="system">System</option>
               <option value="dark">Dark</option>
               <option value="light">Light</option>
@@ -104,18 +105,23 @@ export default function SettingsPage({ language, preferences, onChange, onReset 
         <section className="panel settings-card" data-testid="settings-display-group">
           <h3>{text.display}</h3>
           <Field label={text.density}>
-            <select value={preferences.density} onChange={(event) => update('density', event.target.value)}>
+            <select data-testid="settings-density-select" value={preferences.density} onChange={(event) => update('density', event.target.value)}>
               <option value="comfortable">Comfortable</option>
               <option value="compact">Compact</option>
             </select>
           </Field>
-          <Toggle checked={preferences.reducedMotion} onChange={(value) => update('reducedMotion', value)} label={text.motion} />
+          <Toggle
+            checked={preferences.reducedMotion}
+            onChange={(value) => update('reducedMotion', value)}
+            label={text.motion}
+            testId="settings-reduced-motion-toggle"
+          />
         </section>
 
         <section className="panel settings-card" data-testid="settings-refresh-group">
           <h3>{text.refreshGroup}</h3>
           <Field label={text.refresh}>
-            <select value={preferences.refreshInterval} onChange={(event) => update('refreshInterval', Number(event.target.value))}>
+            <select data-testid="settings-auto-refresh-select" value={preferences.refreshInterval} onChange={(event) => update('refreshInterval', Number(event.target.value))}>
               <option value={0}>Off</option>
               <option value={5}>5s</option>
               <option value={10}>10s</option>
@@ -123,13 +129,19 @@ export default function SettingsPage({ language, preferences, onChange, onReset 
               <option value={60}>60s</option>
             </select>
           </Field>
-          <Toggle checked={preferences.refreshOnFocus} onChange={(value) => update('refreshOnFocus', value)} label={text.focus} />
+          <Toggle
+            checked={preferences.refreshOnFocus}
+            onChange={(value) => update('refreshOnFocus', value)}
+            label={text.focus}
+            testId="settings-refresh-on-focus-toggle"
+          />
         </section>
 
         <section className="panel settings-card" data-testid="settings-freshness-group">
           <h3>{text.freshness}</h3>
           <Field label={text.stale} hint={text.seconds}>
             <input
+              data-testid="settings-stale-warning-input"
               type="number"
               min="30"
               max="900"
@@ -142,19 +154,29 @@ export default function SettingsPage({ language, preferences, onChange, onReset 
 
         <section className="panel settings-card" data-testid="settings-privacy-group">
           <h3>{text.privacy}</h3>
-          <Toggle checked={preferences.maskAccountValues} onChange={(value) => update('maskAccountValues', value)} label={text.maskValues} />
-          <Toggle checked={preferences.maskPositionSizes} onChange={(value) => update('maskPositionSizes', value)} label={text.maskSizes} />
+          <Toggle
+            checked={preferences.maskAccountValues}
+            onChange={(value) => update('maskAccountValues', value)}
+            label={text.maskValues}
+            testId="settings-mask-account-values-toggle"
+          />
+          <Toggle
+            checked={preferences.maskPositionSizes}
+            onChange={(value) => update('maskPositionSizes', value)}
+            label={text.maskSizes}
+            testId="settings-mask-position-sizes-toggle"
+          />
           <p className="settings-security-note">Operator tokens, API keys, broker credentials, and passwords are never stored here.</p>
         </section>
 
         <section className="panel settings-card" data-testid="settings-navigation-group">
           <h3>{text.navigation}</h3>
           <Field label={text.defaultPage}>
-            <select value={preferences.defaultPage} onChange={(event) => update('defaultPage', event.target.value)}>
+            <select data-testid="settings-default-page-select" value={preferences.defaultPage} onChange={(event) => update('defaultPage', event.target.value)}>
               {pageOptions.map((page) => <option key={page} value={page}>{page}</option>)}
             </select>
           </Field>
-          <button className="settings-reset" type="button" onClick={onReset}>
+          <button data-testid="settings-reset-button" className="settings-reset" type="button" onClick={onReset}>
             <RotateCcw aria-hidden="true" /> {text.reset}
           </button>
         </section>
