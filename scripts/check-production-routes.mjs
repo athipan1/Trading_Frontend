@@ -75,6 +75,10 @@ export function requiresReadOnlyBanner(routePath) {
   return routePath === '/overview';
 }
 
+export function requiresTradingObservability(routePath) {
+  return routePath === '/system';
+}
+
 export function evaluateRuntimeHealth({ consoleErrors = [], pageErrors = [], requestFailures = [] } = {}) {
   const normalized = {
     consoleErrors: uniqueMessages(consoleErrors),
@@ -105,6 +109,10 @@ async function waitForRoute(page, route, navigationTimeoutMs) {
   await page.getByTestId('schema-version').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
   await page.getByTestId('trading-mode').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
   await page.getByTestId(route.readyTestId).waitFor({ state: 'visible', timeout: navigationTimeoutMs });
+  if (requiresTradingObservability(route.path)) {
+    await page.getByTestId('trading-observability-panel').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
+    await page.getByTestId('observability-stage-list').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
+  }
   await page.evaluate(async () => {
     await document.fonts?.ready;
     window.scrollTo(0, 0);
@@ -200,6 +208,21 @@ async function inspectRoute({ browser, targetUrl, route, viewport, navigationTim
       );
     }
 
+    const observability = requiresTradingObservability(route.path)
+      ? {
+          visible: true,
+          correlationId: (await page.getByTestId('observability-correlation').locator('code').textContent())?.trim() || null,
+          stageCount: await page.getByTestId('observability-stage-list').locator('li').count(),
+          candidateCount: await page.locator('[data-testid^="observability-candidate-"]').count(),
+        }
+      : null;
+    if (observability && observability.stageCount !== 7) {
+      throw new Error(`Trading observability must render exactly 7 stages; received ${observability.stageCount}`);
+    }
+    if (observability && !observability.correlationId) {
+      throw new Error('Trading observability correlation ID is missing');
+    }
+
     const runtime = evaluateRuntimeHealth({ consoleErrors, pageErrors, requestFailures });
     const screenshotDirectory = `${artifactDirectory}/routes/${viewport.name}`;
     await mkdir(screenshotDirectory, { recursive: true });
@@ -217,6 +240,7 @@ async function inspectRoute({ browser, targetUrl, route, viewport, navigationTim
       overflow: false,
       dimensions,
       runtime,
+      observability,
       readOnlyBannerVisible: boundary.readOnlyBannerVisible,
       staleDataVisible: boundary.staleDataVisible,
       screenshot,

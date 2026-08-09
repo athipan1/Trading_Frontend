@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import {
   Ban,
   CheckCircle2,
@@ -14,6 +14,7 @@ import {
   TriangleAlert,
   XCircle,
 } from 'lucide-react';
+import TradingObservabilityPanel from '../features/observability/TradingObservabilityPanel.jsx';
 import {
   deriveSystemIncident,
   INCIDENT_PHASE_STATUSES,
@@ -137,96 +138,99 @@ export default function HourlyAutomationStatus({
   const readableReason = translatedReason(cycle.executionReason, copy);
 
   return (
-    <section className="panel automation-panel" aria-labelledby="hourly-automation-title" data-testid="hourly-automation-status">
-      <div className="section-heading automation-heading">
-        <div>
-          <p className="eyebrow">GitHub Actions snapshot</p>
-          <h2 id="hourly-automation-title">{copy.title}</h2>
-        </div>
-        <div className="automation-actions">
-          <span className="status good"><ShieldCheck aria-hidden="true" /> {copy.safe}</span>
-          {showRefreshAction ? (
-            <button className="icon-action" type="button" onClick={() => onRefresh?.()} disabled={isRefreshing} aria-label={copy.refresh}>
-              <RefreshCw className={isRefreshing ? 'spinning' : ''} aria-hidden="true" />
-            </button>
-          ) : null}
-        </div>
-      </div>
-
-      <IncidentSummary incident={incident} copy={copy} />
-
-      <div className="automation-grid">
-        <div className="automation-stat">
-          <span>{copy.latestRun}</span>
-          <strong>{formatAbsolute(generatedAt, language)}</strong>
-          <small>{formatRelative(generatedAt, language, copy)} · {copy.absolute}</small>
-        </div>
-        <div className="automation-stat"><span>{copy.trigger}</span><strong>{trigger}</strong><small>{copy.runNumber} #{workflow.runNumber ?? '—'}</small></div>
-        <div className="automation-stat"><span>{copy.runtime}</span><strong>{runtime.mode || 'UNKNOWN'}</strong><small>{runtime.brokerMode || 'UNKNOWN'}</small></div>
-        <StatusValue label={copy.workflow} status={workflow.conclusion} />
-        <StatusValue label={copy.cycle} status={cycle.status} />
-        <div className="automation-stat">
-          <span>{copy.execution}</span>
-          <strong>{cycle.executionAttempted ? copy.attempted : copy.notAttempted}</strong>
-          <small>{statusLabel(cycle.executionStatus)}</small>
-        </div>
-        <div className="automation-stat"><span>{copy.candidates}</span><strong>{summary.candidateCount ?? cycle.candidateCount ?? 0}</strong><small>{copy.positions}: {summary.positionCount ?? 0}</small></div>
-        <div className="automation-stat"><span>{copy.orders}</span><strong>{summary.openOrderCount ?? 0}</strong><small>{cycle.partialFillDetected ? copy.partialFill : '—'}</small></div>
-        <div className="automation-stat"><span>{copy.snapshotAge}</span><strong>{freshness.ageMinutes == null ? '—' : Math.round(freshness.ageMinutes)}</strong><small>{copy.minutes}</small></div>
-      </div>
-
-      {cycle.executionReason ? (
-        <div className="automation-reason" data-testid="execution-reason">
-          <p><strong>{copy.reason}:</strong> {readableReason}</p>
-          <p><strong>{copy.rawCode}:</strong> <code>{cycle.executionReason}</code></p>
-        </div>
-      ) : null}
-
-      <div className="automation-meta-row">
-        <span><strong>{copy.lastSuccess}:</strong> {formatAbsolute(snapshot?.lastSuccessfulRun?.generatedAt, language)}</span>
-        {privacy.valuesMasked ? <span className="masked-indicator"><ShieldCheck aria-hidden="true" /> {copy.masked}</span> : null}
-        {runUrl ? <a className="run-link" href={runUrl} target="_blank" rel="noreferrer"><ExternalLink aria-hidden="true" /> {copy.openRun}</a> : null}
-      </div>
-
-      <div className="phase-section">
-        <div className="phase-section-heading">
+    <Fragment>
+      <section className="panel automation-panel" aria-labelledby="hourly-automation-title" data-testid="hourly-automation-status">
+        <div className="section-heading automation-heading">
           <div>
-            <h3>{copy.phases}</h3>
-            {!timelineExpanded && incidentPhaseCount === 0 ? <p className="mobile-phase-note">{copy.noIncidentPhases}</p> : null}
+            <p className="eyebrow">GitHub Actions snapshot</p>
+            <h2 id="hourly-automation-title">{copy.title}</h2>
           </div>
-          {phases.length ? (
-            <button
-              className="phase-toggle"
-              type="button"
-              aria-expanded={timelineExpanded}
-              aria-controls="hourly-phase-timeline"
-              onClick={() => setTimelineExpanded((current) => !current)}
-            >
-              {timelineExpanded ? copy.showIncidentPhases : copy.showAllPhases(phases.length)}
-              {timelineExpanded ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
-            </button>
-          ) : null}
+          <div className="automation-actions">
+            <span className="status good"><ShieldCheck aria-hidden="true" /> {copy.safe}</span>
+            {showRefreshAction ? (
+              <button className="icon-action" type="button" onClick={() => onRefresh?.()} disabled={isRefreshing} aria-label={copy.refresh}>
+                <RefreshCw className={isRefreshing ? 'spinning' : ''} aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
         </div>
 
-        {phases.length ? (
-          <ol id="hourly-phase-timeline" className={`phase-timeline${timelineExpanded ? ' expanded' : ''}`}>
-            {phases.map((item, index) => {
-              const labels = PHASE_LABELS[item.name] || [item.name, item.name];
-              const incidentPhase = INCIDENT_PHASE_STATUSES.has(item.status);
-              return (
-                <li
-                  key={`${item.name}-${index}`}
-                  className={`phase-item status-${item.status} ${incidentPhase ? 'phase-primary' : 'phase-secondary'}`}
-                  data-phase-status={item.status}
-                >
-                  <StatusIcon status={item.status} />
-                  <div><strong>{labels[language === 'th' ? 0 : 1]}</strong><span>{statusLabel(item.status)}{item.message ? ` · ${item.message}` : ''}</span></div>
-                </li>
-              );
-            })}
-          </ol>
-        ) : <p className="hint">{copy.noData}</p>}
-      </div>
-    </section>
+        <IncidentSummary incident={incident} copy={copy} />
+
+        <div className="automation-grid">
+          <div className="automation-stat">
+            <span>{copy.latestRun}</span>
+            <strong>{formatAbsolute(generatedAt, language)}</strong>
+            <small>{formatRelative(generatedAt, language, copy)} · {copy.absolute}</small>
+          </div>
+          <div className="automation-stat"><span>{copy.trigger}</span><strong>{trigger}</strong><small>{copy.runNumber} #{workflow.runNumber ?? '—'}</small></div>
+          <div className="automation-stat"><span>{copy.runtime}</span><strong>{runtime.mode || 'UNKNOWN'}</strong><small>{runtime.brokerMode || 'UNKNOWN'}</small></div>
+          <StatusValue label={copy.workflow} status={workflow.conclusion} />
+          <StatusValue label={copy.cycle} status={cycle.status} />
+          <div className="automation-stat">
+            <span>{copy.execution}</span>
+            <strong>{cycle.executionAttempted ? copy.attempted : copy.notAttempted}</strong>
+            <small>{statusLabel(cycle.executionStatus)}</small>
+          </div>
+          <div className="automation-stat"><span>{copy.candidates}</span><strong>{summary.candidateCount ?? cycle.candidateCount ?? 0}</strong><small>{copy.positions}: {summary.positionCount ?? 0}</small></div>
+          <div className="automation-stat"><span>{copy.orders}</span><strong>{summary.openOrderCount ?? 0}</strong><small>{cycle.partialFillDetected ? copy.partialFill : '—'}</small></div>
+          <div className="automation-stat"><span>{copy.snapshotAge}</span><strong>{freshness.ageMinutes == null ? '—' : Math.round(freshness.ageMinutes)}</strong><small>{copy.minutes}</small></div>
+        </div>
+
+        {cycle.executionReason ? (
+          <div className="automation-reason" data-testid="execution-reason">
+            <p><strong>{copy.reason}:</strong> {readableReason}</p>
+            <p><strong>{copy.rawCode}:</strong> <code>{cycle.executionReason}</code></p>
+          </div>
+        ) : null}
+
+        <div className="automation-meta-row">
+          <span><strong>{copy.lastSuccess}:</strong> {formatAbsolute(snapshot?.lastSuccessfulRun?.generatedAt, language)}</span>
+          {privacy.valuesMasked ? <span className="masked-indicator"><ShieldCheck aria-hidden="true" /> {copy.masked}</span> : null}
+          {runUrl ? <a className="run-link" href={runUrl} target="_blank" rel="noreferrer"><ExternalLink aria-hidden="true" /> {copy.openRun}</a> : null}
+        </div>
+
+        <div className="phase-section">
+          <div className="phase-section-heading">
+            <div>
+              <h3>{copy.phases}</h3>
+              {!timelineExpanded && incidentPhaseCount === 0 ? <p className="mobile-phase-note">{copy.noIncidentPhases}</p> : null}
+            </div>
+            {phases.length ? (
+              <button
+                className="phase-toggle"
+                type="button"
+                aria-expanded={timelineExpanded}
+                aria-controls="hourly-phase-timeline"
+                onClick={() => setTimelineExpanded((current) => !current)}
+              >
+                {timelineExpanded ? copy.showIncidentPhases : copy.showAllPhases(phases.length)}
+                {timelineExpanded ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
+              </button>
+            ) : null}
+          </div>
+
+          {phases.length ? (
+            <ol id="hourly-phase-timeline" className={`phase-timeline${timelineExpanded ? ' expanded' : ''}`}>
+              {phases.map((item, index) => {
+                const labels = PHASE_LABELS[item.name] || [item.name, item.name];
+                const incidentPhase = INCIDENT_PHASE_STATUSES.has(item.status);
+                return (
+                  <li
+                    key={`${item.name}-${index}`}
+                    className={`phase-item status-${item.status} ${incidentPhase ? 'phase-primary' : 'phase-secondary'}`}
+                    data-phase-status={item.status}
+                  >
+                    <StatusIcon status={item.status} />
+                    <div><strong>{labels[language === 'th' ? 0 : 1]}</strong><span>{statusLabel(item.status)}{item.message ? ` · ${item.message}` : ''}</span></div>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : <p className="hint">{copy.noData}</p>}
+        </div>
+      </section>
+      <TradingObservabilityPanel language={language} />
+    </Fragment>
   );
 }
