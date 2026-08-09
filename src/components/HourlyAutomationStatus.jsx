@@ -202,7 +202,7 @@ export default function HourlyAutomationStatus({
                 type="button"
                 aria-expanded={timelineExpanded}
                 aria-controls="hourly-phase-timeline"
-                onClick={() => setTimelineExpanded((current) => !current}
+                onClick={() => setTimelineExpanded((current) => !current)}
               >
                 {timelineExpanded ? copy.showIncidentPhases : copy.showAllPhases(phases.length)}
                 {timelineExpanded ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
