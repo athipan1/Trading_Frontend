@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DECISION_HISTORY_SCHEMA_VERSION,
   OBSERVABILITY_STAGE_ORDER,
+  normalizeDecisionHistory,
   normalizeTradingObservability,
 } from './observabilityApi.js';
 
@@ -35,6 +37,25 @@ function cycle(overrides = {}) {
       ],
     }],
     ...overrides,
+  };
+}
+
+function historyCycle(overrides = {}) {
+  const base = cycle(overrides);
+  return {
+    ...base,
+    summary: {
+      candidateCount: base.candidates.length,
+      buyCount: 1,
+      blockedCount: 1,
+      executedCount: 0,
+      riskRejectedCount: 0,
+      executionFailureCount: 0,
+    },
+    candidates: base.candidates.map((candidate) => ({
+      ...candidate,
+      refs: { decisionId: 'decision-1', positionId: 'position-1' },
+    })),
   };
 }
 
@@ -99,5 +120,59 @@ describe('trading observability contract', () => {
   it('returns null when the optional projection is absent', () => {
     expect(normalizeTradingObservability(null)).toBeNull();
     expect(normalizeTradingObservability(undefined)).toBeNull();
+  });
+});
+
+describe('decision history contract', () => {
+  it('normalizes Phase 17 history, summaries, and safe references', () => {
+    const normalized = normalizeDecisionHistory({
+      schemaVersion: DECISION_HISTORY_SCHEMA_VERSION,
+      generatedAt: '2026-08-09T12:00:00Z',
+      retentionCycles: 24,
+      cycles: [historyCycle()],
+    });
+
+    expect(normalized.schemaVersion).toBe('decision-history.v1');
+    expect(normalized.cycles).toHaveLength(1);
+    expect(normalized.cycles[0].summary).toEqual({
+      candidateCount: 1,
+      buyCount: 1,
+      blockedCount: 1,
+      executedCount: 0,
+      riskRejectedCount: 0,
+      executionFailureCount: 0,
+    });
+    expect(normalized.cycles[0].candidates[0].refs).toEqual({
+      decisionId: 'decision-1',
+      positionId: 'position-1',
+    });
+  });
+
+  it('fails closed on wrong retention, too many cycles, malformed stage order, and out-of-range counts', () => {
+    expect(() => normalizeDecisionHistory({
+      schemaVersion: 'decision-history.v1', generatedAt: null, retentionCycles: 12, cycles: [],
+    })).toThrow('retentionCycles');
+
+    expect(() => normalizeDecisionHistory({
+      schemaVersion: 'decision-history.v1', generatedAt: null, retentionCycles: 24,
+      cycles: Array.from({ length: 25 }, () => historyCycle()),
+    })).toThrow('at most 24');
+
+    const wrongOrder = historyCycle();
+    wrongOrder.stages = [...wrongOrder.stages].reverse();
+    expect(() => normalizeDecisionHistory({
+      schemaVersion: 'decision-history.v1', generatedAt: null, retentionCycles: 24, cycles: [wrongOrder],
+    })).toThrow('stages[0].id');
+
+    const badSummary = historyCycle();
+    badSummary.summary.candidateCount = 11;
+    expect(() => normalizeDecisionHistory({
+      schemaVersion: 'decision-history.v1', generatedAt: null, retentionCycles: 24, cycles: [badSummary],
+    })).toThrow('candidateCount');
+  });
+
+  it('is optional so Phase 16 snapshots remain backward compatible', () => {
+    expect(normalizeDecisionHistory(null)).toBeNull();
+    expect(normalizeDecisionHistory(undefined)).toBeNull();
   });
 });
