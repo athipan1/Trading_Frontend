@@ -147,7 +147,7 @@ test.describe('Phase 13 optional telemetry quality states', () => {
 
     await expect(page.getByTestId('page-agents')).toBeVisible();
     await expect(page.locator('.error-banner[role="alert"]')).toContainText('agents[0].cpuPercent');
-    await expect(page.getByTestId('agent-card-manager').locator('.agent-health-badge.unavailable')).toBeVisible();
+    await expect(page.getByTestId('agent-card-manager').locator('.agent-health-badge')).toHaveClass(/unavailable/);
   });
 
   test('malformed risk telemetry is rejected instead of fabricating a safe risk state', async ({ page }) => {
