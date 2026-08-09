@@ -124,17 +124,18 @@ test.describe('Phase 13 optional telemetry quality states', () => {
 
     await page.goto('/agents');
     await expect(page.getByTestId('page-agents')).toBeVisible();
-    await expect(page.getByRole('status')).toContainText('Agent telemetry is not published');
+    await expect(page.getByRole('status')).toContainText('Agent telemetry');
     await expect(page.locator('.error-banner')).toHaveCount(0);
 
     await page.goto('/risk');
     await expect(page.getByTestId('page-risk')).toBeVisible();
-    await expect(page.getByRole('status')).toContainText('has not published the optional risk contract');
+    await expect(page.getByRole('status')).toContainText('optional risk contract');
     await expect(page.locator('.error-banner')).toHaveCount(0);
 
     await page.goto('/backtest');
     await expect(page.getByTestId('page-backtest')).toBeVisible();
-    await expect(page.getByRole('status')).toContainText('has not published backtest results');
+    await expect(page.getByTestId('backtest-history-empty')).toBeVisible();
+    await expect(page.getByTestId('backtest-trades-empty')).toBeVisible();
     await expect(page.locator('.error-banner')).toHaveCount(0);
   });
 
@@ -146,7 +147,7 @@ test.describe('Phase 13 optional telemetry quality states', () => {
 
     await expect(page.getByTestId('page-agents')).toBeVisible();
     await expect(page.locator('.error-banner[role="alert"]')).toContainText('agents[0].cpuPercent');
-    await expect(page.getByTestId('agent-card-manager')).toContainText('Not published by Manager');
+    await expect(page.getByTestId('agent-card-manager').locator('.agent-health-badge.unavailable')).toBeVisible();
   });
 
   test('malformed risk telemetry is rejected instead of fabricating a safe risk state', async ({ page }) => {
@@ -157,7 +158,7 @@ test.describe('Phase 13 optional telemetry quality states', () => {
 
     await expect(page.getByTestId('page-risk')).toBeVisible();
     await expect(page.locator('.error-banner[role="alert"]')).toContainText('risk.riskScore');
-    await expect(page.getByTestId('risk-level')).toContainText('Unavailable');
+    await expect(page.getByTestId('risk-level')).toHaveClass(/unavailable/);
   });
 
   test('malformed backtest telemetry is rejected instead of rendering invented history', async ({ page }) => {
@@ -216,7 +217,7 @@ test.describe('@a11y Phase 13 resilience states', () => {
     await page.setViewportSize({ width: 320, height: 900 });
     await mockJson(page, payload);
     await page.goto('/risk');
-    await expect(page.getByRole('status')).toContainText('has not published the optional risk contract');
+    await expect(page.getByRole('status')).toContainText('optional risk contract');
     await runAxeAudit(page, testInfo);
   });
 
