@@ -77,3 +77,33 @@ export function applyPreferences(preferences, root = globalThis.document?.docume
   root.dataset.reducedMotion = String(safe.reducedMotion);
   root.style.colorScheme = safe.theme === 'system' ? 'light dark' : safe.theme;
 }
+
+export function applyPrivacyPreferences(snapshot, preferences) {
+  if (!snapshot || typeof snapshot !== 'object') return snapshot;
+  const safe = sanitizePreferences(preferences);
+  if (!safe.maskAccountValues && !safe.maskPositionSizes) return snapshot;
+
+  const positions = Array.isArray(snapshot.positions)
+    ? snapshot.positions.map((position) => ({
+      ...position,
+      valuesMasked: Boolean(position.valuesMasked || safe.maskAccountValues),
+      quantityMasked: Boolean(position.quantityMasked || safe.maskPositionSizes),
+    }))
+    : snapshot.positions;
+
+  return {
+    ...snapshot,
+    account: snapshot.account
+      ? {
+        ...snapshot.account,
+        valuesMasked: Boolean(snapshot.account.valuesMasked || safe.maskAccountValues),
+      }
+      : snapshot.account,
+    privacy: {
+      ...(snapshot.privacy ?? {}),
+      valuesMasked: Boolean(snapshot.privacy?.valuesMasked || safe.maskAccountValues),
+      positionSizesMasked: Boolean(snapshot.privacy?.positionSizesMasked || safe.maskPositionSizes),
+    },
+    positions,
+  };
+}
