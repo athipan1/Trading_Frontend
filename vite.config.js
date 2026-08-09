@@ -13,6 +13,7 @@ export default defineConfig({
       'src/**/*.test.{js,jsx}',
       'tests/checkManagerConnection.test.js',
       'tests/checkProductionUi.test.js',
+      'tests/checkProductionRoutes.test.js',
     ],
     setupFiles: ['./src/test/setup.js'],
     restoreMocks: true,
