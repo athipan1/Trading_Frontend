@@ -9,6 +9,8 @@ const DEFAULT_ATTEMPTS = 24;
 const DEFAULT_DELAY_MS = 15_000;
 const DEFAULT_NAVIGATION_TIMEOUT_MS = 30_000;
 const ALLOWED_RUNTIME_MODES = new Set(['PAPER', 'SIMULATOR']);
+const DECISION_HISTORY_SCHEMA_VERSION = 'decision-history.v1';
+const DECISION_HISTORY_RETENTION = 24;
 
 function positiveInteger(value, fallback, name) {
   if (value === undefined || value === '') return fallback;
@@ -73,10 +75,39 @@ export function evaluateTelemetryContract(payload) {
   if (!Object.hasOwn(payload.backtest, 'latestRun') || !Array.isArray(payload.backtest.history)) {
     throw new Error('Manager_Agent backtest projection is malformed');
   }
+
+  const decisionHistory = payload.decisionHistory;
+  if (!decisionHistory || typeof decisionHistory !== 'object' || Array.isArray(decisionHistory)) {
+    throw new Error('Manager_Agent snapshot is missing the decisionHistory projection');
+  }
+  if (decisionHistory.schemaVersion !== DECISION_HISTORY_SCHEMA_VERSION) {
+    throw new Error(`Manager_Agent decisionHistory schema must be ${DECISION_HISTORY_SCHEMA_VERSION}`);
+  }
+  if (decisionHistory.retentionCycles !== DECISION_HISTORY_RETENTION) {
+    throw new Error(`Manager_Agent decisionHistory retention must be ${DECISION_HISTORY_RETENTION} cycles`);
+  }
+  if (!Array.isArray(decisionHistory.cycles)
+    || decisionHistory.cycles.length < 1
+    || decisionHistory.cycles.length > DECISION_HISTORY_RETENTION) {
+    throw new Error('Manager_Agent decisionHistory must contain 1-24 cycles');
+  }
+  for (const [index, cycle] of decisionHistory.cycles.entries()) {
+    if (!cycle || typeof cycle !== 'object' || Array.isArray(cycle)) {
+      throw new Error(`Manager_Agent decisionHistory cycle ${index} is malformed`);
+    }
+    if (!Array.isArray(cycle.stages) || cycle.stages.length !== 7) {
+      throw new Error(`Manager_Agent decisionHistory cycle ${index} must contain exactly 7 stages`);
+    }
+    if (!Array.isArray(cycle.candidates) || cycle.candidates.length > 10) {
+      throw new Error(`Manager_Agent decisionHistory cycle ${index} has an invalid candidate count`);
+    }
+  }
+
   return {
     agentTelemetryCount: payload.agents.length,
     riskTelemetryAvailable: payload.risk !== null,
     backtestTelemetryAvailable: payload.backtest.latestRun !== null || payload.backtest.history.length > 0,
+    decisionHistoryCycleCount: decisionHistory.cycles.length,
   };
 }
 

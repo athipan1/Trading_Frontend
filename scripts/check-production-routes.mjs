@@ -129,6 +129,8 @@ async function waitForRoute(page, route, navigationTimeoutMs) {
   if (requiresTradingObservability(route.path)) {
     await page.getByTestId('trading-observability-panel').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
     await page.getByTestId('observability-stage-list').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
+    await page.getByTestId('decision-history-panel').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
+    await page.getByTestId('decision-history-cycle-list').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
   }
   await page.evaluate(async () => {
     await document.fonts?.ready;
@@ -231,6 +233,7 @@ async function inspectRoute({ browser, targetUrl, route, viewport, navigationTim
           correlationId: (await page.getByTestId('observability-correlation').locator('code').textContent())?.trim() || null,
           stageCount: await page.getByTestId('observability-stage-list').locator('li').count(),
           candidateCount: await page.locator('[data-testid^="observability-candidate-"]').count(),
+          historyCycleCount: await page.getByTestId('decision-history-cycle-list').locator('button').count(),
         }
       : null;
     if (observability && observability.stageCount !== 7) {
@@ -238,6 +241,9 @@ async function inspectRoute({ browser, targetUrl, route, viewport, navigationTim
     }
     if (observability && !observability.correlationId) {
       throw new Error('Trading observability correlation ID is missing');
+    }
+    if (observability && (observability.historyCycleCount < 1 || observability.historyCycleCount > 24)) {
+      throw new Error(`Decision history must render 1-24 cycles; received ${observability.historyCycleCount}`);
     }
 
     const runtime = evaluateRuntimeHealth({ consoleErrors, pageErrors, requestFailures });

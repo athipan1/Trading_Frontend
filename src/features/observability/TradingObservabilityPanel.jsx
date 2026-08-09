@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   Ban,
   CheckCircle2,
@@ -7,7 +7,9 @@ import {
   ShieldAlert,
   TriangleAlert,
 } from 'lucide-react';
-import { getTradingObservability } from './observabilityApi.js';
+import { getTradingDecisionData } from './observabilityApi.js';
+
+const DecisionHistoryPanel = lazy(() => import('./DecisionHistoryPanel.jsx'));
 
 const STAGE_LABELS = {
   scanner: ['Scanner', 'Scanner'],
@@ -92,7 +94,7 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    getTradingObservability({ signal: controller.signal })
+    getTradingDecisionData({ signal: controller.signal })
       .then((data) => setState({ data, error: null, loading: false }))
       .catch((error) => {
         if (error?.name !== 'AbortError') setState({ data: null, error, loading: false });
@@ -101,9 +103,9 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
   }, []);
 
   const selected = useMemo(() => {
-    const current = state.data?.current;
-    if (current?.source === 'workflow_metadata' && state.data?.lastMeaningful) {
-      return { cycle: state.data.lastMeaningful, showingLastMeaningful: true, current };
+    const current = state.data?.observability?.current;
+    if (current?.source === 'workflow_metadata' && state.data?.observability?.lastMeaningful) {
+      return { cycle: state.data.observability.lastMeaningful, showingLastMeaningful: true, current };
     }
     return { cycle: current, showingLastMeaningful: false, current };
   }, [state.data]);
@@ -126,94 +128,101 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
   const candidateTableLabel = language === 'th' ? 'ตารางเหตุผลของ Candidate' : 'Candidate decision reasons';
 
   return (
-    <section className="panel observability-panel" aria-labelledby="trading-observability-title" data-testid="trading-observability-panel">
-      <div className="observability-heading">
-        <div>
-          <p className="eyebrow"><GitBranch aria-hidden="true" /> Phase 16</p>
-          <h2 id="trading-observability-title">{language === 'th' ? 'เส้นทางการตัดสินใจเทรด' : 'Trading decision path'}</h2>
-          <p>{language === 'th'
-            ? 'ข้อมูล explainability จาก Manager_Agent เท่านั้น ไม่ได้สร้างเหตุผลใหม่ใน Frontend'
-            : 'Explainability is sourced from Manager_Agent only; the Frontend does not invent decision reasons.'}</p>
-        </div>
-        <div className="observability-correlation" data-testid="observability-correlation">
-          <span>Correlation ID</span>
-          <code>{cycle.correlationId || '—'}</code>
-        </div>
-      </div>
-
-      {selected.showingLastMeaningful ? (
-        <div className="observability-context-note" role="status" data-testid="observability-last-meaningful-note">
-          <TriangleAlert aria-hidden="true" />
+    <>
+      <section className="panel observability-panel" aria-labelledby="trading-observability-title" data-testid="trading-observability-panel">
+        <div className="observability-heading">
           <div>
-            <strong>{language === 'th' ? 'รอบปัจจุบันไม่มี trading artifact' : 'Current run has no trading artifact'}</strong>
-            <span>{reasonText(selected.current?.reasonCode, language)}. {language === 'th' ? 'ด้านล่างคือรอบตัดสินใจจริงล่าสุด' : 'Showing the latest meaningful decision cycle below.'}</span>
+            <p className="eyebrow"><GitBranch aria-hidden="true" /> Phase 16</p>
+            <h2 id="trading-observability-title">{language === 'th' ? 'เส้นทางการตัดสินใจเทรด' : 'Trading decision path'}</h2>
+            <p>{language === 'th'
+              ? 'ข้อมูล explainability จาก Manager_Agent เท่านั้น ไม่ได้สร้างเหตุผลใหม่ใน Frontend'
+              : 'Explainability is sourced from Manager_Agent only; the Frontend does not invent decision reasons.'}</p>
+          </div>
+          <div className="observability-correlation" data-testid="observability-correlation">
+            <span>Correlation ID</span>
+            <code>{cycle.correlationId || '—'}</code>
           </div>
         </div>
+
+        {selected.showingLastMeaningful ? (
+          <div className="observability-context-note" role="status" data-testid="observability-last-meaningful-note">
+            <TriangleAlert aria-hidden="true" />
+            <div>
+              <strong>{language === 'th' ? 'รอบปัจจุบันไม่มี trading artifact' : 'Current run has no trading artifact'}</strong>
+              <span>{reasonText(selected.current?.reasonCode, language)}. {language === 'th' ? 'ด้านล่างคือรอบตัดสินใจจริงล่าสุด' : 'Showing the latest meaningful decision cycle below.'}</span>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="observability-facts">
+          <div><span>{language === 'th' ? 'สถานะรอบ' : 'Cycle status'}</span><strong>{cycle.status}</strong></div>
+          <div><span>{language === 'th' ? 'ผู้สมัคร' : 'Candidates'}</span><strong>{cycle.candidates.length}</strong></div>
+          <div><span>{language === 'th' ? 'ถูกบล็อก' : 'Blocked'}</span><strong>{blockedCount}</strong></div>
+          <div><span>Workflow run</span><strong>#{cycle.workflowRunId ?? '—'}</strong></div>
+        </div>
+
+        <div className="observability-stage-section">
+          <h3>Decision path</h3>
+          <ol
+            className="observability-stages"
+            data-testid="observability-stage-list"
+            tabIndex={0}
+            aria-label={stageListLabel}
+          >
+            {cycle.stages.map((stage) => (
+              <li key={stage.id} className={`observability-stage status-${stage.status}`} data-testid={`observability-stage-${stage.id}`}>
+                <StatusIcon status={stage.status} />
+                <div>
+                  <strong>{label(STAGE_LABELS, stage.id, language)}</strong>
+                  <span>{label(STATUS_LABELS, stage.status, language)}</span>
+                  {stage.reasonCodes.length ? <small>{reasonText(stage.reasonCodes[0], language)}</small> : null}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        <div className="observability-candidates-section">
+          <div className="observability-section-title">
+            <h3>{language === 'th' ? 'ทำไม Candidate ไปต่อหรือหยุด' : 'Why candidates advanced or stopped'}</h3>
+            <span>{cycle.candidates.length}/10</span>
+          </div>
+          {cycle.candidates.length ? (
+            <div className="observability-table-wrap" tabIndex={0} role="region" aria-label={candidateTableLabel}>
+              <table className="observability-table">
+                <caption className="sr-only">{candidateTableLabel}</caption>
+                <thead><tr>
+                  <th>{language === 'th' ? 'อันดับ' : 'Rank'}</th>
+                  <th>Symbol</th>
+                  <th>Verdict</th>
+                  <th>Score</th>
+                  <th>{language === 'th' ? 'ถึงขั้น' : 'Reached'}</th>
+                  <th>{language === 'th' ? 'ผล' : 'Result'}</th>
+                  <th>{language === 'th' ? 'เหตุผล' : 'Reasons'}</th>
+                </tr></thead>
+                <tbody>
+                  {cycle.candidates.map((candidate) => (
+                    <tr key={`${candidate.rank}-${candidate.symbol}`} data-testid={`observability-candidate-${candidate.symbol}`}>
+                      <td>#{candidate.rank ?? '—'}</td>
+                      <td><strong>{candidate.symbol}</strong><small>{candidate.strategyBucket}</small></td>
+                      <td>{candidate.verdict.toUpperCase()}</td>
+                      <td>{formatScore(candidate.finalScore)}</td>
+                      <td>{label(STAGE_LABELS, candidate.stageReached, language)}</td>
+                      <td><span className={`observability-result status-${candidate.status}`}><StatusIcon status={candidate.status} />{label(STATUS_LABELS, candidate.status, language)}</span></td>
+                      <td><CandidateReasons codes={candidate.reasonCodes} language={language} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className="hint">{language === 'th' ? 'รอบนี้ไม่มี Candidate detail' : 'No candidate detail for this cycle.'}</p>}
+        </div>
+      </section>
+      {state.data?.decisionHistory ? (
+        <Suspense fallback={null}>
+          <DecisionHistoryPanel history={state.data.decisionHistory} language={language} />
+        </Suspense>
       ) : null}
-
-      <div className="observability-facts">
-        <div><span>{language === 'th' ? 'สถานะรอบ' : 'Cycle status'}</span><strong>{cycle.status}</strong></div>
-        <div><span>{language === 'th' ? 'ผู้สมัคร' : 'Candidates'}</span><strong>{cycle.candidates.length}</strong></div>
-        <div><span>{language === 'th' ? 'ถูกบล็อก' : 'Blocked'}</span><strong>{blockedCount}</strong></div>
-        <div><span>Workflow run</span><strong>#{cycle.workflowRunId ?? '—'}</strong></div>
-      </div>
-
-      <div className="observability-stage-section">
-        <h3>Decision path</h3>
-        <ol
-          className="observability-stages"
-          data-testid="observability-stage-list"
-          tabIndex={0}
-          aria-label={stageListLabel}
-        >
-          {cycle.stages.map((stage) => (
-            <li key={stage.id} className={`observability-stage status-${stage.status}`} data-testid={`observability-stage-${stage.id}`}>
-              <StatusIcon status={stage.status} />
-              <div>
-                <strong>{label(STAGE_LABELS, stage.id, language)}</strong>
-                <span>{label(STATUS_LABELS, stage.status, language)}</span>
-                {stage.reasonCodes.length ? <small>{reasonText(stage.reasonCodes[0], language)}</small> : null}
-              </div>
-            </li>
-          ))}
-        </ol>
-      </div>
-
-      <div className="observability-candidates-section">
-        <div className="observability-section-title">
-          <h3>{language === 'th' ? 'ทำไม Candidate ไปต่อหรือหยุด' : 'Why candidates advanced or stopped'}</h3>
-          <span>{cycle.candidates.length}/10</span>
-        </div>
-        {cycle.candidates.length ? (
-          <div className="observability-table-wrap" tabIndex={0} role="region" aria-label={candidateTableLabel}>
-            <table className="observability-table">
-              <caption className="sr-only">{candidateTableLabel}</caption>
-              <thead><tr>
-                <th>{language === 'th' ? 'อันดับ' : 'Rank'}</th>
-                <th>Symbol</th>
-                <th>Verdict</th>
-                <th>Score</th>
-                <th>{language === 'th' ? 'ถึงขั้น' : 'Reached'}</th>
-                <th>{language === 'th' ? 'ผล' : 'Result'}</th>
-                <th>{language === 'th' ? 'เหตุผล' : 'Reasons'}</th>
-              </tr></thead>
-              <tbody>
-                {cycle.candidates.map((candidate) => (
-                  <tr key={`${candidate.rank}-${candidate.symbol}`} data-testid={`observability-candidate-${candidate.symbol}`}>
-                    <td>#{candidate.rank ?? '—'}</td>
-                    <td><strong>{candidate.symbol}</strong><small>{candidate.strategyBucket}</small></td>
-                    <td>{candidate.verdict.toUpperCase()}</td>
-                    <td>{formatScore(candidate.finalScore)}</td>
-                    <td>{label(STAGE_LABELS, candidate.stageReached, language)}</td>
-                    <td><span className={`observability-result status-${candidate.status}`}><StatusIcon status={candidate.status} />{label(STATUS_LABELS, candidate.status, language)}</span></td>
-                    <td><CandidateReasons codes={candidate.reasonCodes} language={language} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : <p className="hint">{language === 'th' ? 'รอบนี้ไม่มี Candidate detail' : 'No candidate detail for this cycle.'}</p>}
-      </div>
-    </section>
+    </>
   );
 }
