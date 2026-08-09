@@ -6,6 +6,7 @@ import {
   approvedProductionUrl,
   evaluateRuntimeHealth,
   hasHorizontalOverflow,
+  isAllowedRuntimeMode,
   isMonitoredRequestUrl,
   requiresReadOnlyBanner,
   requiresTradingObservability,
@@ -39,6 +40,14 @@ describe('Production route smoke helpers', () => {
     expect(requiresTradingObservability('/system')).toBe(true);
     expect(requiresTradingObservability('/overview')).toBe(false);
     expect(requiresTradingObservability('/settings')).toBe(false);
+  });
+
+  it('waits for a hydrated PAPER or SIMULATOR runtime instead of accepting UNKNOWN', () => {
+    expect(isAllowedRuntimeMode('PAPER')).toBe(true);
+    expect(isAllowedRuntimeMode(' simulator ')).toBe(true);
+    expect(isAllowedRuntimeMode('UNKNOWN')).toBe(false);
+    expect(isAllowedRuntimeMode('')).toBe(false);
+    expect(isAllowedRuntimeMode(null)).toBe(false);
   });
 
   it('allows only the approved HTTPS production host', () => {
