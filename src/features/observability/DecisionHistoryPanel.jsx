@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   CalendarClock,
   ChevronRight,
@@ -8,6 +8,8 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { OBSERVABILITY_STAGE_ORDER } from './observabilityApi.js';
+
+const EMPTY_CYCLES = Object.freeze([]);
 
 const STAGE_LABELS = {
   scanner: ['Scanner', 'Scanner'],
@@ -81,7 +83,7 @@ function CandidateDetail({ candidate, language }) {
     <div className="history-candidate-detail" data-testid="decision-history-candidate-detail">
       <div className="history-detail-heading">
         <div>
-          <span>{language === 'th' ? 'Symbol drill-down' : 'Symbol drill-down'}</span>
+          <span>Symbol drill-down</span>
           <strong>{candidate.symbol}</strong>
         </div>
         <span className={`observability-result status-${candidate.status}`}>
@@ -107,7 +109,7 @@ function CandidateDetail({ candidate, language }) {
 }
 
 export default function DecisionHistoryPanel({ history, language = 'th' }) {
-  const cycles = history?.cycles || [];
+  const cycles = history?.cycles ?? EMPTY_CYCLES;
   const [filters, setFilters] = useState({ symbol: 'all', status: 'all', stage: 'all' });
   const [selectedCycleKey, setSelectedCycleKey] = useState(null);
   const [selectedCandidateSymbol, setSelectedCandidateSymbol] = useState(null);
@@ -119,19 +121,6 @@ export default function DecisionHistoryPanel({ history, language = 'th' }) {
     () => cycles.filter((cycle) => cycleMatches(cycle, filters)),
     [cycles, filters],
   );
-
-  useEffect(() => {
-    if (!filteredCycles.length) {
-      setSelectedCycleKey(null);
-      setSelectedCandidateSymbol(null);
-      return;
-    }
-    const currentStillVisible = filteredCycles.some((cycle, index) => cycleKey(cycle, index) === selectedCycleKey);
-    if (!currentStillVisible) {
-      setSelectedCycleKey(cycleKey(filteredCycles[0], 0));
-      setSelectedCandidateSymbol(null);
-    }
-  }, [filteredCycles, selectedCycleKey]);
 
   if (!history) return null;
 
@@ -147,6 +136,7 @@ export default function DecisionHistoryPanel({ history, language = 'th' }) {
 
   const updateFilter = (key, value) => {
     setFilters((current) => ({ ...current, [key]: value }));
+    setSelectedCycleKey(null);
     setSelectedCandidateSymbol(null);
   };
 
@@ -240,7 +230,7 @@ export default function DecisionHistoryPanel({ history, language = 'th' }) {
                 {matchingCandidates.length ? (
                   <div className="history-candidate-table-wrap" tabIndex={0} role="region" aria-label={language === 'th' ? 'Candidate ในรอบที่เลือก' : 'Candidates in selected cycle'}>
                     <table className="history-candidate-table">
-                      <caption className="sr-only">{language === 'th' ? 'Candidate decision history' : 'Candidate decision history'}</caption>
+                      <caption className="sr-only">Candidate decision history</caption>
                       <thead><tr><th>Symbol</th><th>Verdict</th><th>Score</th><th>{language === 'th' ? 'ถึงขั้น' : 'Reached'}</th><th>{language === 'th' ? 'ผล' : 'Result'}</th></tr></thead>
                       <tbody>
                         {matchingCandidates.map((candidate) => (
