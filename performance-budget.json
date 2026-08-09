@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "baseline": {
+    "sourceCommit": "1ec7707b1073c714c24a982b950afc8d6b26bab3",
+    "entryJsRawKb": 319.19,
+    "entryJsGzipKb": 96.41,
+    "totalJsGzipKb": 127.44,
+    "cssRawKb": 75.53,
+    "cssGzipKb": 14.04
+  },
+  "bundle": {
+    "entryJsRawBytes": 348160,
+    "entryJsGzipBytes": 107520,
+    "totalJsGzipBytes": 143360,
+    "totalCssRawBytes": 86016,
+    "totalCssGzipBytes": 16384,
+    "totalDistGzipBytes": 163840,
+    "assetCount": 26,
+    "jsAssetCount": 22
+  },
+  "runtime": {
+    "fcpMs": 1800,
+    "lcpMs": 2500,
+    "cls": 0.1,
+    "domContentLoadedMs": 2000,
+    "loadEventMs": 2500,
+    "longTaskTotalMs": 500,
+    "longTaskMaxMs": 250,
+    "resourceCount": 18,
+    "transferBytes": 524288
+  }
+}
