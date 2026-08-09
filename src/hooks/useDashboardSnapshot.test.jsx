@@ -29,6 +29,18 @@ describe('useDashboardSnapshot', () => {
     expect(result.current.error.message).toBe('snapshot unavailable');
   });
 
+  it('turns polling off when refreshMs is zero', async () => {
+    vi.useFakeTimers();
+    const valid = normalizeSnapshot(portfolioSnapshot);
+    const loadSnapshot = vi.fn().mockResolvedValue(valid);
+    renderHook(() => useDashboardSnapshot({ loadSnapshot, refreshMs: 0 }));
+
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(loadSnapshot).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    expect(loadSnapshot).toHaveBeenCalledTimes(1);
+  });
+
   it('supports retry and clears a previous error after recovery', async () => {
     const valid = normalizeSnapshot(portfolioSnapshot);
     const loadSnapshot = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(valid);
@@ -83,6 +95,46 @@ describe('useDashboardSnapshot', () => {
     expect(loadSnapshot).toHaveBeenCalledTimes(2);
     await act(async () => vi.advanceTimersByTimeAsync(5_000));
     expect(loadSnapshot).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not refresh on focus when refreshOnFocus is disabled', async () => {
+    vi.useFakeTimers();
+    const valid = normalizeSnapshot(portfolioSnapshot);
+    const loadSnapshot = vi.fn().mockResolvedValue(valid);
+    renderHook(() => useDashboardSnapshot({
+      loadSnapshot,
+      refreshMs: 0,
+      refreshOnFocus: false,
+    }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(loadSnapshot).toHaveBeenCalledTimes(1);
+
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      await Promise.resolve();
+    });
+    expect(loadSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks the current snapshot stale after the configured threshold', async () => {
+    vi.useFakeTimers();
+    const valid = normalizeSnapshot(portfolioSnapshot);
+    const loadSnapshot = vi.fn().mockResolvedValue(valid);
+    const { result } = renderHook(() => useDashboardSnapshot({
+      loadSnapshot,
+      refreshMs: 0,
+      staleAfterMs: 30_000,
+    }));
+
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(result.current.isStale).toBe(false);
+    await act(async () => vi.advanceTimersByTimeAsync(29_999));
+    expect(result.current.isStale).toBe(false);
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(result.current.isStale).toBe(true);
   });
 
   it('aborts polling work during cleanup', async () => {
