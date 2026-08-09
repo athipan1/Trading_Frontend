@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   Ban,
   CheckCircle2,
@@ -7,8 +7,9 @@ import {
   ShieldAlert,
   TriangleAlert,
 } from 'lucide-react';
-import DecisionHistoryPanel from './DecisionHistoryPanel.jsx';
 import { getTradingDecisionData } from './observabilityApi.js';
+
+const DecisionHistoryPanel = lazy(() => import('./DecisionHistoryPanel.jsx'));
 
 const STAGE_LABELS = {
   scanner: ['Scanner', 'Scanner'],
@@ -217,7 +218,11 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
           ) : <p className="hint">{language === 'th' ? 'รอบนี้ไม่มี Candidate detail' : 'No candidate detail for this cycle.'}</p>}
         </div>
       </section>
-      <DecisionHistoryPanel history={state.data?.decisionHistory} language={language} />
+      {state.data?.decisionHistory ? (
+        <Suspense fallback={null}>
+          <DecisionHistoryPanel history={state.data.decisionHistory} language={language} />
+        </Suspense>
+      ) : null}
     </>
   );
 }
