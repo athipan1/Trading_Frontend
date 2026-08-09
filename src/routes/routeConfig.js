@@ -14,9 +14,9 @@ export const PAGE_PATHS = Object.freeze({
 
 export const MANAGER_CONTROL_PAGES = Object.freeze(['ledger', 'advisor', 'investment']);
 
-export function pageFromPath(pathname) {
+export function pageFromPath(pathname, defaultPage = 'overview') {
   const normalized = String(pathname || '/').replace(/\/+$/, '') || '/';
-  if (normalized === '/') return 'overview';
+  if (normalized === '/') return PAGE_PATHS[defaultPage] ? defaultPage : 'overview';
   return Object.entries(PAGE_PATHS).find(([, path]) => path === normalized)?.[0] || 'overview';
 }
 
