@@ -7,8 +7,9 @@ export default function PositionDetailDrawer({ position, order, t, onClose }) {
   const closeRef = useRef(null);
   const previousFocusRef = useRef(null);
   const masked = Boolean(position.valuesMasked);
+  const quantityMasked = masked || Boolean(position.quantityMasked);
   const protectedPosition = isPositionProtected(position, order);
-  const displayNumber = (value) => (masked || value === null ? t.masked : value);
+  const displayNumber = (value) => (quantityMasked || value === null ? t.masked : value);
   const displayCurrency = (value) => (
     masked || value === null ? t.masked : formatCurrency(value)
   );
