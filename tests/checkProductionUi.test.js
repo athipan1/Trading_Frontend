@@ -1,6 +1,9 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { evaluateUiStatus } from '../scripts/check-production-ui.mjs';
+import {
+  evaluateTelemetryContract,
+  evaluateUiStatus,
+} from '../scripts/check-production-ui.mjs';
 
 describe('Production smoke UI classification', () => {
   it('accepts a stale banner as degraded upstream data', () => {
@@ -33,5 +36,43 @@ describe('Production smoke UI classification', () => {
         staleBannerCount: 1,
       }),
     ).toThrow('data-load error');
+  });
+});
+
+describe('Phase 12 production telemetry contract', () => {
+  it('accepts published agent/risk/backtest projections without inventing backtest data', () => {
+    expect(
+      evaluateTelemetryContract({
+        agents: [{ id: 'manager' }, { id: 'database' }],
+        risk: { riskLevel: 'low' },
+        backtest: { latestRun: null, history: [] },
+      }),
+    ).toEqual({
+      agentTelemetryCount: 2,
+      riskTelemetryAvailable: true,
+      backtestTelemetryAvailable: false,
+    });
+  });
+
+  it('reports backtest telemetry when a latest run or history exists', () => {
+    expect(
+      evaluateTelemetryContract({
+        agents: [],
+        risk: null,
+        backtest: {
+          latestRun: { id: 'bt-1' },
+          history: [],
+        },
+      }),
+    ).toMatchObject({ backtestTelemetryAvailable: true });
+  });
+
+  it.each([
+    [{ risk: null, backtest: { latestRun: null, history: [] } }, 'agents projection'],
+    [{ agents: [], backtest: { latestRun: null, history: [] } }, 'risk projection'],
+    [{ agents: [], risk: null }, 'backtest projection'],
+    [{ agents: [], risk: null, backtest: { latestRun: null } }, 'backtest projection is malformed'],
+  ])('fails closed when a required Phase 12 projection regresses', (payload, message) => {
+    expect(() => evaluateTelemetryContract(payload)).toThrow(message);
   });
 });

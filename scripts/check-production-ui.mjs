@@ -57,11 +57,34 @@ export function evaluateUiStatus({ errorBannerTexts = [], staleBannerCount = 0 }
   };
 }
 
+export function evaluateTelemetryContract(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('Manager_Agent snapshot telemetry payload is not a JSON object');
+  }
+  if (!Array.isArray(payload.agents)) {
+    throw new Error('Manager_Agent snapshot is missing the agents projection');
+  }
+  if (!Object.hasOwn(payload, 'risk')) {
+    throw new Error('Manager_Agent snapshot is missing the risk projection');
+  }
+  if (!payload.backtest || typeof payload.backtest !== 'object' || Array.isArray(payload.backtest)) {
+    throw new Error('Manager_Agent snapshot is missing the backtest projection');
+  }
+  if (!Object.hasOwn(payload.backtest, 'latestRun') || !Array.isArray(payload.backtest.history)) {
+    throw new Error('Manager_Agent backtest projection is malformed');
+  }
+  return {
+    agentTelemetryCount: payload.agents.length,
+    riskTelemetryAvailable: payload.risk !== null,
+    backtestTelemetryAvailable: payload.backtest.latestRun !== null || payload.backtest.history.length > 0,
+  };
+}
+
 export async function inspectPage(page, targetUrl, navigationTimeoutMs) {
   let managerResponse = null;
   const responseListener = (response) => {
     if (response.url().split('?')[0] === MANAGER_SNAPSHOT_URL) {
-      managerResponse = { status: response.status(), url: response.url() };
+      managerResponse = response;
     }
   };
   page.on('response', responseListener);
@@ -128,9 +151,17 @@ export async function inspectPage(page, targetUrl, navigationTimeoutMs) {
     if (!managerResponse) {
       throw new Error('Browser did not request the Manager_Agent public snapshot');
     }
-    if (managerResponse.status !== 200) {
-      throw new Error(`Manager_Agent snapshot returned HTTP ${managerResponse.status}`);
+    if (managerResponse.status() !== 200) {
+      throw new Error(`Manager_Agent snapshot returned HTTP ${managerResponse.status()}`);
     }
+
+    let managerPayload;
+    try {
+      managerPayload = await managerResponse.json();
+    } catch {
+      throw new Error('Manager_Agent snapshot response is not valid JSON');
+    }
+    const telemetry = evaluateTelemetryContract(managerPayload);
 
     return {
       connected: true,
@@ -138,10 +169,11 @@ export async function inspectPage(page, targetUrl, navigationTimeoutMs) {
       dataSourceText,
       schemaText,
       runtimeModeText,
-      managerSnapshotStatus: managerResponse.status,
+      managerSnapshotStatus: managerResponse.status(),
       managerSnapshotUrl: MANAGER_SNAPSHOT_URL,
       operatorControlExposed: false,
       readOnlyBannerVisible: true,
+      ...telemetry,
       ...uiStatus,
     };
   } finally {
