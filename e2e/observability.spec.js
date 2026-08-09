@@ -71,6 +71,9 @@ function observabilityPayload() {
 }
 
 async function mockSnapshot(page) {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('trading-dashboard-language', 'en');
+  });
   const payload = fixture();
   payload.observability = observabilityPayload();
   await page.route(SNAPSHOT_PATTERN, (route) => route.fulfill({
