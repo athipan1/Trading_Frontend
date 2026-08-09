@@ -8,6 +8,7 @@ import {
   hasHorizontalOverflow,
   isMonitoredRequestUrl,
   requiresReadOnlyBanner,
+  requiresTradingObservability,
 } from '../scripts/check-production-routes.mjs';
 
 describe('Production route smoke helpers', () => {
@@ -32,6 +33,12 @@ describe('Production route smoke helpers', () => {
     expect(requiresReadOnlyBanner('/overview')).toBe(true);
     expect(requiresReadOnlyBanner('/portfolio')).toBe(false);
     expect(requiresReadOnlyBanner('/settings')).toBe(false);
+  });
+
+  it('requires Phase 16 observability only on the System route', () => {
+    expect(requiresTradingObservability('/system')).toBe(true);
+    expect(requiresTradingObservability('/overview')).toBe(false);
+    expect(requiresTradingObservability('/settings')).toBe(false);
   });
 
   it('allows only the approved HTTPS production host', () => {
