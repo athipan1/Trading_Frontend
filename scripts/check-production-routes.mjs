@@ -79,6 +79,10 @@ export function requiresTradingObservability(routePath) {
   return routePath === '/system';
 }
 
+export function isAllowedRuntimeMode(value) {
+  return ALLOWED_RUNTIME_MODES.has(String(value || '').trim().toUpperCase());
+}
+
 export function evaluateRuntimeHealth({ consoleErrors = [], pageErrors = [], requestFailures = [] } = {}) {
   const normalized = {
     consoleErrors: uniqueMessages(consoleErrors),
@@ -104,10 +108,23 @@ function routeUrl(targetUrl, routePath, viewportName) {
   return url;
 }
 
+async function waitForRuntimeMode(page, navigationTimeoutMs) {
+  const mode = page.getByTestId('trading-mode');
+  const deadline = Date.now() + navigationTimeoutMs;
+  while (Date.now() < deadline) {
+    const value = (await mode.textContent())?.trim().toUpperCase() ?? '';
+    if (isAllowedRuntimeMode(value)) return value;
+    await page.waitForTimeout(100);
+  }
+  const finalValue = (await mode.textContent())?.trim().toUpperCase() ?? '';
+  throw new Error(`Runtime mode did not become PAPER or SIMULATOR before timeout: ${finalValue || '(empty)'}`);
+}
+
 async function waitForRoute(page, route, navigationTimeoutMs) {
   await page.getByTestId('data-source').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
   await page.getByTestId('schema-version').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
   await page.getByTestId('trading-mode').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
+  await waitForRuntimeMode(page, navigationTimeoutMs);
   await page.getByTestId(route.readyTestId).waitFor({ state: 'visible', timeout: navigationTimeoutMs });
   if (requiresTradingObservability(route.path)) {
     await page.getByTestId('trading-observability-panel').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
@@ -135,7 +152,7 @@ async function verifyCommonProductionBoundary(page, { requireReadOnlyBanner = fa
   if (!schemaText.includes('dashboard-snapshot.v2')) {
     throw new Error(`Schema is not dashboard-snapshot.v2: ${schemaText || '(empty)'}`);
   }
-  if (!ALLOWED_RUNTIME_MODES.has(runtimeModeText)) {
+  if (!isAllowedRuntimeMode(runtimeModeText)) {
     throw new Error(`Runtime mode must be PAPER or SIMULATOR: ${runtimeModeText || '(empty)'}`);
   }
   if (operatorInputCount !== 0) throw new Error('Operator token control is exposed in public snapshot mode');
