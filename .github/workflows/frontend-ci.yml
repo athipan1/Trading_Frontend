@@ -87,6 +87,18 @@ jobs:
           VITE_REFRESH_INTERVAL_MS: 60000
           ALPACA_SECRET_KEY: frontend-ci-secret-must-not-leak
 
+      - name: Enforce bundle performance budgets
+        run: npm run check:performance:bundle
+
+      - name: Upload bundle performance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-bundle-performance
+          path: performance-artifacts/bundle-report.json
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Verify secrets are absent from bundle
         run: npm run check:bundle
         env:
@@ -164,6 +176,42 @@ jobs:
             playwright-report
             test-results
           if-no-files-found: ignore
+          retention-days: 7
+
+  performance:
+    name: Performance budget gate
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.17.0
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install pinned Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run mobile Web Vitals and runtime budgets
+        run: npm run test:performance
+
+      - name: Upload performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-performance-budget
+          path: |
+            performance-artifacts
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+          retention-days: 14
 
   accessibility:
     name: Axe accessibility gate

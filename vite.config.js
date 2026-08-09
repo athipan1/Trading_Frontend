@@ -14,6 +14,7 @@ export default defineConfig({
       'tests/checkManagerConnection.test.js',
       'tests/checkProductionUi.test.js',
       'tests/checkProductionRoutes.test.js',
+      'tests/checkPerformanceBudget.test.js',
     ],
     setupFiles: ['./src/test/setup.js'],
     restoreMocks: true,
