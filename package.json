@@ -20,7 +20,8 @@
     "test:visual:update": "playwright test --grep @visual --workers=1 --update-snapshots",
     "check:bundle": "node scripts/check-bundle-secrets.mjs",
     "check:manager-connection": "node scripts/check-manager-connection.mjs",
-    "check:production": "node scripts/check-production-ui.mjs"
+    "check:production": "node scripts/check-production-ui.mjs",
+    "check:production:routes": "node scripts/check-production-routes.mjs"
   },
   "dependencies": {
     "lucide-react": "1.25.0",
@@ -37,7 +38,7 @@
     "@vitest/coverage-v8": "4.1.10",
     "eslint": "9.39.5",
     "eslint-plugin-react": "7.37.5",
-    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-hooks": "7.0.0",
     "eslint-plugin-react-refresh": "0.5.3",
     "globals": "17.7.0",
     "jsdom": "29.1.1",
