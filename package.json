@@ -20,7 +20,8 @@
     "test:visual:update": "playwright test --grep @visual --workers=1 --update-snapshots",
     "check:bundle": "node scripts/check-bundle-secrets.mjs",
     "check:manager-connection": "node scripts/check-manager-connection.mjs",
-    "check:production": "node scripts/check-production-ui.mjs"
+    "check:production": "node scripts/check-production-ui.mjs",
+    "check:production:routes": "node scripts/check-production-routes.mjs"
   },
   "dependencies": {
     "lucide-react": "1.25.0",

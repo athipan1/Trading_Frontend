@@ -18,7 +18,7 @@ jobs:
   verify-production:
     name: Verify Vercel public snapshot deployment
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       PRODUCTION_URL: https://trading-frontend-wheat-pi.vercel.app/
       PRODUCTION_SMOKE_ATTEMPTS: '24'
@@ -43,24 +43,33 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Open production and verify Manager snapshot
-        run: node scripts/check-production-ui.mjs
+        run: npm run check:production
+
+      - name: Audit production routes and browser runtime
+        run: npm run check:production:routes
 
       - name: Publish smoke summary
         if: always()
         run: |
           node - <<'NODE'
           const fs = require('node:fs');
-          const path = 'production-smoke-artifacts/report.json';
-          if (!fs.existsSync(path)) {
-            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '# Production smoke\n\n❌ Report was not generated.\n');
+          const rootPath = 'production-smoke-artifacts/report.json';
+          const routePath = 'production-smoke-artifacts/route-report.json';
+          const readJson = (path) => fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, 'utf8')) : null;
+          const report = readJson(rootPath);
+          const routeReport = readJson(routePath);
+          const clean = (value) => String(value ?? '-').replace(/[\r\n|`]/g, ' ');
+
+          if (!report) {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '# Production smoke\n\n❌ Root report was not generated.\n');
             process.exit(0);
           }
-          const report = JSON.parse(fs.readFileSync(path, 'utf8'));
-          const clean = (value) => String(value ?? '-').replace(/[\r\n|`]/g, ' ');
-          const status = report.connected
-            ? report.staleDataVisible
+
+          const overallHealthy = report.connected && routeReport?.connected !== false;
+          const status = overallHealthy
+            ? report.staleDataVisible || routeReport?.warnings?.length
               ? '⚠️ Deployment healthy, upstream data stale'
-              : '✅ Connected'
+              : '✅ Connected and route-clean'
             : '❌ Failed';
           const lines = [
             '# Trading_Frontend production smoke',
@@ -74,13 +83,30 @@ jobs:
             `- Stale warning visible: \`${clean(report.staleDataVisible)}\``,
             `- Operator control exposed: \`${clean(report.operatorControlExposed)}\``,
             `- Attempts: ${clean(report.attemptsUsed)}`,
+            `- Route checks: ${clean(routeReport?.routesPassed ?? 0)}/${clean(routeReport?.routesChecked ?? 0)} passed`,
+            `- Viewports: \`${clean(routeReport?.viewports?.join(', ') || 'not-run')}\``,
           ];
-          const warnings = Array.isArray(report.warnings) ? report.warnings.join('; ') : '';
-          const errors = Array.isArray(report.errors)
-            ? report.errors.map((item) => item.message || item).join('; ')
-            : '';
+
+          const warnings = [
+            ...(Array.isArray(report.warnings) ? report.warnings : []),
+            ...(Array.isArray(routeReport?.warnings) ? routeReport.warnings : []),
+          ].join('; ');
+          const errors = [
+            ...(Array.isArray(report.errors) ? report.errors : []),
+            ...(Array.isArray(routeReport?.errors) ? routeReport.errors : []),
+          ].map((item) => item?.message || item).join('; ');
           if (warnings) lines.push(`- Warning: ${clean(warnings)}`);
           if (errors) lines.push(`- Error: ${clean(errors)}`);
+
+          if (Array.isArray(routeReport?.routeResults) && routeReport.routeResults.length) {
+            lines.push('', '## Production route matrix', '', '| Viewport | Route | Result | HTTP | Overflow | Runtime issues |', '|---|---|---:|---:|---:|---:|');
+            for (const item of routeReport.routeResults) {
+              lines.push(`| ${clean(item.viewport)} | \`${clean(item.route)}\` | ${item.status === 'passed' ? '✅' : '❌'} | ${clean(item.pageStatus)} | ${clean(item.overflow)} | ${clean(item.runtime?.total ?? (item.status === 'passed' ? 0 : '-'))} |`);
+            }
+          } else {
+            lines.push('', '⚠️ Production route matrix did not run or did not produce a report.');
+          }
+
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
           NODE
 
