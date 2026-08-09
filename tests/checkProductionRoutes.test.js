@@ -7,6 +7,7 @@ import {
   evaluateRuntimeHealth,
   hasHorizontalOverflow,
   isMonitoredRequestUrl,
+  requiresReadOnlyBanner,
 } from '../scripts/check-production-routes.mjs';
 
 describe('Production route smoke helpers', () => {
@@ -25,6 +26,12 @@ describe('Production route smoke helpers', () => {
       { name: 'mobile-320', width: 320, height: 900 },
       { name: 'desktop-1280', width: 1280, height: 900 },
     ]);
+  });
+
+  it('requires the read-only mode banner only on Overview', () => {
+    expect(requiresReadOnlyBanner('/overview')).toBe(true);
+    expect(requiresReadOnlyBanner('/portfolio')).toBe(false);
+    expect(requiresReadOnlyBanner('/settings')).toBe(false);
   });
 
   it('allows only the approved HTTPS production host', () => {
