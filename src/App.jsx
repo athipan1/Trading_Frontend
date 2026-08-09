@@ -34,6 +34,7 @@ import { isManagerControlPage } from './routes/routeConfig.js';
 import { formatBangkokDateTime } from './utils/dateTime.js';
 import {
   applyPreferences,
+  applyPrivacyPreferences,
   clearPreferences,
   loadPreferences,
   savePreferences,
@@ -70,8 +71,24 @@ export default function App() {
   const [controlCapabilities, setControlCapabilities] = useState(null);
   const [controlStatus, setControlStatus] = useState({ state: 'locked', message: 'ยังไม่ได้เชื่อมต่อ Manager_Agent' });
   const t = useMemo(() => translations[language], [language]);
-  const { snapshot, isLoading, isRefreshing, error, lastUpdatedAt, refresh, refreshMs } = useDashboardSnapshot();
-  const dashboardSnapshot = snapshot ?? emptyDashboardSnapshot;
+  const {
+    snapshot,
+    isLoading,
+    isRefreshing,
+    isStale,
+    error,
+    lastUpdatedAt,
+    refresh,
+    refreshMs,
+  } = useDashboardSnapshot({
+    refreshMs: preferences.refreshInterval * 1000,
+    refreshOnFocus: preferences.refreshOnFocus,
+    staleAfterMs: preferences.staleWarningSeconds * 1000,
+  });
+  const dashboardSnapshot = useMemo(
+    () => applyPrivacyPreferences(snapshot ?? emptyDashboardSnapshot, preferences),
+    [preferences, snapshot],
+  );
   const dataSource = getDashboardDataSource();
   const mockMode = dataSource === DATA_SOURCES.MOCK;
   const managerControlAvailable = dataSource === DATA_SOURCES.MANAGER_API;
@@ -102,10 +119,15 @@ export default function App() {
     ];
   }, [language, managerControlAvailable, t]);
 
-  const { activePage: resolvedActivePage, navigateToPage } = useRouteNavigation(navigationItems);
+  const { activePage: resolvedActivePage, navigateToPage } = useRouteNavigation(navigationItems, {
+    defaultPage: preferences.defaultPage,
+  });
   const activePageMeta = navigationItems.find((item) => item.id === resolvedActivePage) ?? navigationItems[0];
   const managerPageActive = isManagerControlPage(resolvedActivePage);
   const controlAuthenticationActive = managerPageActive || resolvedActivePage === 'backtest';
+  const autoRefreshLabel = refreshMs <= 0
+    ? (language === 'th' ? 'ปิด' : 'Off')
+    : `${Math.round(refreshMs / 1000)}s`;
 
   useEffect(() => {
     window.localStorage.setItem('trading-dashboard-language', language);
@@ -211,7 +233,14 @@ export default function App() {
             <span className={`status ${mockMode ? 'warn' : 'good'}`} data-testid="data-source">{mockMode ? t.mockMode : `${t.liveMode}: ${dataSource}`}</span>
             <span className="status neutral-status" data-testid="trading-mode">{dashboardSnapshot.runtime.mode}</span>
             <span className="sync-text">{t.lastUpdated}: {formatBangkokDateTime(lastUpdatedAt || dashboardSnapshot.generatedAt, language, t.notUpdated)}</span>
-            <span className="sync-text">{t.autoRefresh}: {Math.round(refreshMs / 1000)}s</span>
+            <span className="sync-text" data-testid="auto-refresh-status">{t.autoRefresh}: {autoRefreshLabel}</span>
+            {isStale ? (
+              <span className="status warn" data-testid="preference-stale-warning">
+                {language === 'th'
+                  ? `ข้อมูลเกิน ${preferences.staleWarningSeconds} วินาที`
+                  : `Data older than ${preferences.staleWarningSeconds} seconds`}
+              </span>
+            ) : null}
           </div>
           {error ? (
             <div className="error-banner" role="alert">
