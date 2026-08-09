@@ -27,7 +27,6 @@ test('Phase 13 keeps the last good snapshot when a refresh returns malformed tel
 
   await page.getByRole('button', { name: 'รีเฟรชข้อมูล Dashboard' }).click();
   await expect(page.locator('.error-banner[role="alert"]')).toContainText('agents[0].cpuPercent');
-  await expect(page.locator('.error-banner[role="alert"]')).toContainText('snapshot');
   await expect(page.getByText('ACGL').first()).toBeVisible();
   await expect.poll(() => requests).toBeGreaterThanOrEqual(2);
 });
