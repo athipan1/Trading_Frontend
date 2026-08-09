@@ -99,6 +99,33 @@ describe('portfolio workspace model', () => {
     expect(exported.content.match(/Masked/g)).toHaveLength(5);
   });
 
+  it('masks only quantity in exports when position size privacy is enabled', () => {
+    const exported = createPortfolioExport({
+      positions: [{
+        symbol: 'ACGL',
+        bucket: 'value',
+        quantity: 9,
+        averageCost: 10,
+        currentPrice: 11,
+        marketValue: 99,
+        unrealizedPnL: 9,
+        quantityMasked: true,
+      }],
+      openOrders: [],
+      format: 'csv',
+      labels: {
+        symbol: 'Symbol', bucket: 'Bucket', quantity: 'Qty', averageCost: 'Avg',
+        currentPrice: 'Current', marketValue: 'Market value', pnl: 'P/L',
+        protection: 'Protection', masked: 'Masked', protected: 'Protected',
+        needsReview: 'Needs review',
+      },
+    });
+
+    expect(exported.content.match(/Masked/g)).toHaveLength(1);
+    expect(exported.content).toContain('99');
+    expect(exported.content).not.toContain(',9,10,');
+  });
+
   it('creates a typed SpreadsheetML workbook for Excel exports', () => {
     const exported = createPortfolioExport({
       positions: [positions[0]],
