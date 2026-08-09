@@ -71,6 +71,10 @@ export function isMonitoredRequestUrl(value, productionOrigin) {
   }
 }
 
+export function requiresReadOnlyBanner(routePath) {
+  return routePath === '/overview';
+}
+
 export function evaluateRuntimeHealth({ consoleErrors = [], pageErrors = [], requestFailures = [] } = {}) {
   const normalized = {
     consoleErrors: uniqueMessages(consoleErrors),
@@ -108,7 +112,7 @@ async function waitForRoute(page, route, navigationTimeoutMs) {
   });
 }
 
-async function verifyCommonProductionBoundary(page) {
+async function verifyCommonProductionBoundary(page, { requireReadOnlyBanner = false } = {}) {
   const dataSourceText = (await page.getByTestId('data-source').textContent())?.trim() ?? '';
   const schemaText = (await page.getByTestId('schema-version').textContent())?.trim() ?? '';
   const runtimeModeText = (await page.getByTestId('trading-mode').textContent())?.trim().toUpperCase() ?? '';
@@ -127,7 +131,12 @@ async function verifyCommonProductionBoundary(page) {
     throw new Error(`Runtime mode must be PAPER or SIMULATOR: ${runtimeModeText || '(empty)'}`);
   }
   if (operatorInputCount !== 0) throw new Error('Operator token control is exposed in public snapshot mode');
-  if (readOnlyBannerCount !== 1) throw new Error('Read-only public snapshot banner is missing');
+  if (requireReadOnlyBanner && readOnlyBannerCount !== 1) {
+    throw new Error('Read-only public snapshot banner is missing from the Overview route');
+  }
+  if (!requireReadOnlyBanner && readOnlyBannerCount > 1) {
+    throw new Error('Read-only public snapshot banner is duplicated');
+  }
   if (errorBannerTexts.some((text) => text.trim())) {
     throw new Error(`Application error banner visible: ${errorBannerTexts.join(' | ')}`);
   }
@@ -136,6 +145,7 @@ async function verifyCommonProductionBoundary(page) {
     dataSourceText,
     schemaText,
     runtimeModeText,
+    readOnlyBannerVisible: readOnlyBannerCount > 0,
     staleDataVisible: staleBannerCount > 0,
   };
 }
@@ -173,7 +183,9 @@ async function inspectRoute({ browser, targetUrl, route, viewport, navigationTim
     if (response.status() >= 400) throw new Error(`Route returned HTTP ${response.status()}`);
 
     await waitForRoute(page, route, navigationTimeoutMs);
-    const boundary = await verifyCommonProductionBoundary(page);
+    const boundary = await verifyCommonProductionBoundary(page, {
+      requireReadOnlyBanner: requiresReadOnlyBanner(route.path),
+    });
     if (managerSnapshotStatus === null) throw new Error('Manager_Agent public snapshot was not requested');
     if (managerSnapshotStatus !== 200) throw new Error(`Manager_Agent snapshot returned HTTP ${managerSnapshotStatus}`);
 
@@ -205,6 +217,7 @@ async function inspectRoute({ browser, targetUrl, route, viewport, navigationTim
       overflow: false,
       dimensions,
       runtime,
+      readOnlyBannerVisible: boundary.readOnlyBannerVisible,
       staleDataVisible: boundary.staleDataVisible,
       screenshot,
     };
