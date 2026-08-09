@@ -10,8 +10,9 @@ function PositionCards({ positions, orderBySymbol, t, onViewDetails, className =
       {positions.map((position) => {
         const order = orderBySymbol.get(position.symbol);
         const masked = Boolean(position.valuesMasked);
+        const quantityMasked = masked || Boolean(position.quantityMasked);
         const protectedPosition = isPositionProtected(position, order);
-        const displayNumber = (value) => (masked || value === null ? t.masked : value);
+        const displayNumber = (value) => (quantityMasked || value === null ? t.masked : value);
         const displayCurrency = (value) => (
           masked || value === null ? t.masked : formatCurrency(value)
         );
@@ -85,8 +86,9 @@ function PositionTableView({ positions, orderBySymbol, t, onViewDetails, classNa
           {positions.map((position) => {
             const order = orderBySymbol.get(position.symbol);
             const masked = Boolean(position.valuesMasked);
+            const quantityMasked = masked || Boolean(position.quantityMasked);
             const protectedPosition = isPositionProtected(position, order);
-            const displayNumber = (value) => (masked || value === null ? t.masked : value);
+            const displayNumber = (value) => (quantityMasked || value === null ? t.masked : value);
             const displayCurrency = (value) => (
               masked || value === null ? t.masked : formatCurrency(value)
             );

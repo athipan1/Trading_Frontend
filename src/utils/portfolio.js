@@ -101,10 +101,13 @@ export function createPortfolioExport({
         ? { value: labels.masked, type: 'String' }
         : { value, type: 'Number' }
     );
+    const quantityValue = masked || position.quantityMasked || position.quantity === null
+      ? { value: labels.masked, type: 'String' }
+      : { value: position.quantity, type: 'Number' };
     return [
       { value: safeSpreadsheetText(position.symbol), type: 'String' },
       { value: safeSpreadsheetText(position.bucket), type: 'String' },
-      financialValue(position.quantity),
+      quantityValue,
       financialValue(position.averageCost),
       financialValue(position.currentPrice),
       financialValue(position.marketValue),
