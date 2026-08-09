@@ -122,6 +122,8 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
   const cycle = selected.cycle;
   if (!cycle) return null;
   const blockedCount = cycle.candidates.filter((candidate) => candidate.status === 'blocked').length;
+  const stageListLabel = language === 'th' ? 'เส้นทางการตัดสินใจ 7 ขั้น' : 'Seven-stage trading decision path';
+  const candidateTableLabel = language === 'th' ? 'ตารางเหตุผลของ Candidate' : 'Candidate decision reasons';
 
   return (
     <section className="panel observability-panel" aria-labelledby="trading-observability-title" data-testid="trading-observability-panel">
@@ -157,8 +159,13 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
       </div>
 
       <div className="observability-stage-section">
-        <h3>{language === 'th' ? 'Decision path' : 'Decision path'}</h3>
-        <ol className="observability-stages" data-testid="observability-stage-list">
+        <h3>Decision path</h3>
+        <ol
+          className="observability-stages"
+          data-testid="observability-stage-list"
+          tabIndex={0}
+          aria-label={stageListLabel}
+        >
           {cycle.stages.map((stage) => (
             <li key={stage.id} className={`observability-stage status-${stage.status}`} data-testid={`observability-stage-${stage.id}`}>
               <StatusIcon status={stage.status} />
@@ -178,8 +185,9 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
           <span>{cycle.candidates.length}/10</span>
         </div>
         {cycle.candidates.length ? (
-          <div className="observability-table-wrap">
+          <div className="observability-table-wrap" tabIndex={0} role="region" aria-label={candidateTableLabel}>
             <table className="observability-table">
+              <caption className="sr-only">{candidateTableLabel}</caption>
               <thead><tr>
                 <th>{language === 'th' ? 'อันดับ' : 'Rank'}</th>
                 <th>Symbol</th>
