@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_PREFERENCES,
   PREFERENCES_STORAGE_KEY,
@@ -39,6 +39,31 @@ describe('settings preferences', () => {
     expect(raw).not.toContain('must-not-persist');
     expect(raw).not.toContain('operatorToken');
     expect(raw).not.toContain('apiKey');
+  });
+
+  it('keeps sanitized in-memory preferences when storage writes are denied', () => {
+    const storage = {
+      setItem: vi.fn(() => {
+        throw new DOMException('denied', 'SecurityError');
+      }),
+    };
+
+    expect(savePreferences({ ...DEFAULT_PREFERENCES, theme: 'dark' }, storage)).toEqual({
+      ...DEFAULT_PREFERENCES,
+      theme: 'dark',
+    });
+    expect(storage.setItem).toHaveBeenCalledOnce();
+  });
+
+  it('resets in-memory preferences when persistent storage cannot be cleared', () => {
+    const storage = {
+      removeItem: vi.fn(() => {
+        throw new DOMException('denied', 'SecurityError');
+      }),
+    };
+
+    expect(clearPreferences(storage)).toEqual(DEFAULT_PREFERENCES);
+    expect(storage.removeItem).toHaveBeenCalledOnce();
   });
 
   it('applies display preferences and resets storage', () => {

@@ -60,12 +60,23 @@ export function loadPreferences(storage = globalThis.localStorage) {
 
 export function savePreferences(preferences, storage = globalThis.localStorage) {
   const safe = sanitizePreferences(preferences);
-  if (storage) storage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(safe));
+  if (!storage) return safe;
+  try {
+    storage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(safe));
+  } catch {
+    // Preferences are presentation-only. Keep the app usable if browser storage is denied or full.
+  }
   return safe;
 }
 
 export function clearPreferences(storage = globalThis.localStorage) {
-  if (storage) storage.removeItem(PREFERENCES_STORAGE_KEY);
+  if (storage) {
+    try {
+      storage.removeItem(PREFERENCES_STORAGE_KEY);
+    } catch {
+      // Reset the in-memory preferences even when persistent storage cannot be modified.
+    }
+  }
   return { ...DEFAULT_PREFERENCES };
 }
 

@@ -18,7 +18,7 @@ jobs:
   verify-production:
     name: Verify Vercel public snapshot deployment
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       PRODUCTION_URL: https://trading-frontend-wheat-pi.vercel.app/
       PRODUCTION_SMOKE_ATTEMPTS: '24'
@@ -48,6 +48,9 @@ jobs:
       - name: Audit production routes and browser runtime
         run: npm run check:production:routes
 
+      - name: Exercise safe production interactions
+        run: npm run check:production:interactions
+
       - name: Publish smoke summary
         if: always()
         run: |
@@ -55,9 +58,11 @@ jobs:
           const fs = require('node:fs');
           const rootPath = 'production-smoke-artifacts/report.json';
           const routePath = 'production-smoke-artifacts/route-report.json';
+          const interactionPath = 'production-smoke-artifacts/interaction-report.json';
           const readJson = (path) => fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, 'utf8')) : null;
           const report = readJson(rootPath);
           const routeReport = readJson(routePath);
+          const interactionReport = readJson(interactionPath);
           const clean = (value) => String(value ?? '-').replace(/[\r\n|`]/g, ' ');
 
           if (!report) {
@@ -65,11 +70,13 @@ jobs:
             process.exit(0);
           }
 
-          const overallHealthy = report.connected && routeReport?.connected !== false;
+          const overallHealthy = report.connected
+            && routeReport?.connected !== false
+            && interactionReport?.connected !== false;
           const status = overallHealthy
             ? report.staleDataVisible || routeReport?.warnings?.length
               ? '⚠️ Deployment healthy, upstream data stale'
-              : '✅ Connected and route-clean'
+              : '✅ Connected, route-clean, and interaction-clean'
             : '❌ Failed';
           const lines = [
             '# Trading_Frontend production smoke',
@@ -84,6 +91,7 @@ jobs:
             `- Operator control exposed: \`${clean(report.operatorControlExposed)}\``,
             `- Attempts: ${clean(report.attemptsUsed)}`,
             `- Route checks: ${clean(routeReport?.routesPassed ?? 0)}/${clean(routeReport?.routesChecked ?? 0)} passed`,
+            `- Interaction checks: ${clean(interactionReport?.interactionsPassed ?? 0)}/${clean(interactionReport?.interactionsChecked ?? 0)} passed`,
             `- Viewports: \`${clean(routeReport?.viewports?.join(', ') || 'not-run')}\``,
           ];
 
@@ -94,6 +102,7 @@ jobs:
           const errors = [
             ...(Array.isArray(report.errors) ? report.errors : []),
             ...(Array.isArray(routeReport?.errors) ? routeReport.errors : []),
+            ...(Array.isArray(interactionReport?.errors) ? interactionReport.errors : []),
           ].map((item) => item?.message || item).join('; ');
           if (warnings) lines.push(`- Warning: ${clean(warnings)}`);
           if (errors) lines.push(`- Error: ${clean(errors)}`);
@@ -105,6 +114,15 @@ jobs:
             }
           } else {
             lines.push('', '⚠️ Production route matrix did not run or did not produce a report.');
+          }
+
+          if (Array.isArray(interactionReport?.interactionResults) && interactionReport.interactionResults.length) {
+            lines.push('', '## Production interaction matrix', '', '| Interaction | Result | Runtime issues |', '|---|---:|---:|');
+            for (const item of interactionReport.interactionResults) {
+              lines.push(`| ${clean(item.name)} | ${item.status === 'passed' ? '✅' : '❌'} | ${clean(item.runtime?.total ?? (item.status === 'passed' ? 0 : '-'))} |`);
+            }
+          } else {
+            lines.push('', '⚠️ Production interaction matrix did not run or did not produce a report.');
           }
 
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
