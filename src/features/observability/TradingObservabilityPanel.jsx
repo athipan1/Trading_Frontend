@@ -7,6 +7,7 @@ import {
   ShieldAlert,
   TriangleAlert,
 } from 'lucide-react';
+import PipelineReliabilityPanel from './PipelineReliabilityPanel.jsx';
 import { getTradingDecisionData } from './observabilityApi.js';
 
 const DecisionAnalyticsPanel = lazy(() => import('./DecisionAnalyticsPanel.jsx'));
@@ -40,6 +41,7 @@ const STATUS_LABELS = {
 const REASON_COPY = {
   no_preselected_backtest_symbols: ['ไม่มี Symbol ผ่านไปถึง Backtest ในรอบนี้', 'No symbols reached Backtest in this cycle'],
   scheduled_paper_cycle_not_authorized: ['รอบตามเวลาถูก safety gate ปิดไว้', 'Scheduled Paper cycle is disabled by the safety gate'],
+  hourly_schedule_disabled: ['รอบตามเวลาถูกปิดไว้โดยตั้งใจ', 'Hourly Paper schedule is intentionally disabled'],
   hourly_artifact_unavailable: ['ไม่มี hourly trading artifact ของรอบล่าสุด', 'Latest hourly trading artifact is unavailable'],
   market_closed: ['ตลาดปิด จึงไม่เปิดสถานะใหม่', 'Market is closed, so no new position was opened'],
   no_eligible_strategy: ['Backtest ไม่พบกลยุทธ์ที่ผ่านเกณฑ์', 'Backtest found no eligible strategy'],
@@ -220,6 +222,9 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
           ) : <p className="hint">{language === 'th' ? 'รอบนี้ไม่มี Candidate detail' : 'No candidate detail for this cycle.'}</p>}
         </div>
       </section>
+      {state.data?.decisionHistory ? (
+        <PipelineReliabilityPanel history={state.data.decisionHistory} language={language} />
+      ) : null}
       {state.data?.decisionAnalytics ? (
         <Suspense fallback={null}>
           <DecisionAnalyticsPanel analytics={state.data.decisionAnalytics} language={language} />
