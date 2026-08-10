@@ -48,6 +48,9 @@ jobs:
       - name: Audit production routes and browser runtime
         run: npm run check:production:routes
 
+      - name: Audit hourly pipeline reliability
+        run: npm run check:production:pipeline-reliability
+
       - name: Exercise safe production interactions
         run: npm run check:production:interactions
 
@@ -59,10 +62,12 @@ jobs:
           const rootPath = 'production-smoke-artifacts/report.json';
           const routePath = 'production-smoke-artifacts/route-report.json';
           const interactionPath = 'production-smoke-artifacts/interaction-report.json';
+          const reliabilityPath = 'production-smoke-artifacts/pipeline-reliability-report.json';
           const readJson = (path) => fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, 'utf8')) : null;
           const report = readJson(rootPath);
           const routeReport = readJson(routePath);
           const interactionReport = readJson(interactionPath);
+          const reliabilityReport = readJson(reliabilityPath);
           const clean = (value) => String(value ?? '-').replace(/[\r\n|`]/g, ' ');
 
           if (!report) {
@@ -72,12 +77,14 @@ jobs:
 
           const overallHealthy = report.connected
             && routeReport?.connected !== false
-            && interactionReport?.connected !== false;
+            && interactionReport?.connected !== false
+            && reliabilityReport?.connected !== false;
           const status = overallHealthy
             ? report.staleDataVisible || routeReport?.warnings?.length
               ? '⚠️ Deployment healthy, upstream data stale'
-              : '✅ Connected, route-clean, and interaction-clean'
+              : '✅ Connected, route-clean, interaction-clean, and pipeline-audited'
             : '❌ Failed';
+          const reliability = reliabilityReport?.reliability;
           const lines = [
             '# Trading_Frontend production smoke',
             '',
@@ -92,6 +99,8 @@ jobs:
             `- Attempts: ${clean(report.attemptsUsed)}`,
             `- Route checks: ${clean(routeReport?.routesPassed ?? 0)}/${clean(routeReport?.routesChecked ?? 0)} passed`,
             `- Interaction checks: ${clean(interactionReport?.interactionsPassed ?? 0)}/${clean(interactionReport?.interactionsChecked ?? 0)} passed`,
+            `- Phase 19 decision/control/gap cycles: ${clean(reliability?.decisionCycles)}/${clean(reliability?.controlCycles)}/${clean(reliability?.metadataGaps)}`,
+            `- Phase 19 artifact coverage: ${reliability?.artifactCoverageRate == null ? '-' : `${(reliability.artifactCoverageRate * 100).toFixed(1)}%`}`,
             `- Viewports: \`${clean(routeReport?.viewports?.join(', ') || 'not-run')}\``,
           ];
 
@@ -103,6 +112,7 @@ jobs:
             ...(Array.isArray(report.errors) ? report.errors : []),
             ...(Array.isArray(routeReport?.errors) ? routeReport.errors : []),
             ...(Array.isArray(interactionReport?.errors) ? interactionReport.errors : []),
+            ...(Array.isArray(reliabilityReport?.errors) ? reliabilityReport.errors : []),
           ].map((item) => item?.message || item).join('; ');
           if (warnings) lines.push(`- Warning: ${clean(warnings)}`);
           if (errors) lines.push(`- Error: ${clean(errors)}`);
