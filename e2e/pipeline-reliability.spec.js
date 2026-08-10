@@ -53,7 +53,7 @@ function decisionCycle() {
 function observability(decision) {
   return {
     schemaVersion: 'trading-observability.v1',
-    current: { ...decision, candidates: decision.candidates.map(({ refs: _refs, ...candidate }) => candidate) },
+    current: { ...decision, candidates: decision.candidates },
     lastMeaningful: null,
   };
 }
