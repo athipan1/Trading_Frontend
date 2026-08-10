@@ -26,7 +26,8 @@
     "check:manager-connection": "node scripts/check-manager-connection.mjs",
     "check:production": "node scripts/check-production-ui.mjs",
     "check:production:routes": "node scripts/check-production-routes.mjs",
-    "check:production:interactions": "node scripts/check-production-interactions.mjs"
+    "check:production:interactions": "node scripts/check-production-interactions.mjs",
+    "check:production:pipeline-reliability": "node scripts/check-production-pipeline-reliability.mjs"
   },
   "dependencies": {
     "lucide-react": "1.25.0",
