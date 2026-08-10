@@ -7,6 +7,7 @@ import {
   Search,
   ShieldAlert,
 } from 'lucide-react';
+import HumanDecisionExplanation from './HumanDecisionExplanation.jsx';
 import { OBSERVABILITY_STAGE_ORDER } from './observabilityApi.js';
 
 const EMPTY_CYCLES = Object.freeze([]);
@@ -29,20 +30,6 @@ const STATUS_LABELS = {
   backtest_passed: ['Backtest ผ่าน', 'Backtest passed'],
   not_selected: ['ไม่ถูกเลือก', 'Not selected'],
   unknown: ['ไม่ทราบ', 'Unknown'],
-};
-
-const REASON_COPY = {
-  no_preselected_backtest_symbols: ['ไม่มี Symbol ผ่านไปถึง Backtest', 'No symbols reached Backtest'],
-  scheduled_paper_cycle_not_authorized: ['Safety gate ปิดรอบตามเวลา', 'Scheduled cycle blocked by safety gate'],
-  market_closed: ['ตลาดปิด', 'Market closed'],
-  no_eligible_strategy: ['ไม่มี Strategy ผ่าน Backtest', 'No Backtest strategy qualified'],
-  investability_market_cap_below_minimum: ['Market cap ต่ำกว่าเกณฑ์', 'Market cap below minimum'],
-  investability_average_dollar_volume_below_minimum: ['Dollar volume ต่ำกว่าเกณฑ์', 'Dollar volume below minimum'],
-  investability_spread_missing: ['ไม่มีหลักฐาน spread ครบถ้วน', 'Spread evidence unavailable'],
-  evidence_gate_failed: ['Evidence gate ไม่ผ่าน', 'Evidence gate failed'],
-  new_entry_not_allowed: ['ไม่อนุญาตเปิด Position ใหม่', 'New entry not allowed'],
-  risk_rejected: ['Risk gate ปฏิเสธ', 'Risk gate rejected'],
-  execution_failed: ['Execution ล้มเหลวแบบ fail-closed', 'Execution failed closed'],
 };
 
 function localized(map, key, language) {
@@ -83,7 +70,7 @@ function CandidateDetail({ candidate, language }) {
     <div className="history-candidate-detail" data-testid="decision-history-candidate-detail">
       <div className="history-detail-heading">
         <div>
-          <span>Symbol drill-down</span>
+          <span>{language === 'th' ? 'รายละเอียด Candidate' : 'Candidate drill-down'}</span>
           <strong>{candidate.symbol}</strong>
         </div>
         <span className={`observability-result status-${candidate.status}`}>
@@ -99,10 +86,13 @@ function CandidateDetail({ candidate, language }) {
         <div><dt>Position ID</dt><dd><code>{candidate.refs?.positionId || '—'}</code></dd></div>
       </dl>
       <div className="history-reason-box">
-        <strong>{language === 'th' ? 'เหตุผลจาก Manager' : 'Manager reason codes'}</strong>
-        {candidate.reasonCodes.length ? (
-          <ul>{candidate.reasonCodes.map((code) => <li key={code}>{localized(REASON_COPY, code, language)}</li>)}</ul>
-        ) : <span>—</span>}
+        <strong>{language === 'th' ? 'คำอธิบายการตัดสินใจ' : 'Decision explanation'}</strong>
+        <HumanDecisionExplanation
+          codes={candidate.reasonCodes}
+          language={language}
+          stage={candidate.stageReached}
+          testId={`history-human-explanation-${candidate.symbol}`}
+        />
       </div>
     </div>
   );
@@ -144,11 +134,11 @@ export default function DecisionHistoryPanel({ history, language = 'th' }) {
     <section className="panel decision-history-panel" aria-labelledby="decision-history-title" data-testid="decision-history-panel">
       <div className="observability-heading history-heading">
         <div>
-          <p className="eyebrow"><CalendarClock aria-hidden="true" /> Phase 17</p>
-          <h2 id="decision-history-title">{language === 'th' ? 'ประวัติการตัดสินใจและ Drill-down' : 'Decision history and drill-down'}</h2>
+          <p className="eyebrow"><CalendarClock aria-hidden="true" /> Phase 17 + 20</p>
+          <h2 id="decision-history-title">{language === 'th' ? 'ประวัติการตัดสินใจแบบอ่านเข้าใจง่าย' : 'Human-readable decision history'}</h2>
           <p>{language === 'th'
-            ? `เก็บสูงสุด ${history.retentionCycles} รอบจาก Manager_Agent แบบ read-only`
-            : `Up to ${history.retentionCycles} read-only cycles retained by Manager_Agent.`}</p>
+            ? `เก็บสูงสุด ${history.retentionCycles} รอบจาก Manager_Agent และอธิบาย reason code โดยไม่สร้างเหตุผลใหม่`
+            : `Up to ${history.retentionCycles} Manager_Agent cycles with plain-language explanations that never invent rationale.`}</p>
         </div>
         <div className="history-retention" data-testid="decision-history-count">
           <span>{language === 'th' ? 'รอบที่มี' : 'Cycles available'}</span>
