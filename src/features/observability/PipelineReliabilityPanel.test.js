@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { derivePipelineReliability } from './PipelineReliabilityPanel.jsx';
+import { derivePipelineReliability } from './pipelineReliability.js';
 
 function cycle(source, reasonCode = null) {
   return { source, reasonCode, stages: [], candidates: [] };
