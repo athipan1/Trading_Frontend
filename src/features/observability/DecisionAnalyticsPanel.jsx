@@ -128,19 +128,19 @@ export default function DecisionAnalyticsPanel({ analytics, language = 'th' }) {
 
       <div className="observability-facts" data-testid="decision-analytics-summary">
         <div>
-          <span>{language === 'th' ? 'Meaningful cycles' : 'Meaningful cycles'}</span>
+          <span>Meaningful cycles</span>
           <strong>{analytics.dataQuality.meaningfulCycles}/{analytics.dataQuality.historyCycles}</strong>
         </div>
         <div>
-          <span>{language === 'th' ? 'Candidates' : 'Candidates'}</span>
+          <span>Candidates</span>
           <strong>{selectedWindow.metrics.candidateCount}</strong>
         </div>
         <div>
-          <span>{language === 'th' ? 'Blocked rate' : 'Blocked rate'}</span>
+          <span>Blocked rate</span>
           <strong>{percent(selectedWindow.rates.blockedRate)}</strong>
         </div>
         <div>
-          <span>{language === 'th' ? 'Execution rate' : 'Execution rate'}</span>
+          <span>Execution rate</span>
           <strong>{percent(selectedWindow.rates.executionRate)}</strong>
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function DecisionAnalyticsPanel({ analytics, language = 'th' }) {
       <div className="history-filters" aria-label={language === 'th' ? 'เลือกช่วงวิเคราะห์' : 'Select analytics window'}>
         <Filter aria-hidden="true" />
         <label>
-          <span>{language === 'th' ? 'Rolling window' : 'Rolling window'}</span>
+          <span>Rolling window</span>
           <select
             data-testid="decision-analytics-window-filter"
             value={windowSize}
@@ -165,7 +165,7 @@ export default function DecisionAnalyticsPanel({ analytics, language = 'th' }) {
 
       <div className="observability-candidates-section">
         <div className="observability-section-title">
-          <h3>{language === 'th' ? 'Safety / Data Quality alerts' : 'Safety / Data Quality alerts'}</h3>
+          <h3>Safety / Data Quality alerts</h3>
           <span>{analytics.alerts.length}/8</span>
         </div>
         {analytics.alerts.length ? (
@@ -195,7 +195,7 @@ export default function DecisionAnalyticsPanel({ analytics, language = 'th' }) {
       </div>
 
       <div className="observability-stage-section">
-        <h3>{language === 'th' ? 'Candidate conversion funnel' : 'Candidate conversion funnel'}</h3>
+        <h3>Candidate conversion funnel</h3>
         <ol
           className="history-stage-path"
           tabIndex={0}
@@ -221,7 +221,7 @@ export default function DecisionAnalyticsPanel({ analytics, language = 'th' }) {
             className="history-candidate-table-wrap"
             tabIndex={0}
             role="region"
-            aria-label={language === 'th' ? 'Top blocking reasons' : 'Top blocking reasons'}
+            aria-label="Top blocking reasons"
             data-testid="decision-analytics-top-reasons"
           >
             <table className="history-candidate-table">
@@ -251,12 +251,12 @@ export default function DecisionAnalyticsPanel({ analytics, language = 'th' }) {
       <div className="observability-candidates-section">
         <h3>{language === 'th' ? 'Trend: 6 รอบล่าสุดเทียบ 6 รอบก่อนหน้า' : 'Trend: latest 6 vs previous 6'}</h3>
         {analytics.trend.enoughData ? (
-          <div className="history-detail-grid" data-testid="decision-analytics-trend">
+          <dl className="history-detail-grid" data-testid="decision-analytics-trend">
             <div><dt>Candidate Δ</dt><dd>{analytics.trend.candidateCountDelta > 0 ? '+' : ''}{analytics.trend.candidateCountDelta}</dd></div>
             <div><dt>Blocked rate Δ</dt><dd>{signedPoints(analytics.trend.blockedRateDeltaPoints)}</dd></div>
             <div><dt>Execution rate Δ</dt><dd>{signedPoints(analytics.trend.executionRateDeltaPoints)}</dd></div>
             <div><dt>Risk rejection Δ</dt><dd>{signedPoints(analytics.trend.riskRejectionRateDeltaPoints)}</dd></div>
-          </div>
+          </dl>
         ) : (
           <div className="history-empty" role="status" data-testid="decision-analytics-trend-pending">
             <Activity aria-hidden="true" />
