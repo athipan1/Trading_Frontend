@@ -7,8 +7,10 @@ import {
   ShieldAlert,
   TriangleAlert,
 } from 'lucide-react';
+import HumanDecisionExplanation from './HumanDecisionExplanation.jsx';
 import PipelineReliabilityPanel from './PipelineReliabilityPanel.jsx';
 import { getTradingDecisionData } from './observabilityApi.js';
+import { explainDecisionReason } from './reasonExplanations.js';
 
 const DecisionAnalyticsPanel = lazy(() => import('./DecisionAnalyticsPanel.jsx'));
 const DecisionHistoryPanel = lazy(() => import('./DecisionHistoryPanel.jsx'));
@@ -38,36 +40,14 @@ const STATUS_LABELS = {
   unknown: ['ไม่ทราบ', 'Unknown'],
 };
 
-const REASON_COPY = {
-  no_preselected_backtest_symbols: ['ไม่มี Symbol ผ่านไปถึง Backtest ในรอบนี้', 'No symbols reached Backtest in this cycle'],
-  scheduled_paper_cycle_not_authorized: ['รอบตามเวลาถูก safety gate ปิดไว้', 'Scheduled Paper cycle is disabled by the safety gate'],
-  hourly_schedule_disabled: ['รอบตามเวลาถูกปิดไว้โดยตั้งใจ', 'Hourly Paper schedule is intentionally disabled'],
-  hourly_artifact_unavailable: ['ไม่มี hourly trading artifact ของรอบล่าสุด', 'Latest hourly trading artifact is unavailable'],
-  market_closed: ['ตลาดปิด จึงไม่เปิดสถานะใหม่', 'Market is closed, so no new position was opened'],
-  no_eligible_strategy: ['Backtest ไม่พบกลยุทธ์ที่ผ่านเกณฑ์', 'Backtest found no eligible strategy'],
-  investability_market_cap_below_minimum: ['Market cap ต่ำกว่าเกณฑ์ investability', 'Market cap is below the investability minimum'],
-  investability_average_dollar_volume_below_minimum: ['สภาพคล่องเฉลี่ยเป็นดอลลาร์ต่ำกว่าเกณฑ์', 'Average dollar volume is below the minimum'],
-  investability_spread_missing: ['ไม่มีข้อมูล spread ครบถ้วน', 'Spread evidence is unavailable'],
-  evidence_gate_failed: ['หลักฐานวิเคราะห์ไม่ผ่าน evidence gate', 'Analysis evidence did not pass the evidence gate'],
-  new_entry_not_allowed: ['นโยบายไม่อนุญาตเปิด Position ใหม่', 'Policy does not allow a new entry'],
-  bucket_unassigned: ['ยังจัด Strategy bucket ไม่ได้', 'Strategy bucket is unassigned'],
-  bucket_conflict: ['หลักฐาน Strategy bucket ขัดแย้งกัน', 'Strategy bucket evidence conflicts'],
-  bucket_evidence_insufficient: ['หลักฐานไม่พอสำหรับ Strategy bucket', 'Insufficient evidence for a strategy bucket'],
-  manager_verdict_hold: ['Manager ให้ verdict HOLD', 'Manager verdict is HOLD'],
-  manager_verdict_sell: ['Manager ให้ verdict SELL', 'Manager verdict is SELL'],
-  risk_rejected: ['Risk gate ปฏิเสธคำขอ', 'Risk gate rejected the request'],
-  execution_failed: ['Execution ล้มเหลวแบบ fail-closed', 'Execution failed closed'],
-  protection_gap_detected: ['พบช่องว่างของ protective orders', 'A protective-order gap was detected'],
-};
-
 function label(map, key, language) {
   const value = map[key];
   if (!value) return key || '—';
   return value[language === 'th' ? 0 : 1];
 }
 
-function reasonText(code, language) {
-  return label(REASON_COPY, code, language);
+function reasonText(code, language, stage = null) {
+  return explainDecisionReason(code, { language, stage }).title;
 }
 
 function StatusIcon({ status }) {
@@ -80,12 +60,16 @@ function StatusIcon({ status }) {
   return <CircleDashed aria-hidden="true" />;
 }
 
-function CandidateReasons({ codes, language }) {
-  if (!codes.length) return <span>—</span>;
+function CandidateReasons({ candidate, language }) {
+  if (!candidate.reasonCodes.length) return <span>—</span>;
   return (
-    <ul className="observability-reasons">
-      {codes.map((code) => <li key={code}>{reasonText(code, language)}</li>)}
-    </ul>
+    <HumanDecisionExplanation
+      codes={candidate.reasonCodes}
+      language={language}
+      stage={candidate.stageReached}
+      compact
+      testId={`human-explanation-${candidate.symbol}`}
+    />
   );
 }
 
@@ -136,11 +120,11 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
       <section className="panel observability-panel" aria-labelledby="trading-observability-title" data-testid="trading-observability-panel">
         <div className="observability-heading">
           <div>
-            <p className="eyebrow"><GitBranch aria-hidden="true" /> Phase 16</p>
-            <h2 id="trading-observability-title">{language === 'th' ? 'เส้นทางการตัดสินใจเทรด' : 'Trading decision path'}</h2>
+            <p className="eyebrow"><GitBranch aria-hidden="true" /> Phase 20</p>
+            <h2 id="trading-observability-title">{language === 'th' ? 'ทำไมระบบถึงตัดสินใจแบบนี้' : 'Why the system made this decision'}</h2>
             <p>{language === 'th'
-              ? 'ข้อมูล explainability จาก Manager_Agent เท่านั้น ไม่ได้สร้างเหตุผลใหม่ใน Frontend'
-              : 'Explainability is sourced from Manager_Agent only; the Frontend does not invent decision reasons.'}</p>
+              ? 'แปล reason code จาก Manager_Agent เป็นภาษาธรรมชาติแบบ deterministic โดย Frontend ไม่แต่งเหตุผลใหม่เอง'
+              : 'Manager_Agent reason codes are translated into deterministic plain language; the Frontend does not invent rationale.'}</p>
           </div>
           <div className="observability-correlation" data-testid="observability-correlation">
             <span>Correlation ID</span>
@@ -166,7 +150,7 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
         </div>
 
         <div className="observability-stage-section">
-          <h3>Decision path</h3>
+          <h3>{language === 'th' ? 'เส้นทางการตัดสินใจ' : 'Decision path'}</h3>
           <ol
             className="observability-stages"
             data-testid="observability-stage-list"
@@ -179,7 +163,7 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
                 <div>
                   <strong>{label(STAGE_LABELS, stage.id, language)}</strong>
                   <span>{label(STATUS_LABELS, stage.status, language)}</span>
-                  {stage.reasonCodes.length ? <small>{reasonText(stage.reasonCodes[0], language)}</small> : null}
+                  {stage.reasonCodes.length ? <small>{reasonText(stage.reasonCodes[0], language, stage.id)}</small> : null}
                 </div>
               </li>
             ))}
@@ -188,7 +172,7 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
 
         <div className="observability-candidates-section">
           <div className="observability-section-title">
-            <h3>{language === 'th' ? 'ทำไม Candidate ไปต่อหรือหยุด' : 'Why candidates advanced or stopped'}</h3>
+            <h3>{language === 'th' ? 'คำอธิบายแบบภาษาคนของแต่ละ Candidate' : 'Plain-language candidate explanations'}</h3>
             <span>{cycle.candidates.length}/10</span>
           </div>
           {cycle.candidates.length ? (
@@ -202,7 +186,7 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
                   <th>Score</th>
                   <th>{language === 'th' ? 'ถึงขั้น' : 'Reached'}</th>
                   <th>{language === 'th' ? 'ผล' : 'Result'}</th>
-                  <th>{language === 'th' ? 'เหตุผล' : 'Reasons'}</th>
+                  <th>{language === 'th' ? 'เกิดอะไรขึ้น / ทำไม' : 'What happened / Why'}</th>
                 </tr></thead>
                 <tbody>
                   {cycle.candidates.map((candidate) => (
@@ -213,7 +197,7 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
                       <td>{formatScore(candidate.finalScore)}</td>
                       <td>{label(STAGE_LABELS, candidate.stageReached, language)}</td>
                       <td><span className={`observability-result status-${candidate.status}`}><StatusIcon status={candidate.status} />{label(STATUS_LABELS, candidate.status, language)}</span></td>
-                      <td><CandidateReasons codes={candidate.reasonCodes} language={language} /></td>
+                      <td><CandidateReasons candidate={candidate} language={language} /></td>
                     </tr>
                   ))}
                 </tbody>
