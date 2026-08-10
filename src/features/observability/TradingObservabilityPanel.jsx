@@ -7,13 +7,13 @@ import {
   ShieldAlert,
   TriangleAlert,
 } from 'lucide-react';
+import DecisionHistoryPanel from './DecisionHistoryPanel.jsx';
 import HumanDecisionExplanation from './HumanDecisionExplanation.jsx';
 import PipelineReliabilityPanel from './PipelineReliabilityPanel.jsx';
 import { getTradingDecisionData } from './observabilityApi.js';
 import { explainDecisionReason } from './reasonExplanations.js';
 
 const DecisionAnalyticsPanel = lazy(() => import('./DecisionAnalyticsPanel.jsx'));
-const DecisionHistoryPanel = lazy(() => import('./DecisionHistoryPanel.jsx'));
 
 const STAGE_LABELS = {
   scanner: ['Scanner', 'Scanner'],
@@ -215,9 +215,7 @@ export default function TradingObservabilityPanel({ language = 'th' }) {
         </Suspense>
       ) : null}
       {state.data?.decisionHistory ? (
-        <Suspense fallback={null}>
-          <DecisionHistoryPanel history={state.data.decisionHistory} language={language} />
-        </Suspense>
+        <DecisionHistoryPanel history={state.data.decisionHistory} language={language} />
       ) : null}
     </>
   );
