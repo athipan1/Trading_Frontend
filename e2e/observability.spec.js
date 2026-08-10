@@ -123,13 +123,90 @@ function decisionHistoryPayload() {
   };
 }
 
-async function mockSnapshot(page, { includeHistory = true } = {}) {
+function analyticsWindow(size, candidateCount) {
+  return {
+    size,
+    cyclesAvailable: 2,
+    metrics: {
+      candidateCount,
+      buyCount: 2,
+      blockedCount: 2,
+      executedCount: 0,
+      riskRejectedCount: 1,
+      executionFailureCount: 0,
+    },
+    rates: {
+      buyRate: 2 / candidateCount,
+      blockedRate: 2 / candidateCount,
+      executionRate: 0,
+      riskRejectionRate: 1,
+      executionFailureRate: null,
+    },
+    funnel: STAGE_IDS.map((stageId, index) => ({
+      stage: stageId,
+      reachedCount: index === 0 ? candidateCount : index <= 5 ? 1 : 0,
+      reachRate: index === 0 ? 1 : index <= 5 ? 1 / candidateCount : 0,
+    })),
+    topBlockingReasons: [
+      { code: 'investability_market_cap_below_minimum', count: 1, shareOfBlockedCandidates: 0.5 },
+      { code: 'risk_rejected', count: 1, shareOfBlockedCandidates: 0.5 },
+    ],
+  };
+}
+
+function decisionAnalyticsPayload() {
+  return {
+    schemaVersion: 'decision-analytics.v1',
+    generatedAt: '2026-08-09T14:50:00Z',
+    sourceHistorySchemaVersion: 'decision-history.v1',
+    overallStatus: 'warning',
+    latest: {
+      source: 'hourly_artifact', correlationId: 'hourly-paper-test-20260809T11',
+      cycleId: 'hourly-paper-test-20260809T11', workflowRunId: 31311487235,
+      observedAt: '2026-08-09T11:48:23Z', status: 'controlled_no_trade',
+      reasonCode: 'no_preselected_backtest_symbols',
+      summary: { candidateCount: 2, buyCount: 1, blockedCount: 1, executedCount: 0, riskRejectedCount: 0, executionFailureCount: 0 },
+    },
+    latestMeaningful: {
+      source: 'hourly_artifact', correlationId: 'hourly-paper-test-20260809T11',
+      cycleId: 'hourly-paper-test-20260809T11', workflowRunId: 31311487235,
+      observedAt: '2026-08-09T11:48:23Z', status: 'controlled_no_trade',
+      reasonCode: 'no_preselected_backtest_symbols',
+      summary: { candidateCount: 2, buyCount: 1, blockedCount: 1, executedCount: 0, riskRejectedCount: 0, executionFailureCount: 0 },
+    },
+    windows: [analyticsWindow(6, 3), analyticsWindow(12, 4), analyticsWindow(24, 4)],
+    trend: {
+      comparison: 'latest6_vs_previous6', enoughData: false,
+      latestCycles: 2, previousCycles: 0, candidateCountDelta: null,
+      blockedRateDeltaPoints: null, executionRateDeltaPoints: null, riskRejectionRateDeltaPoints: null,
+    },
+    alerts: [
+      {
+        code: 'snapshot_stale', severity: 'warning', status: 'active', value: 545.68,
+        threshold: 120, windowCycles: null, observedAt: '2026-08-09T14:50:00Z',
+      },
+      {
+        code: 'insufficient_meaningful_history', severity: 'info', status: 'active', value: 2,
+        threshold: 6, windowCycles: 2, observedAt: '2026-08-09T14:50:00Z',
+      },
+    ],
+    dataQuality: {
+      historyCycles: 2, meaningfulCycles: 2, metadataOnlyCycles: 0,
+      latestCycleSource: 'hourly_artifact', latestReasonCode: 'no_preselected_backtest_symbols',
+      latestMeaningfulObservedAt: '2026-08-09T11:48:23Z',
+      sufficientFor6CycleWindow: false, sufficientForTrendComparison: false,
+    },
+  };
+}
+
+async function mockSnapshot(page, { includeHistory = true, includeAnalytics = true } = {}) {
   await page.addInitScript(() => {
     window.localStorage.setItem('trading-dashboard-language', 'en');
   });
   const payload = fixture();
   payload.observability = observabilityPayload();
   if (includeHistory) payload.decisionHistory = decisionHistoryPayload();
+  if (includeAnalytics) payload.decisionAnalytics = decisionAnalyticsPayload();
   await page.route(SNAPSHOT_PATTERN, (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
@@ -204,11 +281,52 @@ test('Phase 17 filters history by symbol, result, and stage reached', async ({ p
   await expect(page.getByTestId('decision-history-candidate-detail')).toContainText('AAPL');
 });
 
-test('Phase 16-only snapshots remain backward compatible when history is absent', async ({ page }) => {
-  await mockSnapshot(page, { includeHistory: false });
+test('Phase 18 shows rolling analytics, safety alerts, funnel, top reasons, and pending trend', async ({ page }) => {
+  await mockSnapshot(page);
+  await page.goto('/system');
+
+  const analytics = page.getByTestId('decision-analytics-panel');
+  await expect(analytics).toBeVisible();
+  await expect(page.getByTestId('decision-analytics-status')).toHaveText('Warning');
+  const staleAlert = page.getByTestId('decision-analytics-alert-snapshot_stale');
+  await expect(staleAlert).toContainText('Snapshot is stale');
+  await expect(staleAlert).toContainText('threshold 120');
+  await expect(page.getByTestId('decision-analytics-alert-insufficient_meaningful_history')).toContainText('INFO');
+  await expect(page.getByTestId('decision-analytics-funnel').locator('li')).toHaveCount(7);
+  await expect(page.getByTestId('decision-analytics-top-reasons')).toContainText('Market cap below minimum');
+  await expect(page.getByTestId('decision-analytics-top-reasons')).toContainText('Risk rejected');
+  await expect(page.getByTestId('decision-analytics-trend-pending')).toContainText('Twelve meaningful cycles');
+});
+
+test('Phase 18 switches rolling windows without another snapshot request', async ({ page }) => {
+  await mockSnapshot(page);
+  let snapshotRequests = 0;
+  page.on('request', (request) => {
+    if (request.url().startsWith('https://snapshot.test/dashboard.json')) snapshotRequests += 1;
+  });
+  await page.goto('/system');
+  await expect(page.getByTestId('decision-analytics-summary')).toContainText('3');
+  const requestsAfterLoad = snapshotRequests;
+
+  await page.getByTestId('decision-analytics-window-filter').selectOption('12');
+  await expect(page.getByTestId('decision-analytics-summary')).toContainText('4');
+  expect(snapshotRequests).toBe(requestsAfterLoad);
+});
+
+test('Phase 17 snapshots remain backward compatible when Phase 18 analytics is absent', async ({ page }) => {
+  await mockSnapshot(page, { includeAnalytics: false });
+  await page.goto('/system');
+  await expect(page.getByTestId('trading-observability-panel')).toBeVisible();
+  await expect(page.getByTestId('decision-history-panel')).toBeVisible();
+  await expect(page.getByTestId('decision-analytics-panel')).toHaveCount(0);
+});
+
+test('Phase 16-only snapshots remain backward compatible when history and analytics are absent', async ({ page }) => {
+  await mockSnapshot(page, { includeHistory: false, includeAnalytics: false });
   await page.goto('/system');
   await expect(page.getByTestId('trading-observability-panel')).toBeVisible();
   await expect(page.getByTestId('decision-history-panel')).toHaveCount(0);
+  await expect(page.getByTestId('decision-analytics-panel')).toHaveCount(0);
 });
 
 test('remains usable at 320px without page-level horizontal overflow', async ({ page }) => {
@@ -216,21 +334,23 @@ test('remains usable at 320px without page-level horizontal overflow', async ({ 
   await mockSnapshot(page);
   await page.goto('/system');
   await expect(page.getByTestId('trading-observability-panel')).toBeVisible();
+  await expect(page.getByTestId('decision-analytics-panel')).toBeVisible();
   await expect(page.getByTestId('decision-history-panel')).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 
-test('@a11y Phase 17 decision history state has no serious or critical axe violations', async ({ page }, testInfo) => {
+test('@a11y Phase 18 analytics and history state has no serious or critical axe violations', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await mockSnapshot(page);
   await page.goto('/system');
+  await expect(page.getByTestId('decision-analytics-panel')).toBeVisible();
   await expect(page.getByTestId('decision-history-panel')).toBeVisible();
   await page.addScriptTag({ path: AXE_PATH });
   const results = await page.evaluate(async () => window.axe.run(document, {
     runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22a', 'wcag22aa', 'best-practice'] },
     resultTypes: ['violations'],
   }));
-  await testInfo.attach('phase17-axe.json', {
+  await testInfo.attach('phase18-axe.json', {
     body: JSON.stringify(results, null, 2),
     contentType: 'application/json',
   });

@@ -129,6 +129,8 @@ async function waitForRoute(page, route, navigationTimeoutMs) {
   if (requiresTradingObservability(route.path)) {
     await page.getByTestId('trading-observability-panel').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
     await page.getByTestId('observability-stage-list').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
+    await page.getByTestId('decision-analytics-panel').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
+    await page.getByTestId('decision-analytics-funnel').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
     await page.getByTestId('decision-history-panel').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
     await page.getByTestId('decision-history-cycle-list').waitFor({ state: 'visible', timeout: navigationTimeoutMs });
   }
@@ -233,6 +235,9 @@ async function inspectRoute({ browser, targetUrl, route, viewport, navigationTim
           correlationId: (await page.getByTestId('observability-correlation').locator('code').textContent())?.trim() || null,
           stageCount: await page.getByTestId('observability-stage-list').locator('li').count(),
           candidateCount: await page.locator('[data-testid^="observability-candidate-"]').count(),
+          analyticsStatus: (await page.getByTestId('decision-analytics-status').textContent())?.trim() || null,
+          analyticsAlertCount: await page.locator('[data-testid^="decision-analytics-alert-"]').count(),
+          analyticsFunnelStageCount: await page.getByTestId('decision-analytics-funnel').locator('li').count(),
           historyCycleCount: await page.getByTestId('decision-history-cycle-list').locator('button').count(),
         }
       : null;
@@ -241,6 +246,12 @@ async function inspectRoute({ browser, targetUrl, route, viewport, navigationTim
     }
     if (observability && !observability.correlationId) {
       throw new Error('Trading observability correlation ID is missing');
+    }
+    if (observability && !observability.analyticsStatus) {
+      throw new Error('Decision analytics overall status is missing');
+    }
+    if (observability && observability.analyticsFunnelStageCount !== 7) {
+      throw new Error(`Decision analytics must render exactly 7 funnel stages; received ${observability.analyticsFunnelStageCount}`);
     }
     if (observability && (observability.historyCycleCount < 1 || observability.historyCycleCount > 24)) {
       throw new Error(`Decision history must render 1-24 cycles; received ${observability.historyCycleCount}`);
