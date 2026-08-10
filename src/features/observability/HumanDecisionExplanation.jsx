@@ -1,5 +1,6 @@
 import { ChevronDown, CircleHelp, Lightbulb, ShieldAlert } from 'lucide-react';
 import { explainDecisionReasons } from './reasonExplanations.js';
+import './humanDecisionExplanation.css';
 
 function copy(language) {
   if (language === 'en') {
