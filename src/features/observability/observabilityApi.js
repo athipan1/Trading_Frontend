@@ -21,6 +21,7 @@ const MAX_CANDIDATES = 10;
 const MAX_HISTORY_CYCLES = 24;
 const MAX_REASON_CODES = 8;
 const MAX_ANALYTICS_CANDIDATES = MAX_CANDIDATES * MAX_HISTORY_CYCLES;
+const MAX_ANALYTICS_ALERT_NUMBER = 1e9;
 const REQUEST_TIMEOUT_MS = 10_000;
 
 function isPlainObject(value) {
@@ -308,7 +309,7 @@ function normalizeAnalyticsTrend(value) {
 function normalizeAlertValue(value, field) {
   if (value === null || value === undefined) return null;
   if (typeof value === 'boolean') return value;
-  return nullableNumber(value, field, { min: -MAX_ANALYTICS_CANDIDATES, max: MAX_ANALYTICS_CANDIDATES });
+  return nullableNumber(value, field, { min: -MAX_ANALYTICS_ALERT_NUMBER, max: MAX_ANALYTICS_ALERT_NUMBER });
 }
 
 function normalizeAnalyticsAlert(value, index) {
@@ -326,7 +327,7 @@ function normalizeAnalyticsAlert(value, index) {
     severity,
     status: 'active',
     value: normalizeAlertValue(row.value, `${field}.value`),
-    threshold: nullableNumber(row.threshold, `${field}.threshold`, { min: 0, max: MAX_ANALYTICS_CANDIDATES }),
+    threshold: nullableNumber(row.threshold, `${field}.threshold`, { min: 0, max: MAX_ANALYTICS_ALERT_NUMBER }),
     windowCycles: nullableNumber(row.windowCycles, `${field}.windowCycles`, { min: 0, max: MAX_HISTORY_CYCLES }),
     observedAt: timestamp(row.observedAt, `${field}.observedAt`),
   };
