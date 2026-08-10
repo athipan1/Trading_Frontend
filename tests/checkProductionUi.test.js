@@ -5,9 +5,10 @@ import {
   evaluateUiStatus,
 } from '../scripts/check-production-ui.mjs';
 
-const STAGES = [
+const STAGE_IDS = [
   'scanner', 'backtest', 'market_regime', 'portfolio', 'profit', 'risk', 'execution',
-].map((id) => ({ id, status: 'not_attempted' }));
+];
+const STAGES = STAGE_IDS.map((id) => ({ id, status: 'not_attempted' }));
 
 function decisionHistory(overrides = {}) {
   return {
@@ -22,12 +23,33 @@ function decisionHistory(overrides = {}) {
   };
 }
 
+function decisionAnalytics(overrides = {}) {
+  return {
+    schemaVersion: 'decision-analytics.v1',
+    sourceHistorySchemaVersion: 'decision-history.v1',
+    overallStatus: 'healthy',
+    windows: [6, 12, 24].map((size) => ({
+      size,
+      cyclesAvailable: 1,
+      funnel: STAGE_IDS.map((stage) => ({ stage, reachedCount: 0, reachRate: null })),
+      topBlockingReasons: [],
+    })),
+    alerts: [],
+    dataQuality: {
+      historyCycles: 1,
+      meaningfulCycles: 1,
+    },
+    ...overrides,
+  };
+}
+
 function telemetryPayload(overrides = {}) {
   return {
     agents: [{ id: 'manager' }, { id: 'database' }],
     risk: { riskLevel: 'low' },
     backtest: { latestRun: null, history: [] },
     decisionHistory: decisionHistory(),
+    decisionAnalytics: decisionAnalytics(),
     ...overrides,
   };
 }
@@ -66,17 +88,20 @@ describe('Production smoke UI classification', () => {
   });
 });
 
-describe('Production telemetry and Phase 17 history contract', () => {
-  it('accepts published telemetry and bounded decision history without inventing backtest data', () => {
+describe('Production telemetry, history, and analytics contract', () => {
+  it('accepts published telemetry, bounded history, and decision analytics without inventing backtest data', () => {
     expect(evaluateTelemetryContract(telemetryPayload())).toEqual({
       agentTelemetryCount: 2,
       riskTelemetryAvailable: true,
       backtestTelemetryAvailable: false,
       decisionHistoryCycleCount: 1,
+      decisionAnalyticsStatus: 'healthy',
+      decisionAnalyticsAlertCount: 0,
+      decisionAnalyticsMeaningfulCycles: 1,
     });
   });
 
-  it('reports backtest telemetry when a latest run or history exists', () => {
+  it('reports backtest telemetry and analytics alerts when present', () => {
     expect(
       evaluateTelemetryContract(telemetryPayload({
         agents: [],
@@ -85,15 +110,24 @@ describe('Production telemetry and Phase 17 history contract', () => {
           latestRun: { id: 'bt-1' },
           history: [],
         },
+        decisionAnalytics: decisionAnalytics({
+          overallStatus: 'warning',
+          alerts: [{ code: 'snapshot_stale', severity: 'warning' }],
+        }),
       })),
-    ).toMatchObject({ backtestTelemetryAvailable: true, decisionHistoryCycleCount: 1 });
+    ).toMatchObject({
+      backtestTelemetryAvailable: true,
+      decisionHistoryCycleCount: 1,
+      decisionAnalyticsStatus: 'warning',
+      decisionAnalyticsAlertCount: 1,
+    });
   });
 
   it.each([
-    [{ risk: null, backtest: { latestRun: null, history: [] }, decisionHistory: decisionHistory() }, 'agents projection'],
-    [{ agents: [], backtest: { latestRun: null, history: [] }, decisionHistory: decisionHistory() }, 'risk projection'],
-    [{ agents: [], risk: null, decisionHistory: decisionHistory() }, 'backtest projection'],
-    [{ agents: [], risk: null, backtest: { latestRun: null }, decisionHistory: decisionHistory() }, 'backtest projection is malformed'],
+    [{ risk: null, backtest: { latestRun: null, history: [] }, decisionHistory: decisionHistory(), decisionAnalytics: decisionAnalytics() }, 'agents projection'],
+    [{ agents: [], backtest: { latestRun: null, history: [] }, decisionHistory: decisionHistory(), decisionAnalytics: decisionAnalytics() }, 'risk projection'],
+    [{ agents: [], risk: null, decisionHistory: decisionHistory(), decisionAnalytics: decisionAnalytics() }, 'backtest projection'],
+    [{ agents: [], risk: null, backtest: { latestRun: null }, decisionHistory: decisionHistory(), decisionAnalytics: decisionAnalytics() }, 'backtest projection is malformed'],
   ])('fails closed when a required telemetry projection regresses', (payload, message) => {
     expect(() => evaluateTelemetryContract(payload)).toThrow(message);
   });
@@ -107,6 +141,26 @@ describe('Production telemetry and Phase 17 history contract', () => {
     [telemetryPayload({ decisionHistory: decisionHistory({ cycles: [{ stages: STAGES.slice(0, 6), candidates: [] }] }) }), 'exactly 7 stages'],
     [telemetryPayload({ decisionHistory: decisionHistory({ cycles: [{ stages: STAGES, candidates: Array.from({ length: 11 }, () => ({})) }] }) }), 'invalid candidate count'],
   ])('fails closed when Phase 17 history regresses', (payload, message) => {
+    expect(() => evaluateTelemetryContract(payload)).toThrow(message);
+  });
+
+  it.each([
+    [telemetryPayload({ decisionAnalytics: null }), 'decisionAnalytics projection'],
+    [telemetryPayload({ decisionAnalytics: decisionAnalytics({ schemaVersion: 'decision-analytics.v0' }) }), 'schema must be decision-analytics.v1'],
+    [telemetryPayload({ decisionAnalytics: decisionAnalytics({ sourceHistorySchemaVersion: 'decision-history.v0' }) }), 'source history schema'],
+    [telemetryPayload({ decisionAnalytics: decisionAnalytics({ overallStatus: 'panic' }) }), 'overallStatus'],
+    [telemetryPayload({ decisionAnalytics: decisionAnalytics({ windows: [] }) }), '6/12/24 windows'],
+    [telemetryPayload({ decisionAnalytics: decisionAnalytics({ windows: [
+      { size: 5, funnel: STAGE_IDS.map((stage) => ({ stage })), topBlockingReasons: [] },
+      ...decisionAnalytics().windows.slice(1),
+    ] }) }), 'window 0'],
+    [telemetryPayload({ decisionAnalytics: decisionAnalytics({ windows: [
+      { ...decisionAnalytics().windows[0], funnel: decisionAnalytics().windows[0].funnel.slice(0, 6) },
+      ...decisionAnalytics().windows.slice(1),
+    ] }) }), 'funnel'],
+    [telemetryPayload({ decisionAnalytics: decisionAnalytics({ alerts: [{ code: 'x', severity: 'panic' }] }) }), 'alerts'],
+    [telemetryPayload({ decisionAnalytics: decisionAnalytics({ dataQuality: { historyCycles: 2, meaningfulCycles: 1 } }) }), 'data quality'],
+  ])('fails closed when Phase 18 analytics regresses', (payload, message) => {
     expect(() => evaluateTelemetryContract(payload)).toThrow(message);
   });
 });
