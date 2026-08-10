@@ -31,7 +31,7 @@ describe('human-readable trading decision explanations', () => {
       title: 'Candidate หยุดที่ Risk gate',
     });
     expect(result.explanation).toContain('จะไม่เดาเหตุผล');
-    expect(result.action).toContain('future_risk_policy_code');
+    expect(result.action).toContain('Manager_Agent');
   });
 
   it('deduplicates repeated reason codes while preserving order', () => {
