@@ -288,7 +288,9 @@ test('Phase 18 shows rolling analytics, safety alerts, funnel, top reasons, and 
   const analytics = page.getByTestId('decision-analytics-panel');
   await expect(analytics).toBeVisible();
   await expect(page.getByTestId('decision-analytics-status')).toHaveText('Warning');
-  await expect(page.getByTestId('decision-analytics-alert-snapshot_stale')).toContainText('545');
+  const staleAlert = page.getByTestId('decision-analytics-alert-snapshot_stale');
+  await expect(staleAlert).toContainText('Snapshot is stale');
+  await expect(staleAlert).toContainText('threshold 120');
   await expect(page.getByTestId('decision-analytics-alert-insufficient_meaningful_history')).toContainText('INFO');
   await expect(page.getByTestId('decision-analytics-funnel').locator('li')).toHaveCount(7);
   await expect(page.getByTestId('decision-analytics-top-reasons')).toContainText('Market cap below minimum');
