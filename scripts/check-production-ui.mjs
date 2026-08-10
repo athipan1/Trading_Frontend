@@ -10,7 +10,12 @@ const DEFAULT_DELAY_MS = 15_000;
 const DEFAULT_NAVIGATION_TIMEOUT_MS = 30_000;
 const ALLOWED_RUNTIME_MODES = new Set(['PAPER', 'SIMULATOR']);
 const DECISION_HISTORY_SCHEMA_VERSION = 'decision-history.v1';
+const DECISION_ANALYTICS_SCHEMA_VERSION = 'decision-analytics.v1';
 const DECISION_HISTORY_RETENTION = 24;
+const STAGE_IDS = ['scanner', 'backtest', 'market_regime', 'portfolio', 'profit', 'risk', 'execution'];
+const ANALYTICS_WINDOW_SIZES = [6, 12, 24];
+const ANALYTICS_STATUSES = new Set(['healthy', 'warning', 'critical']);
+const ALERT_SEVERITIES = new Set(['info', 'warning', 'critical']);
 
 function positiveInteger(value, fallback, name) {
   if (value === undefined || value === '') return fallback;
@@ -95,7 +100,7 @@ export function evaluateTelemetryContract(payload) {
     if (!cycle || typeof cycle !== 'object' || Array.isArray(cycle)) {
       throw new Error(`Manager_Agent decisionHistory cycle ${index} is malformed`);
     }
-    if (!Array.isArray(cycle.stages) || cycle.stages.length !== 7) {
+    if (!Array.isArray(cycle.stages) || cycle.stages.length !== STAGE_IDS.length) {
       throw new Error(`Manager_Agent decisionHistory cycle ${index} must contain exactly 7 stages`);
     }
     if (!Array.isArray(cycle.candidates) || cycle.candidates.length > 10) {
@@ -103,11 +108,54 @@ export function evaluateTelemetryContract(payload) {
     }
   }
 
+  const analytics = payload.decisionAnalytics;
+  if (!analytics || typeof analytics !== 'object' || Array.isArray(analytics)) {
+    throw new Error('Manager_Agent snapshot is missing the decisionAnalytics projection');
+  }
+  if (analytics.schemaVersion !== DECISION_ANALYTICS_SCHEMA_VERSION) {
+    throw new Error(`Manager_Agent decisionAnalytics schema must be ${DECISION_ANALYTICS_SCHEMA_VERSION}`);
+  }
+  if (analytics.sourceHistorySchemaVersion !== DECISION_HISTORY_SCHEMA_VERSION) {
+    throw new Error('Manager_Agent decisionAnalytics source history schema is invalid');
+  }
+  if (!ANALYTICS_STATUSES.has(analytics.overallStatus)) {
+    throw new Error('Manager_Agent decisionAnalytics overallStatus is invalid');
+  }
+  if (!Array.isArray(analytics.windows) || analytics.windows.length !== ANALYTICS_WINDOW_SIZES.length) {
+    throw new Error('Manager_Agent decisionAnalytics must contain 6/12/24 windows');
+  }
+  for (const [index, window] of analytics.windows.entries()) {
+    if (!window || typeof window !== 'object' || Array.isArray(window)
+      || window.size !== ANALYTICS_WINDOW_SIZES[index]) {
+      throw new Error(`Manager_Agent decisionAnalytics window ${index} is malformed`);
+    }
+    if (!Array.isArray(window.funnel)
+      || window.funnel.map((row) => row?.stage).join(',') !== STAGE_IDS.join(',')) {
+      throw new Error(`Manager_Agent decisionAnalytics window ${window.size} funnel is malformed`);
+    }
+    if (!Array.isArray(window.topBlockingReasons) || window.topBlockingReasons.length > 8) {
+      throw new Error(`Manager_Agent decisionAnalytics window ${window.size} blocking reasons are malformed`);
+    }
+  }
+  if (!Array.isArray(analytics.alerts) || analytics.alerts.length > 8
+    || analytics.alerts.some((alert) => !ALERT_SEVERITIES.has(alert?.severity))) {
+    throw new Error('Manager_Agent decisionAnalytics alerts are malformed');
+  }
+  if (!analytics.dataQuality || typeof analytics.dataQuality !== 'object'
+    || analytics.dataQuality.historyCycles !== decisionHistory.cycles.length
+    || analytics.dataQuality.meaningfulCycles < 0
+    || analytics.dataQuality.meaningfulCycles > decisionHistory.cycles.length) {
+    throw new Error('Manager_Agent decisionAnalytics data quality is malformed');
+  }
+
   return {
     agentTelemetryCount: payload.agents.length,
     riskTelemetryAvailable: payload.risk !== null,
     backtestTelemetryAvailable: payload.backtest.latestRun !== null || payload.backtest.history.length > 0,
     decisionHistoryCycleCount: decisionHistory.cycles.length,
+    decisionAnalyticsStatus: analytics.overallStatus,
+    decisionAnalyticsAlertCount: analytics.alerts.length,
+    decisionAnalyticsMeaningfulCycles: analytics.dataQuality.meaningfulCycles,
   };
 }
 
