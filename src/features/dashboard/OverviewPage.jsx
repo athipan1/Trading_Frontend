@@ -11,7 +11,7 @@ function AccountMetrics({ snapshot, language, t }) {
   const accountValue = (value) => (account.valuesMasked || value === null ? maskedValue : formatCurrency(value));
 
   return (
-    <section className="metrics-grid" aria-label={language === 'th' ? 'ข้อมูลบัญชี' : 'Account metrics'}>
+    <section className="metrics-grid overview-metrics-grid" aria-label={language === 'th' ? 'ข้อมูลบัญชี' : 'Account metrics'}>
       <MetricCard label={t.cash} value={accountValue(account.cash)} helper={account.valuesMasked ? maskedValue : t.availableBalance} tone="cash" />
       <MetricCard label={t.equity} value={accountValue(account.equity)} helper={account.valuesMasked ? maskedValue : t.brokerSnapshot} />
       <MetricCard label={t.buyingPower} value={accountValue(account.buyingPower)} helper={account.valuesMasked ? maskedValue : t.paperAccount} />
@@ -28,7 +28,7 @@ function PortfolioHealth({ snapshot, t }) {
   ).length;
 
   return (
-    <section className="health-grid" aria-label={t.portfolioSummary}>
+    <section className="health-grid overview-health-grid" aria-label={t.portfolioSummary}>
       <article className="health-card"><WalletCards aria-hidden="true" /><div><span>{t.positions}</span><strong>{positions.length}</strong></div></article>
       <article className="health-card"><ShieldCheck aria-hidden="true" /><div><span>{t.bracketProtected}</span><strong>{protectedPositions}/{positions.length}</strong></div></article>
       <article className="health-card"><Activity aria-hidden="true" /><div><span>{t.openOrders}</span><strong>{openOrders.length}</strong></div></article>
@@ -42,7 +42,7 @@ function SystemSummary({ snapshot, language, t, onOpenSystem, onOpenPortfolio })
   const isHealthy = conclusion === 'success' || conclusion === 'completed';
 
   return (
-    <section className={`panel overview-system-card${isHealthy ? ' healthy' : ' attention'}`}>
+    <section className={`panel overview-system-card overview-command-card${isHealthy ? ' healthy' : ' attention'}`}>
       <div className="overview-system-copy">
         <span className={`status ${isHealthy ? 'good' : 'warn'}`}>
           <ShieldCheck aria-hidden="true" /> {isHealthy ? t.systemHealthy : t.systemNeedsAttention}
@@ -69,7 +69,7 @@ function SystemSummary({ snapshot, language, t, onOpenSystem, onOpenPortfolio })
 
 export default function OverviewPage({ snapshot, language, t, onNavigate, readOnlyMessage }) {
   return (
-    <div className="page-stack" data-testid="page-overview">
+    <div className="page-stack overview-page" data-testid="page-overview">
       <SystemSummary
         snapshot={snapshot}
         language={language}
