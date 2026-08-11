@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, lazy, Suspense, useState } from 'react';
 import {
   Ban,
   CheckCircle2,
@@ -14,7 +14,6 @@ import {
   TriangleAlert,
   XCircle,
 } from 'lucide-react';
-import TradingObservabilityPanel from '../features/observability/TradingObservabilityPanel.jsx';
 import {
   deriveSystemIncident,
   INCIDENT_PHASE_STATUSES,
@@ -24,6 +23,8 @@ import {
   SYSTEM_COPY,
   translatedReason,
 } from './systemIncidentModel.js';
+
+const TradingObservabilityPanel = lazy(() => import('../features/observability/TradingObservabilityPanel.jsx'));
 
 function StatusIcon({ status }) {
   if (status === 'success' || status === 'completed') return <CheckCircle2 aria-hidden="true" />;
@@ -230,7 +231,9 @@ export default function HourlyAutomationStatus({
           ) : <p className="hint">{copy.noData}</p>}
         </div>
       </section>
-      <TradingObservabilityPanel language={language} />
+      <Suspense fallback={<section className="panel" role="status">{copy.loading}</section>}>
+        <TradingObservabilityPanel language={language} />
+      </Suspense>
     </Fragment>
   );
 }

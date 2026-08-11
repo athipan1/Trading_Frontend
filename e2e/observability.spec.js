@@ -242,9 +242,9 @@ test('shows the seven-stage last meaningful decision path and candidate rejectio
   await expect(banx).toContainText('BANX');
   await expect(banx).toContainText('BUY');
   await expect(banx).toContainText('0.638');
-  await expect(banx).toContainText('Market cap');
-  await expect(banx).toContainText('Average dollar volume');
-  await expect(banx).toContainText('Spread evidence');
+  await expect(banx).toContainText('Company size is below policy');
+  await expect(banx).toContainText('investability_average_dollar_volume_below_minimum');
+  await expect(banx).toContainText('investability_spread_missing');
   await expect(page.getByTestId('observability-candidate-YB')).toContainText('HOLD');
 });
 
@@ -263,7 +263,8 @@ test('Phase 17 exposes bounded cycle history and symbol drill-down', async ({ pa
   await expect(detail).toContainText('BANX');
   await expect(detail).toContainText('decision-banx-1');
   await expect(detail).toContainText('position-banx-1');
-  await expect(detail).toContainText('Market cap below minimum');
+  await expect(detail).toContainText('Company size is below policy');
+  await expect(detail).toContainText('investability_market_cap_below_minimum');
 });
 
 test('Phase 17 filters history by symbol, result, and stage reached', async ({ page }) => {
@@ -273,7 +274,9 @@ test('Phase 17 filters history by symbol, result, and stage reached', async ({ p
   await page.getByTestId('decision-history-symbol-filter').selectOption('AAPL');
   await expect(page.getByTestId('decision-history-cycle-list').locator('button')).toHaveCount(1);
   await expect(page.getByTestId('decision-history-drilldown')).toContainText('hourly-paper-test-20260809T10');
-  await expect(page.getByTestId('decision-history-candidate-detail')).toContainText('Risk gate rejected');
+  const riskDetail = page.getByTestId('decision-history-candidate-detail');
+  await expect(riskDetail).toContainText('Risk did not approve this candidate');
+  await expect(riskDetail).toContainText('risk_rejected');
 
   await page.getByTestId('decision-history-status-filter').selectOption('blocked');
   await page.getByTestId('decision-history-stage-filter').selectOption('risk');
