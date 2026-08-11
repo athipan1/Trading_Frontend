@@ -7,7 +7,7 @@ import DashboardInsights from './DashboardInsights.jsx';
 function AccountMetrics({ snapshot, language, t }) {
   const { account, positions } = snapshot;
   const totalPositionValue = positions.reduce((sum, position) => sum + Number(position.marketValue || 0), 0);
-  const maskedValue = language === 'th' ? 'ปกปิด' : 'Masked';
+  const maskedValue = t.masked;
   const accountValue = (value) => (account.valuesMasked || value === null ? maskedValue : formatCurrency(value));
 
   return (
