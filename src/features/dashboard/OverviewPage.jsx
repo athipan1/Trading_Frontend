@@ -4,14 +4,14 @@ import { formatBangkokDateTime } from '../../utils/dateTime.js';
 import { formatCurrency } from '../../utils/formatters.js';
 import DashboardInsights from './DashboardInsights.jsx';
 
-function AccountMetrics({ snapshot, language, t }) {
+function AccountMetrics({ snapshot, t }) {
   const { account, positions } = snapshot;
   const totalPositionValue = positions.reduce((sum, position) => sum + Number(position.marketValue || 0), 0);
   const maskedValue = t.masked;
   const accountValue = (value) => (account.valuesMasked || value === null ? maskedValue : formatCurrency(value));
 
   return (
-    <section className="metrics-grid" aria-label={language === 'th' ? 'ข้อมูลบัญชี' : 'Account metrics'}>
+    <section className="metrics-grid">
       <MetricCard label={t.cash} value={accountValue(account.cash)} helper={account.valuesMasked ? maskedValue : t.availableBalance} tone="cash" />
       <MetricCard label={t.equity} value={accountValue(account.equity)} helper={account.valuesMasked ? maskedValue : t.brokerSnapshot} />
       <MetricCard label={t.buyingPower} value={accountValue(account.buyingPower)} helper={account.valuesMasked ? maskedValue : t.paperAccount} />
@@ -77,7 +77,7 @@ export default function OverviewPage({ snapshot, language, t, onNavigate, readOn
         onOpenSystem={() => onNavigate('system')}
         onOpenPortfolio={() => onNavigate('portfolio')}
       />
-      <AccountMetrics snapshot={snapshot} language={language} t={t} />
+      <AccountMetrics snapshot={snapshot} t={t} />
       <DashboardInsights snapshot={snapshot} language={language} t={t} />
       <PortfolioHealth snapshot={snapshot} t={t} />
       {readOnlyMessage ? (
