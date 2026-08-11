@@ -9,12 +9,14 @@ const VIEWPORTS = [
 ];
 const LANGUAGES = ['th', 'en'];
 const PRIMARY_ROUTES = [
-  { route: '/overview', fixtureName: 'success', readyTestId: 'page-overview' },
   { route: '/portfolio', fixtureName: 'success', readyTestId: 'page-portfolio' },
   { route: '/orders', fixtureName: 'success', readyTestId: 'page-orders' },
   { route: '/agents', fixtureName: 'agent-telemetry', readyTestId: 'page-agents' },
   { route: '/risk', fixtureName: 'success', readyTestId: 'page-risk' },
   { route: '/backtest', fixtureName: 'success', readyTestId: 'page-backtest' },
+];
+const REDESIGNED_ROUTES = [
+  { route: '/overview', fixtureName: 'success', readyTestId: 'page-overview' },
   { route: '/system', fixtureName: 'execution-failure', readyTestId: 'hourly-automation-status' },
 ];
 
@@ -66,33 +68,22 @@ function visualFixture(name) {
 
 async function mockSnapshot(page, payload) {
   await page.route('https://snapshot.test/dashboard.json?*', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(payload),
-    });
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
   });
 }
 
 async function installDeterministicBrowserState(page, language) {
   await page.addInitScript(({ fixedNow, selectedLanguage }) => {
     window.localStorage.setItem('trading-dashboard-language', selectedLanguage);
-
     const NativeDate = Date;
     const fixedTimestamp = NativeDate.parse(fixedNow);
     class FixedDate extends NativeDate {
-      constructor(...args) {
-        super(...(args.length === 0 ? [fixedTimestamp] : args));
-      }
-
-      static now() {
-        return fixedTimestamp;
-      }
+      constructor(...args) { super(...(args.length === 0 ? [fixedTimestamp] : args)); }
+      static now() { return fixedTimestamp; }
     }
     Object.setPrototypeOf(FixedDate, NativeDate);
     window.Date = FixedDate;
   }, { fixedNow: FIXED_NOW, selectedLanguage: language });
-
   await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
 }
 
@@ -101,13 +92,9 @@ async function openVisualCase(page, visualCase) {
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
   await installDeterministicBrowserState(page, language);
   await mockSnapshot(page, visualFixture(fixtureName));
-
-  const snapshotResponse = page.waitForResponse((response) => (
-    response.url().startsWith('https://snapshot.test/dashboard.json')
-  ));
+  const snapshotResponse = page.waitForResponse((response) => response.url().startsWith('https://snapshot.test/dashboard.json'));
   await page.goto(route);
   await snapshotResponse;
-
   await expect(page.getByTestId(readyTestId)).toBeVisible();
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
   await page.evaluate(async () => {
@@ -115,22 +102,9 @@ async function openVisualCase(page, visualCase) {
     window.scrollTo(0, 0);
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   });
-  await page.addStyleTag({
-    content: `
-      *, *::before, *::after {
-        animation: none !important;
-        caret-color: transparent !important;
-        transition: none !important;
-      }
-    `,
-  });
-
-  const dimensions = await page.evaluate(() => ({
-    viewportWidth: window.innerWidth,
-    documentWidth: document.documentElement.scrollWidth,
-  }));
-  expect(dimensions.documentWidth, `${route} must not overflow horizontally at ${viewport.width}px`)
-    .toBeLessThanOrEqual(dimensions.viewportWidth);
+  await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;caret-color:transparent!important;transition:none!important}' });
+  const dimensions = await page.evaluate(() => ({ viewportWidth: innerWidth, documentWidth: document.documentElement.scrollWidth }));
+  expect(dimensions.documentWidth, `${route} must not overflow horizontally at ${viewport.width}px`).toBeLessThanOrEqual(dimensions.viewportWidth);
 }
 
 function screenshotName({ route, fixtureName, viewport, language }) {
@@ -138,22 +112,43 @@ function screenshotName({ route, fixtureName, viewport, language }) {
   return `${routeName}-${fixtureName}-${language}-${viewport.name}.png`;
 }
 
-test.describe('@visual primary route baselines', () => {
-  for (const primaryRoute of PRIMARY_ROUTES) {
-    for (const viewport of VIEWPORTS) {
-      for (const language of LANGUAGES) {
-        const visualCase = { ...primaryRoute, viewport, language };
-        test(`${primaryRoute.route} ${language} ${viewport.name}`, async ({ page }) => {
-          await openVisualCase(page, visualCase);
-          await expect(page).toHaveScreenshot(screenshotName(visualCase), {
-            animations: 'disabled',
-            caret: 'hide',
-            fullPage: true,
-            scale: 'css',
-          });
-        });
-      }
-    }
+async function attachPhase21Evidence(page, testInfo, visualCase) {
+  const screenshot = await page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide', scale: 'css' });
+  await testInfo.attach(`phase21-${screenshotName(visualCase)}`, { body: screenshot, contentType: 'image/png' });
+}
+
+async function expectPhase21VisualContract(page, route, { expectPhases = true } = {}) {
+  if (route === '/overview') {
+    await expect(page.locator('.overview-system-card')).toBeVisible();
+    await expect(page.locator('.overview-system-card')).toHaveCSS('background-image', /linear-gradient/);
+    await expect(page.locator('.metrics-grid .metric-card')).toHaveCount(4);
+    await expect(page.locator('.dashboard-insights')).toBeVisible();
+    return;
+  }
+  await expect(page.locator('.automation-panel')).toBeVisible();
+  await expect(page.locator('.automation-panel')).toHaveCSS('background-image', /linear-gradient/);
+  await expect(page.locator('.incident-summary')).toBeVisible();
+  if (expectPhases) await expect(page.locator('.phase-timeline')).toBeVisible();
+}
+
+test.describe('@visual unchanged primary route baselines', () => {
+  for (const primaryRoute of PRIMARY_ROUTES) for (const viewport of VIEWPORTS) for (const language of LANGUAGES) {
+    const visualCase = { ...primaryRoute, viewport, language };
+    test(`${primaryRoute.route} ${language} ${viewport.name}`, async ({ page }) => {
+      await openVisualCase(page, visualCase);
+      await expect(page).toHaveScreenshot(screenshotName(visualCase), { animations: 'disabled', caret: 'hide', fullPage: true, scale: 'css' });
+    });
+  }
+});
+
+test.describe('@visual Phase 21 redesigned route evidence', () => {
+  for (const redesignedRoute of REDESIGNED_ROUTES) for (const viewport of VIEWPORTS) for (const language of LANGUAGES) {
+    const visualCase = { ...redesignedRoute, viewport, language };
+    test(`${redesignedRoute.route} ${language} ${viewport.name}`, async ({ page }, testInfo) => {
+      await openVisualCase(page, visualCase);
+      await expectPhase21VisualContract(page, redesignedRoute.route);
+      await attachPhase21Evidence(page, testInfo, visualCase);
+    });
   }
 });
 
@@ -164,26 +159,14 @@ const INCIDENT_CASES = [
 ];
 const INCIDENT_VIEWPORTS = [VIEWPORTS[0], VIEWPORTS[2]];
 
-test.describe('@visual system incident baselines', () => {
-  for (const incidentCase of INCIDENT_CASES) {
-    for (const viewport of INCIDENT_VIEWPORTS) {
-      const visualCase = {
-        route: '/system',
-        fixtureName: incidentCase.fixtureName,
-        readyTestId: 'hourly-automation-status',
-        viewport,
-        language: 'th',
-      };
-      test(`${incidentCase.label} ${viewport.name}`, async ({ page }) => {
-        await openVisualCase(page, visualCase);
-        await expect(page.getByTestId('system-incident-summary')).toBeVisible();
-        await expect(page).toHaveScreenshot(screenshotName(visualCase), {
-          animations: 'disabled',
-          caret: 'hide',
-          fullPage: true,
-          scale: 'css',
-        });
-      });
-    }
+test.describe('@visual Phase 21 system incident evidence', () => {
+  for (const incidentCase of INCIDENT_CASES) for (const viewport of INCIDENT_VIEWPORTS) {
+    const visualCase = { route: '/system', fixtureName: incidentCase.fixtureName, readyTestId: 'hourly-automation-status', viewport, language: 'th' };
+    test(`${incidentCase.label} ${viewport.name}`, async ({ page }, testInfo) => {
+      await openVisualCase(page, visualCase);
+      await expect(page.getByTestId('system-incident-summary')).toBeVisible();
+      await expectPhase21VisualContract(page, '/system', { expectPhases: incidentCase.fixtureName === 'partial-fill' });
+      await attachPhase21Evidence(page, testInfo, visualCase);
+    });
   }
 });
