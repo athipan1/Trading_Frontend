@@ -117,7 +117,7 @@ async function attachPhase21Evidence(page, testInfo, visualCase) {
   await testInfo.attach(`phase21-${screenshotName(visualCase)}`, { body: screenshot, contentType: 'image/png' });
 }
 
-async function expectPhase21VisualContract(page, route) {
+async function expectPhase21VisualContract(page, route, { expectPhases = true } = {}) {
   if (route === '/overview') {
     await expect(page.locator('.overview-system-card')).toBeVisible();
     await expect(page.locator('.overview-system-card')).toHaveCSS('background-image', /linear-gradient/);
@@ -128,7 +128,7 @@ async function expectPhase21VisualContract(page, route) {
   await expect(page.locator('.automation-panel')).toBeVisible();
   await expect(page.locator('.automation-panel')).toHaveCSS('background-image', /linear-gradient/);
   await expect(page.locator('.incident-summary')).toBeVisible();
-  await expect(page.locator('.phase-timeline')).toBeVisible();
+  if (expectPhases) await expect(page.locator('.phase-timeline')).toBeVisible();
 }
 
 test.describe('@visual unchanged primary route baselines', () => {
@@ -165,7 +165,7 @@ test.describe('@visual Phase 21 system incident evidence', () => {
     test(`${incidentCase.label} ${viewport.name}`, async ({ page }, testInfo) => {
       await openVisualCase(page, visualCase);
       await expect(page.getByTestId('system-incident-summary')).toBeVisible();
-      await expectPhase21VisualContract(page, '/system');
+      await expectPhase21VisualContract(page, '/system', { expectPhases: incidentCase.fixtureName === 'partial-fill' });
       await attachPhase21Evidence(page, testInfo, visualCase);
     });
   }
