@@ -2,11 +2,11 @@ import { explainDecisionReasons } from './reasonExplanations.js';
 import './humanDecisionExplanation.css';
 
 const LABELS = {
-  en: ['What happened', 'Why', 'What to do next', 'Technical details', 'No reason code was supplied for this candidate.'],
-  th: ['เกิดอะไรขึ้น', 'ทำไม', 'ควรทำอะไรต่อ', 'รายละเอียดทางเทคนิค', 'Manager_Agent ไม่ได้ส่ง reason code สำหรับ Candidate นี้'],
+  en: ['What happened', 'Why', 'Next step', 'Details', 'No reason code supplied.'],
+  th: ['เกิดอะไรขึ้น', 'ทำไม', 'ควรทำอะไรต่อ', 'รายละเอียดทางเทคนิค', 'ไม่มี reason code จาก Manager_Agent'],
 };
 
-export default function HumanDecisionExplanation({ codes, language = 'th', stage = null, compact = false, testId = 'human-decision-explanation' }) {
+export default function HumanDecisionExplanation({ codes, language = 'th', stage = null, compact = false, testId }) {
   const [what, why, next, technical, noReason] = LABELS[language === 'en' ? 'en' : 'th'];
   const explanations = explainDecisionReasons(codes, { language, stage });
   if (!explanations.length) return <span className="human-explanation-empty">{noReason}</span>;
