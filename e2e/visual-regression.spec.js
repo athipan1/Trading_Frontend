@@ -9,12 +9,14 @@ const VIEWPORTS = [
 ];
 const LANGUAGES = ['th', 'en'];
 const PRIMARY_ROUTES = [
-  { route: '/overview', fixtureName: 'success', readyTestId: 'page-overview' },
   { route: '/portfolio', fixtureName: 'success', readyTestId: 'page-portfolio' },
   { route: '/orders', fixtureName: 'success', readyTestId: 'page-orders' },
   { route: '/agents', fixtureName: 'agent-telemetry', readyTestId: 'page-agents' },
   { route: '/risk', fixtureName: 'success', readyTestId: 'page-risk' },
   { route: '/backtest', fixtureName: 'success', readyTestId: 'page-backtest' },
+];
+const REDESIGNED_ROUTES = [
+  { route: '/overview', fixtureName: 'success', readyTestId: 'page-overview' },
   { route: '/system', fixtureName: 'execution-failure', readyTestId: 'hourly-automation-status' },
 ];
 
@@ -138,7 +140,26 @@ function screenshotName({ route, fixtureName, viewport, language }) {
   return `${routeName}-${fixtureName}-${language}-${viewport.name}.png`;
 }
 
-test.describe('@visual primary route baselines', () => {
+async function attachPhase21Evidence(page, testInfo, visualCase) {
+  const screenshot = await page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide', scale: 'css' });
+  await testInfo.attach(`phase21-${screenshotName(visualCase)}`, { body: screenshot, contentType: 'image/png' });
+}
+
+async function expectPhase21VisualContract(page, route) {
+  if (route === '/overview') {
+    await expect(page.locator('.overview-command-card')).toBeVisible();
+    await expect(page.locator('.overview-command-card')).toHaveCSS('background-image', /linear-gradient/);
+    await expect(page.locator('.overview-metrics-grid .metric-card')).toHaveCount(4);
+    await expect(page.locator('.dashboard-insights')).toBeVisible();
+    return;
+  }
+  await expect(page.locator('.automation-panel')).toBeVisible();
+  await expect(page.locator('.automation-panel')).toHaveCSS('background-image', /linear-gradient/);
+  await expect(page.locator('.incident-summary')).toBeVisible();
+  await expect(page.locator('.phase-timeline')).toBeVisible();
+}
+
+test.describe('@visual unchanged primary route baselines', () => {
   for (const primaryRoute of PRIMARY_ROUTES) {
     for (const viewport of VIEWPORTS) {
       for (const language of LANGUAGES) {
@@ -157,6 +178,21 @@ test.describe('@visual primary route baselines', () => {
   }
 });
 
+test.describe('@visual Phase 21 redesigned route evidence', () => {
+  for (const redesignedRoute of REDESIGNED_ROUTES) {
+    for (const viewport of VIEWPORTS) {
+      for (const language of LANGUAGES) {
+        const visualCase = { ...redesignedRoute, viewport, language };
+        test(`${redesignedRoute.route} ${language} ${viewport.name}`, async ({ page }, testInfo) => {
+          await openVisualCase(page, visualCase);
+          await expectPhase21VisualContract(page, redesignedRoute.route);
+          await attachPhase21Evidence(page, testInfo, visualCase);
+        });
+      }
+    }
+  }
+});
+
 const INCIDENT_CASES = [
   { fixtureName: 'stale', label: 'stale snapshot' },
   { fixtureName: 'workflow-failure', label: 'workflow failure' },
@@ -164,7 +200,7 @@ const INCIDENT_CASES = [
 ];
 const INCIDENT_VIEWPORTS = [VIEWPORTS[0], VIEWPORTS[2]];
 
-test.describe('@visual system incident baselines', () => {
+test.describe('@visual Phase 21 system incident evidence', () => {
   for (const incidentCase of INCIDENT_CASES) {
     for (const viewport of INCIDENT_VIEWPORTS) {
       const visualCase = {
@@ -174,15 +210,11 @@ test.describe('@visual system incident baselines', () => {
         viewport,
         language: 'th',
       };
-      test(`${incidentCase.label} ${viewport.name}`, async ({ page }) => {
+      test(`${incidentCase.label} ${viewport.name}`, async ({ page }, testInfo) => {
         await openVisualCase(page, visualCase);
         await expect(page.getByTestId('system-incident-summary')).toBeVisible();
-        await expect(page).toHaveScreenshot(screenshotName(visualCase), {
-          animations: 'disabled',
-          caret: 'hide',
-          fullPage: true,
-          scale: 'css',
-        });
+        await expectPhase21VisualContract(page, '/system');
+        await attachPhase21Evidence(page, testInfo, visualCase);
       });
     }
   }
