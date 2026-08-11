@@ -64,7 +64,7 @@ const COPY = Object.freeze({
     en: { title: 'Manager produced a SELL verdict', explanation: 'The candidate was evaluated on the sell side, not as a new long entry.', action: 'Check position lifecycle and Risk approval.' },
   },
   risk_rejected: {
-    th: { title: 'Risk ไม่อนุมัติรายการนี้', explanation: 'Candidate ถึง Risk gate แต่ไม่ผ่านนโยบายความเสี่ยง จึงหยุดก่อน Execution และ Broker', action: 'เปิดรายละเอียดเพื่อดู reason code/evidence; อย่าข้าม Risk gate' },
+    th: { title: 'Risk ไม่อนุมัติรายการนี้', explanation: 'Candidate ถึง Risk gate แต่ไม่ผ่านนโยบายความเสี่ยง จึงหยุดก่อนส่งคำสั่งไป Execution หรือ Broker', action: 'เปิดรายละเอียดเพื่อดู reason code/evidence; อย่าข้าม Risk gate' },
     en: { title: 'Risk did not approve this candidate', explanation: 'The candidate failed active risk policy and stopped before Execution or broker submission.', action: 'Open technical details; do not bypass the Risk gate.' },
   },
   execution_failed: {
