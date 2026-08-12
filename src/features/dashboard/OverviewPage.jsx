@@ -1,13 +1,5 @@
-import { useMemo, useState } from 'react';
-import {
-  Activity,
-  ChevronRight,
-  EyeOff,
-  LockKeyhole,
-  ShieldCheck,
-  WalletCards,
-  Zap,
-} from 'lucide-react';
+import { useState } from 'react';
+import { Activity, ChevronRight, ShieldCheck, WalletCards, Zap } from 'lucide-react';
 import MetricCard from '../../components/MetricCard.jsx';
 import { getOwnerDashboardSnapshot } from '../../services/controlApi.js';
 import { formatBangkokDateTime } from '../../utils/dateTime.js';
@@ -77,93 +69,53 @@ function SystemSummary({ snapshot, language, t, onOpenSystem, onOpenPortfolio })
   );
 }
 
-function mergeOwnerValues(publicSnapshot, ownerSnapshot) {
-  if (!ownerSnapshot) return publicSnapshot;
-
-  const publicPositions = new Map(
-    (publicSnapshot.positions ?? []).map((position) => [position.symbol, position]),
-  );
-  const positions = (ownerSnapshot.positions ?? []).map((position) => ({
-    ...(publicPositions.get(position.symbol) ?? {}),
-    ...position,
-    valuesMasked: false,
-    quantityMasked: false,
-  }));
-
+function mergeOwnerValues(snapshot, owner) {
+  if (!owner) return snapshot;
   return {
-    ...publicSnapshot,
-    account: {
-      ...publicSnapshot.account,
-      ...ownerSnapshot.account,
-      valuesMasked: false,
-    },
-    positions,
-    openOrders: (ownerSnapshot.openOrders ?? []).map((order) => ({
-      ...order,
-      valuesMasked: false,
-    })),
-    privacy: {
-      ...(publicSnapshot.privacy ?? {}),
-      mode: 'owner-authenticated',
-      valuesMasked: false,
-    },
+    ...snapshot,
+    account: { ...snapshot.account, ...owner.account, valuesMasked: false },
+    positions: owner.positions.map((item) => ({ ...item, valuesMasked: false, quantityMasked: false })),
+    openOrders: owner.openOrders.map((item) => ({ ...item, valuesMasked: false })),
+    privacy: { ...snapshot.privacy, mode: 'owner-authenticated', valuesMasked: false },
   };
 }
 
-function OwnerSecureView({ language, isActive, onConnect, onDisconnect, isConnecting, error }) {
-  const [operatorToken, setOperatorToken] = useState('');
+function OwnerSecureView({ language, active, connecting, error, onConnect, onDisconnect }) {
+  const [token, setToken] = useState('');
   const thai = language === 'th';
-
-  const connect = async () => {
-    const token = operatorToken.trim();
-    if (!token) return;
-    await onConnect(token);
-  };
 
   return (
     <section className="operator-bar" data-testid="owner-secure-view" aria-label="Owner secure view">
       <label>
-        <span>
-          <LockKeyhole aria-hidden="true" />
-          {thai ? 'Owner Secure View · Token ไม่ถูกบันทึกในเบราว์เซอร์' : 'Owner Secure View · token is not stored in the browser'}
-        </span>
+        <span><ShieldCheck aria-hidden="true" /> Owner Secure View · {thai ? 'Token ไม่ถูกบันทึก' : 'token is not stored'}</span>
         <input
           data-testid="owner-token-input"
           type="password"
           autoComplete="off"
-          value={operatorToken}
-          onChange={(event) => setOperatorToken(event.target.value)}
-          placeholder={thai ? 'ใส่ WEB_CONTROL_OPERATOR_TOKEN' : 'Enter WEB_CONTROL_OPERATOR_TOKEN'}
-          disabled={isConnecting}
+          value={token}
+          onChange={(event) => setToken(event.target.value)}
+          placeholder="WEB_CONTROL_OPERATOR_TOKEN"
+          disabled={connecting}
         />
       </label>
-      {isActive ? (
-        <button
-          className="secondary-action"
-          data-testid="owner-hide-values"
-          type="button"
-          onClick={() => {
-            setOperatorToken('');
+      <button
+        className={active ? 'secondary-action' : 'primary-action'}
+        data-testid={active ? 'owner-hide-values' : 'owner-connect-button'}
+        type="button"
+        disabled={!active && (connecting || !token.trim())}
+        onClick={() => {
+          if (active) {
+            setToken('');
             onDisconnect();
-          }}
-        >
-          <EyeOff aria-hidden="true" /> {thai ? 'ซ่อนข้อมูล' : 'Hide values'}
-        </button>
-      ) : (
-        <button
-          className="primary-action"
-          data-testid="owner-connect-button"
-          type="button"
-          onClick={connect}
-          disabled={isConnecting || !operatorToken.trim()}
-        >
-          <LockKeyhole aria-hidden="true" /> {isConnecting ? (thai ? 'กำลังยืนยัน…' : 'Authenticating…') : (thai ? 'แสดงข้อมูลจริง' : 'Show real values')}
-        </button>
-      )}
+          } else {
+            onConnect(token.trim());
+          }
+        }}
+      >
+        {active ? (thai ? 'ซ่อนข้อมูล' : 'Hide values') : connecting ? (thai ? 'กำลังยืนยัน…' : 'Authenticating…') : (thai ? 'แสดงข้อมูลจริง' : 'Show real values')}
+      </button>
       <p className={`status ${error ? 'warn' : 'good'}`} role="status" data-testid="owner-secure-status">
-        {error || (isActive
-          ? (thai ? 'ยืนยันเจ้าของแล้ว · ข้อมูลจริงมาจาก Manager_Agent แบบ read-only' : 'Owner verified · real values loaded read-only from Manager_Agent')
-          : (thai ? 'ข้อมูลสาธารณะยังคงปกปิดจนกว่าจะยืนยันตัวตน' : 'Public values stay masked until owner authentication'))}
+        {error || (active ? (thai ? 'ยืนยันเจ้าของแล้ว · read-only' : 'Owner verified · read-only') : (thai ? 'ข้อมูลยังปกปิดอยู่' : 'Values remain masked'))}
       </p>
     </section>
   );
@@ -173,26 +125,16 @@ export default function OverviewPage({ snapshot, language, t, onNavigate, readOn
   const [ownerSnapshot, setOwnerSnapshot] = useState(null);
   const [ownerConnecting, setOwnerConnecting] = useState(false);
   const [ownerError, setOwnerError] = useState('');
-  const effectiveSnapshot = useMemo(
-    () => mergeOwnerValues(snapshot, ownerSnapshot),
-    [ownerSnapshot, snapshot],
-  );
-  const ownerSecureViewRelevant = Boolean(snapshot.account?.valuesMasked || ownerSnapshot);
+  const effectiveSnapshot = mergeOwnerValues(snapshot, ownerSnapshot);
 
   const connectOwner = async (operatorToken) => {
     setOwnerConnecting(true);
     setOwnerError('');
     try {
-      const fullSnapshot = await getOwnerDashboardSnapshot({
-        operatorToken,
-        accountId: '1',
-      });
-      setOwnerSnapshot(fullSnapshot);
+      setOwnerSnapshot(await getOwnerDashboardSnapshot({ operatorToken }));
     } catch (error) {
-      const fallback = language === 'th' ? 'ยืนยัน Owner Secure View ไม่สำเร็จ' : 'Owner Secure View authentication failed';
-      const message = typeof error?.message === 'string' ? error.message : fallback;
       setOwnerSnapshot(null);
-      setOwnerError(message.replace(/\s+/g, ' ').trim().slice(0, 180) || fallback);
+      setOwnerError(String(error?.message || (language === 'th' ? 'ยืนยันไม่สำเร็จ' : 'Authentication failed')).slice(0, 180));
     } finally {
       setOwnerConnecting(false);
     }
@@ -200,11 +142,11 @@ export default function OverviewPage({ snapshot, language, t, onNavigate, readOn
 
   return (
     <div className="page-stack" data-testid="page-overview">
-      {ownerSecureViewRelevant ? (
+      {snapshot.account?.valuesMasked || ownerSnapshot ? (
         <OwnerSecureView
           language={language}
-          isActive={Boolean(ownerSnapshot)}
-          isConnecting={ownerConnecting}
+          active={Boolean(ownerSnapshot)}
+          connecting={ownerConnecting}
           error={ownerError}
           onConnect={connectOwner}
           onDisconnect={() => {
