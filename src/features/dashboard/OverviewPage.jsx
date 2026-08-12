@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Activity, ChevronRight, ShieldCheck, WalletCards, Zap } from 'lucide-react';
 import MetricCard from '../../components/MetricCard.jsx';
+import { getOwnerDashboardSnapshot } from '../../services/controlApi.js';
 import { formatBangkokDateTime } from '../../utils/dateTime.js';
 import { formatCurrency } from '../../utils/formatters.js';
 import DashboardInsights from './DashboardInsights.jsx';
@@ -67,20 +69,103 @@ function SystemSummary({ snapshot, language, t, onOpenSystem, onOpenPortfolio })
   );
 }
 
+function mergeOwnerValues(snapshot, owner) {
+  return owner ? {
+    ...snapshot,
+    account: owner.account,
+    positions: owner.positions,
+    openOrders: owner.openOrders,
+    privacy: { ...snapshot.privacy, valuesMasked: false },
+  } : snapshot;
+}
+
+function OwnerSecureView({ language, active, connecting, error, onConnect, onDisconnect }) {
+  const [token, setToken] = useState('');
+  const thai = language === 'th';
+  const toggle = () => {
+    if (active) {
+      setToken('');
+      onDisconnect();
+    } else {
+      onConnect(token.trim());
+    }
+  };
+
+  return (
+    <section className="operator-bar" data-testid="owner-secure-view" aria-label="Owner secure view">
+      <input
+        aria-label="Owner token"
+        data-testid="owner-token-input"
+        type="password"
+        autoComplete="off"
+        value={token}
+        onChange={(event) => setToken(event.target.value)}
+        placeholder="WEB_CONTROL_OPERATOR_TOKEN"
+        disabled={connecting}
+      />
+      <button
+        className={active ? 'secondary-action' : 'primary-action'}
+        data-testid={active ? 'owner-hide-values' : 'owner-connect-button'}
+        type="button"
+        disabled={!active && (connecting || !token.trim())}
+        onClick={toggle}
+      >
+        {active ? (thai ? 'ซ่อนข้อมูล' : 'Hide values') : connecting ? '…' : (thai ? 'แสดงข้อมูลจริง' : 'Show values')}
+      </button>
+      {error || active ? (
+        <p className={`status ${error ? 'warn' : 'good'}`} role="status" data-testid="owner-secure-status">
+          {error || (thai ? 'ยืนยันเจ้าของแล้ว · read-only' : 'Owner verified · read-only')}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 export default function OverviewPage({ snapshot, language, t, onNavigate, readOnlyMessage }) {
+  const [ownerSnapshot, setOwnerSnapshot] = useState(null);
+  const [ownerConnecting, setOwnerConnecting] = useState(false);
+  const [ownerError, setOwnerError] = useState('');
+  const effectiveSnapshot = mergeOwnerValues(snapshot, ownerSnapshot);
+
+  const connectOwner = async (operatorToken) => {
+    setOwnerConnecting(true);
+    setOwnerError('');
+    try {
+      setOwnerSnapshot(await getOwnerDashboardSnapshot({ operatorToken }));
+    } catch (error) {
+      setOwnerSnapshot(null);
+      setOwnerError(String(error?.message || 'Authentication failed').slice(0, 180));
+    } finally {
+      setOwnerConnecting(false);
+    }
+  };
+
   return (
     <div className="page-stack" data-testid="page-overview">
+      {readOnlyMessage || snapshot.account?.valuesMasked || ownerSnapshot ? (
+        <OwnerSecureView
+          language={language}
+          active={Boolean(ownerSnapshot)}
+          connecting={ownerConnecting}
+          error={ownerError}
+          onConnect={connectOwner}
+          onDisconnect={() => {
+            setOwnerSnapshot(null);
+            setOwnerError('');
+          }}
+        />
+      ) : null}
       <SystemSummary
-        snapshot={snapshot}
+        snapshot={effectiveSnapshot}
         language={language}
         t={t}
         onOpenSystem={() => onNavigate('system')}
         onOpenPortfolio={() => onNavigate('portfolio')}
       />
-      <AccountMetrics snapshot={snapshot} t={t} />
-      <DashboardInsights snapshot={snapshot} language={language} t={t} />
-      <PortfolioHealth snapshot={snapshot} t={t} />
-      {readOnlyMessage ? (
+      <AccountMetrics snapshot={effectiveSnapshot} t={t} />
+      <DashboardInsights snapshot={effectiveSnapshot} language={language} t={t} />
+      <PortfolioHealth snapshot={effectiveSnapshot} t={t} />
+      {readOnlyMessage && !ownerSnapshot ? (
         <section className="read-only-banner" aria-label="Read-only public snapshot mode">
           <ShieldCheck aria-hidden="true" /><p>{readOnlyMessage}</p>
         </section>

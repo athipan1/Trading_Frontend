@@ -1,5 +1,6 @@
 import { DATA_SOURCES } from '../config/dashboardConfig.js';
 import { getDashboardRuntimeConfig } from '../config/runtimeConfig.js';
+import { normalizeSnapshot } from './api.js';
 
 const REQUEST_TIMEOUT_MS = 30_000;
 
@@ -7,10 +8,22 @@ function joinUrl(baseUrl, path) {
   return `${baseUrl.replace(/\/$/, '')}${path}`;
 }
 
-async function requestJson(path, { method = 'GET', body, operatorToken, fetchImpl = globalThis.fetch } = {}) {
+async function requestJson(
+  path,
+  {
+    method = 'GET',
+    body,
+    operatorToken,
+    fetchImpl = globalThis.fetch,
+    allowPublicManager = false,
+  } = {},
+) {
   const config = getDashboardRuntimeConfig();
-  if (config.dataSource !== DATA_SOURCES.MANAGER_API) {
+  if (!allowPublicManager && config.dataSource !== DATA_SOURCES.MANAGER_API) {
     throw new Error('คำสั่งควบคุมต้องใช้ VITE_DATA_SOURCE=manager-api');
+  }
+  if (!config.managerApiUrl) {
+    throw new Error('ยังไม่ได้ตั้งค่า VITE_MANAGER_API_URL สำหรับ Manager_Agent');
   }
   if (!operatorToken) {
     throw new Error('กรุณาใส่ Operator Token ก่อนเชื่อมต่อ Manager_Agent');
@@ -46,6 +59,15 @@ async function requestJson(path, { method = 'GET', body, operatorToken, fetchImp
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function getOwnerDashboardSnapshot({ operatorToken, accountId }) {
+  const query = accountId ? `?account_id=${encodeURIComponent(accountId)}` : '';
+  const payload = await requestJson(`/web-control/owner-snapshot${query}`, {
+    operatorToken,
+    allowPublicManager: true,
+  });
+  return normalizeSnapshot(payload);
 }
 
 export function getControlCapabilities(operatorToken) {
