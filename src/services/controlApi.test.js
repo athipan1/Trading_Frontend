@@ -9,6 +9,7 @@ import {
   getControlCapabilities,
   getFinanceState,
   getInvestmentPlan,
+  getOwnerDashboardSnapshot,
   requestBacktestRun,
   updateFinanceBudgets,
 } from './controlApi.js';
@@ -16,6 +17,35 @@ import {
 function jsonResponse(payload, { ok = true, status = 200 } = {}) {
   return { ok, status, json: vi.fn().mockResolvedValue(payload) };
 }
+
+const ownerSnapshotV1 = {
+  schemaVersion: 'dashboard-snapshot.v1',
+  generatedAt: '2026-08-12T07:00:00.000Z',
+  mode: 'PAPER',
+  brokerMode: 'ALPACA',
+  flow: 'portfolio_review',
+  account: {
+    cash: 12500.25,
+    equity: 15120.75,
+    buyingPower: 25000.5,
+    status: 'ACTIVE',
+    mode: 'PAPER',
+    lastSyncedAt: '2026-08-12T07:00:00.000Z',
+  },
+  positions: [],
+  openOrders: [],
+  curatorSignals: [],
+  summary: {
+    positionCount: 0,
+    openOrderCount: 0,
+    curatorSignalCount: 0,
+    problemCount: 0,
+    dataSource: 'broker_fallback',
+    serviceStatus: 'OK',
+    executionStatus: null,
+    executionReason: null,
+  },
+};
 
 describe('Manager-only control API', () => {
   beforeEach(() => {
@@ -28,6 +58,7 @@ describe('Manager-only control API', () => {
   afterEach(() => {
     resetDashboardRuntimeConfigForTests();
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
   });
 
   it('fails closed outside Manager API mode and without an operator token', async () => {
@@ -56,6 +87,44 @@ describe('Manager-only control API', () => {
         'X-Correlation-ID': 'correlation-id',
       }),
     }));
+  });
+
+  it('allows only the read-only owner snapshot from public-snapshot mode', async () => {
+    vi.stubEnv('VITE_DATA_SOURCE', 'public-snapshot');
+    vi.stubEnv('VITE_DASHBOARD_SNAPSHOT_URL', 'https://example.com/public.json');
+    vi.stubEnv('VITE_MANAGER_API_URL', 'https://manager.example.com');
+    resetDashboardRuntimeConfigForTests();
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(ownerSnapshotV1));
+    vi.stubGlobal('fetch', fetchImpl);
+
+    const snapshot = await getOwnerDashboardSnapshot({ operatorToken: 'owner-token', accountId: 'acct/1' });
+
+    expect(snapshot.account.cash).toBe(12500.25);
+    expect(snapshot.account.valuesMasked).toBe(false);
+    expect(snapshot.privacy).toEqual({ mode: 'full', valuesMasked: false });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://manager.example.com/web-control/owner-snapshot?account_id=acct%2F1',
+      expect.objectContaining({
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'omit',
+        headers: expect.objectContaining({ 'X-Operator-Token': 'owner-token' }),
+      }),
+    );
+
+    await expect(getControlCapabilities('owner-token')).rejects.toThrow('manager-api');
+  });
+
+  it('fails owner view closed when Manager URL or token is missing', async () => {
+    vi.stubEnv('VITE_DATA_SOURCE', 'public-snapshot');
+    vi.stubEnv('VITE_DASHBOARD_SNAPSHOT_URL', 'https://example.com/public.json');
+    vi.stubEnv('VITE_MANAGER_API_URL', '');
+    resetDashboardRuntimeConfigForTests();
+    await expect(getOwnerDashboardSnapshot({ operatorToken: 'token', accountId: '1' })).rejects.toThrow('VITE_MANAGER_API_URL');
+
+    vi.stubEnv('VITE_MANAGER_API_URL', 'https://manager.example.com');
+    resetDashboardRuntimeConfigForTests();
+    await expect(getOwnerDashboardSnapshot({ operatorToken: '', accountId: '1' })).rejects.toThrow('Operator Token');
   });
 
   it('surfaces bounded Manager error envelopes and malformed responses', async () => {
