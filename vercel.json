@@ -5,6 +5,10 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/manager-api/web-control/owner-snapshot",
+      "destination": "https://manageragent-production.up.railway.app/web-control/owner-snapshot"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

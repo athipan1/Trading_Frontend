@@ -8,6 +8,7 @@ const SUPPORTED_DATA_SOURCES = new Set(Object.values(DATA_SOURCES));
 const DEFAULT_REFRESH_INTERVAL_MS = 60_000;
 const MIN_REFRESH_INTERVAL_MS = 5_000;
 const MAX_REFRESH_INTERVAL_MS = 15 * 60_000;
+const DEFAULT_PUBLIC_MANAGER_API_PATH = '/manager-api';
 
 export class DashboardConfigError extends Error {
   constructor(message) {
@@ -77,6 +78,8 @@ export function resolveDashboardConfig(env = {}, { isProduction = false } = {}) 
 
   const managerUrl = text(env.VITE_MANAGER_API_URL);
   const snapshotUrl = text(env.VITE_DASHBOARD_SNAPSHOT_URL);
+  const resolvedManagerUrl =
+    managerUrl || (isProduction && dataSource === DATA_SOURCES.PUBLIC_SNAPSHOT ? DEFAULT_PUBLIC_MANAGER_API_PATH : '');
 
   if (dataSource === DATA_SOURCES.MANAGER_API && !managerUrl) {
     throw new DashboardConfigError('VITE_MANAGER_API_URL is required when VITE_DATA_SOURCE=manager-api.');
@@ -89,8 +92,8 @@ export function resolveDashboardConfig(env = {}, { isProduction = false } = {}) 
 
   return Object.freeze({
     dataSource,
-    managerApiUrl: managerUrl
-      ? validateUrl(managerUrl, 'VITE_MANAGER_API_URL', { isProduction, allowRelative: true })
+    managerApiUrl: resolvedManagerUrl
+      ? validateUrl(resolvedManagerUrl, 'VITE_MANAGER_API_URL', { isProduction, allowRelative: true })
       : '',
     snapshotUrl: snapshotUrl
       ? validateUrl(snapshotUrl, 'VITE_DASHBOARD_SNAPSHOT_URL', { isProduction, allowRelative: false })
