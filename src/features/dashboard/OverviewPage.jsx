@@ -142,7 +142,7 @@ export default function OverviewPage({ snapshot, language, t, onNavigate, readOn
 
   return (
     <div className="page-stack" data-testid="page-overview">
-      {snapshot.account?.valuesMasked || ownerSnapshot ? (
+      {readOnlyMessage || snapshot.account?.valuesMasked || ownerSnapshot ? (
         <OwnerSecureView
           language={language}
           active={Boolean(ownerSnapshot)}
