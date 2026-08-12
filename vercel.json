@@ -1,9 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "VITE_MANAGER_API_URL= true && VITE_DATA_SOURCE=public-snapshot VITE_DASHBOARD_SNAPSHOT_URL=https://raw.githubusercontent.com/athipan1/Manager_Agent/dashboard-data/docs/dashboard/latest-dashboard-snapshot.json VITE_REFRESH_INTERVAL_MS=60000 npm run build",
+  "buildCommand": "VITE_DATA_SOURCE=public-snapshot VITE_MANAGER_API_URL= VITE_DASHBOARD_SNAPSHOT_URL=https://raw.githubusercontent.com/athipan1/Manager_Agent/dashboard-data/docs/dashboard/latest-dashboard-snapshot.json VITE_REFRESH_INTERVAL_MS=60000 npm run build",
   "outputDirectory": "dist",
   "rewrites": [
+    {
+      "source": "/manager-api/web-control/owner-snapshot",
+      "destination": "https://manageragent-production.up.railway.app/web-control/owner-snapshot"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
@@ -15,7 +19,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; base-uri 'self'; connect-src 'self' https://raw.githubusercontent.com https://manageragent-production.up.railway.app; form-action 'none'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; style-src 'self' 'unsafe-inline'"
+          "value": "default-src 'self'; base-uri 'self'; connect-src 'self' https://raw.githubusercontent.com; font-src 'self'; form-action 'none'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'"
         },
         {
           "key": "X-Content-Type-Options",
