@@ -1,17 +1,17 @@
 {
-  "version": 1,
+  "version": 2,
   "baseline": {
-    "sourceCommit": "1ec7707b1073c714c24a982b950afc8d6b26bab3",
-    "entryJsRawKb": 319.19,
-    "entryJsGzipKb": 96.41,
-    "totalJsGzipKb": 127.44,
-    "cssRawKb": 75.53,
-    "cssGzipKb": 14.04
+    "sourceCommit": "fad52ecd07b5ba8706eb56ef1353212a21c6f805",
+    "entryJsRawKb": 313.92,
+    "entryJsGzipKb": 93.87,
+    "totalJsGzipKb": 140.55,
+    "cssRawKb": 83.99,
+    "cssGzipKb": 15.34
   },
   "bundle": {
     "entryJsRawBytes": 348160,
     "entryJsGzipBytes": 107520,
-    "totalJsGzipBytes": 143360,
+    "totalJsGzipBytes": 144384,
     "totalCssRawBytes": 86016,
     "totalCssGzipBytes": 16384,
     "totalDistGzipBytes": 163840,
