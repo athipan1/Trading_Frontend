@@ -70,53 +70,53 @@ function SystemSummary({ snapshot, language, t, onOpenSystem, onOpenPortfolio })
 }
 
 function mergeOwnerValues(snapshot, owner) {
-  if (!owner) return snapshot;
-  return {
+  return owner ? {
     ...snapshot,
-    account: { ...snapshot.account, ...owner.account, valuesMasked: false },
-    positions: owner.positions.map((item) => ({ ...item, valuesMasked: false, quantityMasked: false })),
-    openOrders: owner.openOrders.map((item) => ({ ...item, valuesMasked: false })),
-    privacy: { ...snapshot.privacy, mode: 'owner-authenticated', valuesMasked: false },
-  };
+    account: owner.account,
+    positions: owner.positions,
+    openOrders: owner.openOrders,
+    privacy: { ...snapshot.privacy, valuesMasked: false },
+  } : snapshot;
 }
 
 function OwnerSecureView({ language, active, connecting, error, onConnect, onDisconnect }) {
   const [token, setToken] = useState('');
   const thai = language === 'th';
+  const toggle = () => {
+    if (active) {
+      setToken('');
+      onDisconnect();
+    } else {
+      onConnect(token.trim());
+    }
+  };
 
   return (
     <section className="operator-bar" data-testid="owner-secure-view" aria-label="Owner secure view">
-      <label>
-        <span><ShieldCheck aria-hidden="true" /> Owner Secure View · {thai ? 'Token ไม่ถูกบันทึก' : 'token is not stored'}</span>
-        <input
-          data-testid="owner-token-input"
-          type="password"
-          autoComplete="off"
-          value={token}
-          onChange={(event) => setToken(event.target.value)}
-          placeholder="WEB_CONTROL_OPERATOR_TOKEN"
-          disabled={connecting}
-        />
-      </label>
+      <input
+        aria-label="Owner token"
+        data-testid="owner-token-input"
+        type="password"
+        autoComplete="off"
+        value={token}
+        onChange={(event) => setToken(event.target.value)}
+        placeholder="WEB_CONTROL_OPERATOR_TOKEN"
+        disabled={connecting}
+      />
       <button
         className={active ? 'secondary-action' : 'primary-action'}
         data-testid={active ? 'owner-hide-values' : 'owner-connect-button'}
         type="button"
         disabled={!active && (connecting || !token.trim())}
-        onClick={() => {
-          if (active) {
-            setToken('');
-            onDisconnect();
-          } else {
-            onConnect(token.trim());
-          }
-        }}
+        onClick={toggle}
       >
-        {active ? (thai ? 'ซ่อนข้อมูล' : 'Hide values') : connecting ? (thai ? 'กำลังยืนยัน…' : 'Authenticating…') : (thai ? 'แสดงข้อมูลจริง' : 'Show real values')}
+        {active ? (thai ? 'ซ่อนข้อมูล' : 'Hide values') : connecting ? '…' : (thai ? 'แสดงข้อมูลจริง' : 'Show values')}
       </button>
-      <p className={`status ${error ? 'warn' : 'good'}`} role="status" data-testid="owner-secure-status">
-        {error || (active ? (thai ? 'ยืนยันเจ้าของแล้ว · read-only' : 'Owner verified · read-only') : (thai ? 'ข้อมูลยังปกปิดอยู่' : 'Values remain masked'))}
-      </p>
+      {error || active ? (
+        <p className={`status ${error ? 'warn' : 'good'}`} role="status" data-testid="owner-secure-status">
+          {error || (thai ? 'ยืนยันเจ้าของแล้ว · read-only' : 'Owner verified · read-only')}
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -134,7 +134,7 @@ export default function OverviewPage({ snapshot, language, t, onNavigate, readOn
       setOwnerSnapshot(await getOwnerDashboardSnapshot({ operatorToken }));
     } catch (error) {
       setOwnerSnapshot(null);
-      setOwnerError(String(error?.message || (language === 'th' ? 'ยืนยันไม่สำเร็จ' : 'Authentication failed')).slice(0, 180));
+      setOwnerError(String(error?.message || 'Authentication failed').slice(0, 180));
     } finally {
       setOwnerConnecting(false);
     }
