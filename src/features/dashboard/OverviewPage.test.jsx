@@ -12,13 +12,7 @@ const publicSnapshot = {
   generatedAt: '2026-08-12T07:00:00.000Z',
   workflow: { conclusion: 'success' },
   runtime: { mode: 'PAPER', brokerMode: 'ALPACA', liveTradingEnabled: false },
-  account: {
-    cash: null,
-    equity: null,
-    buyingPower: null,
-    status: 'ACTIVE',
-    valuesMasked: true,
-  },
+  account: { cash: null, equity: null, buyingPower: null, status: 'ACTIVE', valuesMasked: true },
   positions: [],
   openOrders: [],
   signals: [],
@@ -36,16 +30,14 @@ const ownerSnapshot = {
     buyingPower: 25000.5,
     valuesMasked: false,
   },
-  positions: [
-    {
-      symbol: 'AAPL',
-      quantity: 2,
-      marketValue: 410,
-      unrealizedPnL: 10,
-      valuesMasked: false,
-      protection: { status: 'protected', hasStopLoss: true, hasTakeProfit: false, hasBracket: false },
-    },
-  ],
+  positions: [{
+    symbol: 'AAPL',
+    quantity: 2,
+    marketValue: 410,
+    unrealizedPnL: 10,
+    valuesMasked: false,
+    protection: { status: 'protected', hasStopLoss: true, hasTakeProfit: false, hasBracket: false },
+  }],
   privacy: { mode: 'full', valuesMasked: false },
 };
 
@@ -57,7 +49,6 @@ afterEach(() => {
 describe('OverviewPage Owner Secure View', () => {
   it('keeps public values masked until authenticated, then can hide them again', async () => {
     getOwnerDashboardSnapshot.mockResolvedValue(ownerSnapshot);
-
     render(
       <OverviewPage
         snapshot={publicSnapshot}
@@ -70,29 +61,21 @@ describe('OverviewPage Owner Secure View', () => {
 
     expect(screen.getByTestId('owner-secure-view')).toBeVisible();
     expect(screen.getAllByText(translations.th.masked).length).toBeGreaterThan(0);
-
-    fireEvent.change(screen.getByTestId('owner-token-input'), {
-      target: { value: 'owner-secret' },
-    });
+    fireEvent.change(screen.getByTestId('owner-token-input'), { target: { value: 'owner-secret' } });
     fireEvent.click(screen.getByTestId('owner-connect-button'));
 
-    await waitFor(() => expect(getOwnerDashboardSnapshot).toHaveBeenCalledWith({
-      operatorToken: 'owner-secret',
-      accountId: '1',
-    }));
+    await waitFor(() => expect(getOwnerDashboardSnapshot).toHaveBeenCalledWith({ operatorToken: 'owner-secret' }));
     expect(await screen.findByText('$12,500.25')).toBeVisible();
     expect(screen.getByTestId('owner-secure-status')).toHaveTextContent('ยืนยันเจ้าของแล้ว');
     expect(screen.queryByLabelText('Read-only public snapshot mode')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('owner-hide-values'));
-
     expect(screen.getAllByText(translations.th.masked).length).toBeGreaterThan(0);
     expect(screen.getByLabelText('Read-only public snapshot mode')).toBeVisible();
   });
 
   it('fails closed and keeps values masked when authentication fails', async () => {
     getOwnerDashboardSnapshot.mockRejectedValue(new Error('Invalid operator token.'));
-
     render(
       <OverviewPage
         snapshot={publicSnapshot}
@@ -103,9 +86,7 @@ describe('OverviewPage Owner Secure View', () => {
       />,
     );
 
-    fireEvent.change(screen.getByTestId('owner-token-input'), {
-      target: { value: 'bad-token' },
-    });
+    fireEvent.change(screen.getByTestId('owner-token-input'), { target: { value: 'bad-token' } });
     fireEvent.click(screen.getByTestId('owner-connect-button'));
 
     expect(await screen.findByText('Invalid operator token.')).toBeVisible();
