@@ -6,6 +6,7 @@ import { getOwnerDashboardSnapshot } from '../../services/controlApi.js';
 import { formatBangkokDateTime } from '../../utils/dateTime.js';
 import { formatCurrency } from '../../utils/formatters.js';
 import DashboardInsights from './DashboardInsights.jsx';
+import './overviewExplanation.css';
 
 function AccountMetrics({ snapshot, t }) {
   const { account, positions } = snapshot;
