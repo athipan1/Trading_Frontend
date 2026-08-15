@@ -119,8 +119,9 @@ async function attachPhase21Evidence(page, testInfo, visualCase) {
 
 async function expectPhase21VisualContract(page, route, { expectPhases = true } = {}) {
   if (route === '/overview') {
-    await expect(page.locator('.overview-system-card')).toBeVisible();
-    await expect(page.locator('.overview-system-card')).toHaveCSS('background-image', /linear-gradient/);
+    const primarySummary = page.locator('.overview-system-card').first();
+    await expect(primarySummary).toBeVisible();
+    await expect(primarySummary).toHaveCSS('background-image', /linear-gradient/);
     await expect(page.locator('.metrics-grid .metric-card')).toHaveCount(4);
     await expect(page.locator('.dashboard-insights')).toBeVisible();
     return;
