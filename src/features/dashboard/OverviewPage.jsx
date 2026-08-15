@@ -6,7 +6,6 @@ import { getOwnerDashboardSnapshot } from '../../services/controlApi.js';
 import { formatBangkokDateTime } from '../../utils/dateTime.js';
 import { formatCurrency } from '../../utils/formatters.js';
 import DashboardInsights from './DashboardInsights.jsx';
-import './overviewExplanation.css';
 
 function AccountMetrics({ snapshot, t }) {
   const { account, positions } = snapshot;
@@ -80,26 +79,38 @@ function NaturalLanguageCycleSummary({ snapshot, language, onOpenSystem }) {
 
   return (
     <section
-      className={`panel overview-explanation-card ${incident.severity}`}
+      className={`panel overview-system-card ${needsAttention ? 'attention' : 'healthy'}`}
       aria-label={thai ? 'คำอธิบายรอบการทำงานล่าสุด' : 'Latest automation explanation'}
       data-testid="overview-natural-language-summary"
     >
-      <div className="overview-explanation-icon" aria-hidden="true">
-        <Icon />
-      </div>
-      <div className="overview-explanation-copy">
-        <p className="eyebrow">{thai ? 'เกิดอะไรขึ้นในรอบล่าสุด?' : 'What happened in the latest cycle?'}</p>
+      <div className="overview-system-copy">
+        <span className={`status ${needsAttention ? 'warn' : 'good'}`}>
+          <Icon aria-hidden="true" />
+          {thai ? 'สรุปแบบเข้าใจง่าย' : 'Plain-language summary'}
+        </span>
         <h2>{incident.title}</h2>
-        <p className="overview-explanation-detail">{incident.detail}</p>
-        <div className="overview-explanation-next">
-          <strong>{thai ? 'ระบบจะทำอะไรต่อ' : 'What happens next'}</strong>
-          <span>{incident.action}</span>
+        <p>{incident.detail}</p>
+      </div>
+      <div className="overview-system-facts">
+        <div>
+          <span>{thai ? 'เกิดอะไรขึ้น' : 'What happened'}</span>
+          <strong>{incident.title}</strong>
+        </div>
+        <div>
+          <span>{thai ? 'ระบบจะทำอะไรต่อ' : 'What happens next'}</span>
+          <strong>{incident.action}</strong>
+        </div>
+        <div>
+          <span>{thai ? 'สถานะ' : 'Status'}</span>
+          <strong>{needsAttention ? (thai ? 'ควรตรวจสอบ' : 'Needs review') : (thai ? 'ทำงานตามปกติ' : 'Operating normally')}</strong>
         </div>
       </div>
-      <button className="secondary-action overview-explanation-action" type="button" onClick={onOpenSystem}>
-        {thai ? 'ดูรายละเอียดทางเทคนิค' : 'View technical details'}
-        <ChevronRight aria-hidden="true" />
-      </button>
+      <div className="overview-quick-actions">
+        <button className="secondary-action" type="button" onClick={onOpenSystem}>
+          {thai ? 'ดูรายละเอียดทางเทคนิค' : 'View technical details'}
+          <ChevronRight aria-hidden="true" />
+        </button>
+      </div>
     </section>
   );
 }
