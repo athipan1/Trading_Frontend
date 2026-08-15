@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Activity, ChevronRight, ShieldCheck, WalletCards, Zap } from 'lucide-react';
+import { Activity, ChevronRight, ShieldCheck, TriangleAlert, WalletCards, Zap } from 'lucide-react';
 import MetricCard from '../../components/MetricCard.jsx';
+import { SYSTEM_COPY, deriveSystemIncident } from '../../components/systemIncidentModel.js';
 import { getOwnerDashboardSnapshot } from '../../services/controlApi.js';
 import { formatBangkokDateTime } from '../../utils/dateTime.js';
 import { formatCurrency } from '../../utils/formatters.js';
@@ -63,6 +64,51 @@ function SystemSummary({ snapshot, language, t, onOpenSystem, onOpenPortfolio })
         </button>
         <button className="primary-action" type="button" onClick={onOpenSystem}>
           {t.viewSystemDetails}<ChevronRight aria-hidden="true" />
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function NaturalLanguageCycleSummary({ snapshot, language, onOpenSystem }) {
+  const thai = language === 'th';
+  const copy = SYSTEM_COPY[thai ? 'th' : 'en'];
+  const incident = deriveSystemIncident(snapshot, copy);
+  const needsAttention = incident.severity === 'critical' || incident.severity === 'warning';
+  const Icon = needsAttention ? TriangleAlert : ShieldCheck;
+
+  return (
+    <section
+      className={`panel overview-system-card ${needsAttention ? 'attention' : 'healthy'}`}
+      aria-label={thai ? 'คำอธิบายรอบการทำงานล่าสุด' : 'Latest automation explanation'}
+      data-testid="overview-natural-language-summary"
+    >
+      <div className="overview-system-copy">
+        <span className={`status ${needsAttention ? 'warn' : 'good'}`}>
+          <Icon aria-hidden="true" />
+          {thai ? 'สรุปแบบเข้าใจง่าย' : 'Plain-language summary'}
+        </span>
+        <h2>{incident.title}</h2>
+        <p>{incident.detail}</p>
+      </div>
+      <div className="overview-system-facts">
+        <div>
+          <span>{thai ? 'เกิดอะไรขึ้น' : 'What happened'}</span>
+          <strong>{incident.title}</strong>
+        </div>
+        <div>
+          <span>{thai ? 'ระบบจะทำอะไรต่อ' : 'What happens next'}</span>
+          <strong>{incident.action}</strong>
+        </div>
+        <div>
+          <span>{thai ? 'สถานะ' : 'Status'}</span>
+          <strong>{needsAttention ? (thai ? 'ควรตรวจสอบ' : 'Needs review') : (thai ? 'ทำงานตามปกติ' : 'Operating normally')}</strong>
+        </div>
+      </div>
+      <div className="overview-quick-actions">
+        <button className="secondary-action" type="button" onClick={onOpenSystem}>
+          {thai ? 'ดูรายละเอียดทางเทคนิค' : 'View technical details'}
+          <ChevronRight aria-hidden="true" />
         </button>
       </div>
     </section>
@@ -161,6 +207,11 @@ export default function OverviewPage({ snapshot, language, t, onNavigate, readOn
         t={t}
         onOpenSystem={() => onNavigate('system')}
         onOpenPortfolio={() => onNavigate('portfolio')}
+      />
+      <NaturalLanguageCycleSummary
+        snapshot={effectiveSnapshot}
+        language={language}
+        onOpenSystem={() => onNavigate('system')}
       />
       <AccountMetrics snapshot={effectiveSnapshot} t={t} />
       <DashboardInsights snapshot={effectiveSnapshot} language={language} t={t} />
