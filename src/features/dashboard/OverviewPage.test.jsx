@@ -21,6 +21,21 @@ const publicSnapshot = {
   privacy: { mode: 'masked', valuesMasked: true },
 };
 
+const noCandidateSnapshot = {
+  ...publicSnapshot,
+  cycle: {
+    status: 'success',
+    executionStatus: 'not_attempted',
+    executionReason: 'no_preselected_backtest_symbols',
+  },
+  phases: [
+    { name: 'portfolio_review', status: 'success', message: 'Portfolio review completed' },
+    { name: 'scanner', status: 'success', message: 'Scanner completed with no approved candidate' },
+    { name: 'backtest', status: 'skipped', message: 'Skipped because Scanner produced no candidate' },
+    { name: 'execution', status: 'skipped', message: 'No order was submitted' },
+  ],
+};
+
 const ownerSnapshot = {
   ...publicSnapshot,
   account: {
@@ -92,5 +107,29 @@ describe('OverviewPage Owner Secure View', () => {
     expect(await screen.findByText('Invalid operator token.')).toBeVisible();
     expect(screen.getAllByText(translations.en.masked).length).toBeGreaterThan(0);
     expect(screen.getByLabelText('Read-only public snapshot mode')).toBeVisible();
+  });
+});
+
+describe('OverviewPage natural-language automation summary', () => {
+  it('explains a no-candidate cycle in plain Thai and links to technical details', () => {
+    const onNavigate = vi.fn();
+    render(
+      <OverviewPage
+        snapshot={noCandidateSnapshot}
+        language="th"
+        t={translations.th}
+        onNavigate={onNavigate}
+      />,
+    );
+
+    const summary = screen.getByTestId('overview-natural-language-summary');
+    expect(summary).toBeVisible();
+    expect(summary).toHaveTextContent('เกิดอะไรขึ้นในรอบล่าสุด?');
+    expect(summary).toHaveTextContent('ไม่มีหุ้นผ่านเงื่อนไขในรอบนี้');
+    expect(summary).toHaveTextContent('Scanner หรือ Backtest ไม่พบ Candidate ที่ผ่านเกณฑ์ จึงไม่มีการส่งคำสั่ง');
+    expect(summary).toHaveTextContent('รอรอบตามเวลาถัดไป ไม่ควรลดเกณฑ์เพียงเพื่อบังคับให้ระบบเทรด');
+
+    fireEvent.click(screen.getByRole('button', { name: /ดูรายละเอียดทางเทคนิค/i }));
+    expect(onNavigate).toHaveBeenCalledWith('system');
   });
 });
