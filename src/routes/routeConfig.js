@@ -3,6 +3,7 @@ export const PAGE_PATHS = Object.freeze({
   portfolio: '/portfolio',
   orders: '/orders',
   agents: '/agents',
+  'agent-guide': '/agent-guide',
   risk: '/risk',
   backtest: '/backtest',
   system: '/system',

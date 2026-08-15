@@ -16,7 +16,7 @@ export const DEFAULT_PREFERENCES = Object.freeze({
 
 const ALLOWED_THEMES = new Set(['system', 'light', 'dark']);
 const ALLOWED_DENSITIES = new Set(['comfortable', 'compact']);
-const ALLOWED_DEFAULT_PAGES = new Set(['overview', 'portfolio', 'orders', 'agents', 'risk', 'backtest', 'system']);
+const ALLOWED_DEFAULT_PAGES = new Set(['overview', 'portfolio', 'orders', 'agents', 'agent-guide', 'risk', 'backtest', 'system']);
 const ALLOWED_REFRESH_INTERVALS = new Set([0, 5, 10, 30, 60]);
 
 function isPlainObject(value) {

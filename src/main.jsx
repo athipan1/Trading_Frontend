@@ -12,6 +12,7 @@ import './portfolio.css';
 import './features/portfolio/portfolioWorkspace.css';
 import './features/orders/ordersWorkspace.css';
 import './features/agents/agentMonitor.css';
+import './features/agent-guide/agentGuide.css';
 import './features/risk/riskDashboard.css';
 import './features/backtest/backtest.css';
 import './features/settings/settings.css';

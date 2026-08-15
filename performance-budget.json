@@ -1,22 +1,22 @@
 {
-  "version": 2,
+  "version": 3,
   "baseline": {
-    "sourceCommit": "fad52ecd07b5ba8706eb56ef1353212a21c6f805",
-    "entryJsRawKb": 313.92,
-    "entryJsGzipKb": 93.87,
-    "totalJsGzipKb": 140.55,
-    "cssRawKb": 83.99,
-    "cssGzipKb": 15.34
+    "sourceCommit": "828e77dd508c4b0a886cb85017d79222b20874bb",
+    "entryJsRawKb": 316.64,
+    "entryJsGzipKb": 94.61,
+    "totalJsGzipKb": 154.08,
+    "cssRawKb": 92.32,
+    "cssGzipKb": 16.73
   },
   "bundle": {
     "entryJsRawBytes": 348160,
     "entryJsGzipBytes": 107520,
-    "totalJsGzipBytes": 144384,
-    "totalCssRawBytes": 86016,
-    "totalCssGzipBytes": 16384,
-    "totalDistGzipBytes": 163840,
-    "assetCount": 26,
-    "jsAssetCount": 22
+    "totalJsGzipBytes": 163840,
+    "totalCssRawBytes": 98304,
+    "totalCssGzipBytes": 18432,
+    "totalDistGzipBytes": 184320,
+    "assetCount": 30,
+    "jsAssetCount": 26
   },
   "runtime": {
     "fcpMs": 1800,

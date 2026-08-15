@@ -47,7 +47,7 @@ const copy = {
   },
 };
 
-const pageOptions = ['overview', 'portfolio', 'orders', 'agents', 'risk', 'backtest', 'system'];
+const pageOptions = ['overview', 'portfolio', 'orders', 'agents', 'agent-guide', 'risk', 'backtest', 'system'];
 
 function Field({ label, children, hint }) {
   return (
