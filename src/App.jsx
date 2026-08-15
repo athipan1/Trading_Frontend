@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   Activity,
+  BookOpen,
   Bot,
   FlaskConical,
   Gauge,
@@ -44,6 +45,7 @@ const FinanceAdvisor = lazy(() => import('./components/FinanceAdvisor.jsx'));
 const FinanceLedger = lazy(() => import('./components/FinanceLedger.jsx'));
 const InvestmentCommandCenter = lazy(() => import('./components/InvestmentCommandCenter.jsx'));
 const AgentMonitorPage = lazy(() => import('./features/agents/AgentMonitorPage.jsx'));
+const AgentGuidePage = lazy(() => import('./features/agent-guide/AgentGuidePage.jsx'));
 const BacktestPage = lazy(() => import('./features/backtest/BacktestPage.jsx'));
 const OrdersPage = lazy(() => import('./features/orders/OrdersPage.jsx'));
 const PortfolioPage = lazy(() => import('./features/portfolio/PortfolioPage.jsx'));
@@ -100,6 +102,14 @@ export default function App() {
       { id: 'portfolio', label: t.navPortfolio, description: t.navPortfolioDescription, icon: WalletCards },
       { id: 'orders', label: t.navOrders, description: t.navOrdersDescription, icon: ListOrdered },
       { id: 'agents', label: t.navAgents, description: t.navAgentsDescription, icon: Bot },
+      {
+        id: 'agent-guide',
+        label: language === 'th' ? 'คู่มือ Agent' : 'Agent Guide',
+        description: language === 'th'
+          ? 'อ่านหน้าที่ กฎ ข้อห้าม และลำดับการทำงานของ AI Agent เป็นภาษาธรรมชาติ'
+          : 'Read every AI agent responsibility, rule, boundary, and workflow in natural language.',
+        icon: BookOpen,
+      },
       { id: 'risk', label: t.navRisk, description: t.navRiskDescription, icon: ShieldAlert },
       { id: 'backtest', label: t.navBacktest, description: t.navBacktestDescription, icon: FlaskConical },
       { id: 'system', label: t.navSystem, description: t.navSystemDescription, icon: Activity },
@@ -265,6 +275,7 @@ export default function App() {
         {resolvedActivePage === 'portfolio' ? <Suspense fallback={<div className="panel" role="status">{t.loading}</div>}><PortfolioPage snapshot={dashboardSnapshot} t={t} /></Suspense> : null}
         {resolvedActivePage === 'orders' ? <Suspense fallback={<div className="panel" role="status">{t.loading}</div>}><OrdersPage snapshot={dashboardSnapshot} language={language} t={t} /></Suspense> : null}
         {resolvedActivePage === 'agents' ? <Suspense fallback={<div className="panel" role="status">{t.loading}</div>}><AgentMonitorPage snapshot={dashboardSnapshot} language={language} t={t} /></Suspense> : null}
+        {resolvedActivePage === 'agent-guide' ? <Suspense fallback={<div className="panel" role="status">{t.loading}</div>}><AgentGuidePage language={language} /></Suspense> : null}
         {resolvedActivePage === 'risk' ? <Suspense fallback={<div className="panel" role="status">{t.loading}</div>}><RiskDashboardPage snapshot={dashboardSnapshot} language={language} t={t} /></Suspense> : null}
         {resolvedActivePage === 'backtest' ? (
           <Suspense fallback={<div className="panel" role="status">{t.loading}</div>}>
