@@ -124,7 +124,7 @@ describe('OverviewPage natural-language automation summary', () => {
 
     const summary = screen.getByTestId('overview-natural-language-summary');
     expect(summary).toBeVisible();
-    expect(summary).toHaveTextContent('เกิดอะไรขึ้นในรอบล่าสุด?');
+    expect(summary).toHaveTextContent('สรุปแบบเข้าใจง่าย');
     expect(summary).toHaveTextContent('ไม่มีหุ้นผ่านเงื่อนไขในรอบนี้');
     expect(summary).toHaveTextContent('Scanner หรือ Backtest ไม่พบ Candidate ที่ผ่านเกณฑ์ จึงไม่มีการส่งคำสั่ง');
     expect(summary).toHaveTextContent('รอรอบตามเวลาถัดไป ไม่ควรลดเกณฑ์เพียงเพื่อบังคับให้ระบบเทรด');
