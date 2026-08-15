@@ -1,0 +1,116 @@
+.overview-explanation-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-left: 4px solid #38bdf8;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(15, 23, 42, 0.9) 55%);
+}
+
+.overview-explanation-card.normal {
+  border-left-color: #22c55e;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(15, 23, 42, 0.9) 55%);
+}
+
+.overview-explanation-card.warning {
+  border-left-color: #f59e0b;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.11), rgba(15, 23, 42, 0.9) 55%);
+}
+
+.overview-explanation-card.critical {
+  border-left-color: #f87171;
+  background: linear-gradient(135deg, rgba(248, 113, 113, 0.12), rgba(15, 23, 42, 0.9) 55%);
+}
+
+.overview-explanation-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 14px;
+  color: #bae6fd;
+  background: rgba(2, 6, 23, 0.34);
+}
+
+.overview-explanation-card.normal .overview-explanation-icon {
+  color: #86efac;
+}
+
+.overview-explanation-card.warning .overview-explanation-icon {
+  color: #fcd34d;
+}
+
+.overview-explanation-card.critical .overview-explanation-icon {
+  color: #fca5a5;
+}
+
+.overview-explanation-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.overview-explanation-copy {
+  min-width: 0;
+}
+
+.overview-explanation-copy h2 {
+  margin-top: 5px;
+  color: #f8fafc;
+  font-size: clamp(1.2rem, 2.8vw, 1.55rem);
+  letter-spacing: -0.02em;
+}
+
+.overview-explanation-detail {
+  max-width: 780px;
+  margin-top: 7px;
+  color: #cbd5e1;
+  line-height: 1.6;
+}
+
+.overview-explanation-next {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  margin-top: 12px;
+  color: #94a3b8;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.overview-explanation-next strong {
+  color: #e2e8f0;
+}
+
+.overview-explanation-action {
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .overview-explanation-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .overview-explanation-action {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .overview-explanation-card {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .overview-explanation-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .overview-explanation-detail,
+  .overview-explanation-next {
+    font-size: 0.9rem;
+  }
+}
