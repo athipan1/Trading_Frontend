@@ -2,6 +2,33 @@ import { createTabularExport, safeSpreadsheetText } from './spreadsheet.js';
 
 export const PORTFOLIO_PAGE_SIZE = 8;
 
+export const POSITION_OWNERSHIP = Object.freeze({
+  MANUAL: 'manual',
+  AI_MANAGED: 'ai_managed',
+  UNCLASSIFIED: 'unclassified',
+});
+
+// Missing or unsupported ownership labels always stay quarantined. Ownership
+// is assigned upstream by Manager, never inferred from the strategy bucket.
+export function positionOwnership(position) {
+  const ownership = position?.ownership;
+  return ownership === POSITION_OWNERSHIP.MANUAL
+    || ownership === POSITION_OWNERSHIP.AI_MANAGED
+    ? ownership : POSITION_OWNERSHIP.UNCLASSIFIED;
+}
+
+export function summarizePositionOwnership(positions) {
+  const summary = {
+    manual: 0,
+    ai_managed: 0,
+    unclassified: 0,
+  };
+  (Array.isArray(positions) ? positions : []).forEach((position) => {
+    summary[positionOwnership(position)] += 1;
+  });
+  return summary;
+}
+
 export function isPositionProtected(position, order) {
   const protection = position?.protection || {};
   return Boolean(
@@ -21,6 +48,7 @@ export function derivePortfolioWorkspace({
   openOrders,
   query = '',
   bucket = 'all',
+  ownership = 'all',
   protection = 'all',
   sort = 'symbol',
   page = 1,
@@ -41,9 +69,11 @@ export function derivePortfolioWorkspace({
       || `${position.symbol} ${position.bucket}`.toLocaleUpperCase().includes(normalizedQuery);
     const matchesBucket = normalizedBucket === 'all'
       || String(position.bucket).toLocaleLowerCase() === normalizedBucket;
+    const matchesOwnership = ownership === 'all'
+      || positionOwnership(position) === ownership;
     const matchesProtection = protection === 'all'
       || (protection === 'protected' ? position.protected : !position.protected);
-    return matchesQuery && matchesBucket && matchesProtection;
+    return matchesQuery && matchesBucket && matchesOwnership && matchesProtection;
   });
   const sorted = [...filtered].sort((left, right) => {
     if (left.valuesMasked || right.valuesMasked) {

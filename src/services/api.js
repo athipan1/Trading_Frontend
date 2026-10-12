@@ -113,6 +113,13 @@ function normalizePosition(position, index) {
     marketValue: nullableNumber(firstValue(row.marketValue, row.market_value), `positions[${index}].marketValue`),
     unrealizedPnL: nullableNumber(firstValue(row.unrealizedPnL, row.unrealized_pl), `positions[${index}].unrealizedPnL`),
     bucket: safeText(firstValue(row.bucket, row.strategy_bucket, 'unassigned'), 'unassigned', 48),
+    // The dashboard must receive ownership from Manager. Never infer it from a
+    // strategy name or auto-promote an unclassified position to AI-managed.
+    ownership: ['manual', 'ai_managed'].includes(row.ownership)
+      ? row.ownership : 'unclassified',
+    // Legacy snapshots without ownership metadata retain the old visual layout.
+    // Only an explicit Manager classification enables the ownership UI.
+    ownershipPublished: ['manual', 'ai_managed', 'unclassified'].includes(row.ownership),
     sector: safeText(row.sector, '', 64) || null,
     valuesMasked: booleanValue(row.valuesMasked),
     protection: {

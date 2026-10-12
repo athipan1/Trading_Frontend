@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createPortfolioExport, derivePortfolioWorkspace } from './portfolio.js';
+import { createPortfolioExport, derivePortfolioWorkspace, positionOwnership, summarizePositionOwnership } from './portfolio.js';
 
 const positions = [
   { symbol: 'MSFT', bucket: 'growth', marketValue: 300, unrealizedPnL: 30 },
@@ -14,6 +14,26 @@ const positions = [
 ];
 
 describe('portfolio workspace model', () => {
+  it('keeps unknown ownership quarantined even for positions with strategy names', () => {
+    const rows = [
+      { symbol: 'OXY', bucket: 'unassigned', ownership: 'manual' },
+      { symbol: 'MSFT', bucket: 'quality_growth', ownership: 'ai_managed' },
+      { symbol: 'NVDA', bucket: 'quality_growth' },
+      { symbol: 'XYZ', ownership: 'external_unverified' },
+    ];
+    expect(summarizePositionOwnership(rows)).toEqual({ manual: 1, ai_managed: 1, unclassified: 2 });
+    expect(positionOwnership(rows[2])).toBe('unclassified');
+    expect(derivePortfolioWorkspace({
+      positions: rows, openOrders: [], ownership: 'manual',
+    }).positions.map((row) => row.symbol)).toEqual(['OXY']);
+    expect(derivePortfolioWorkspace({
+      positions: rows, openOrders: [], ownership: 'ai_managed',
+    }).positions.map((row) => row.symbol)).toEqual(['MSFT']);
+    expect(derivePortfolioWorkspace({
+      positions: rows, openOrders: [], ownership: 'unclassified',
+    }).positions.map((row) => row.symbol)).toEqual(['NVDA', 'XYZ']);
+  });
+
   it('searches, filters protection, sorts, and clamps pagination', () => {
     const result = derivePortfolioWorkspace({
       positions,
