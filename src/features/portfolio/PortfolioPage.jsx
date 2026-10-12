@@ -1,4 +1,4 @@
-import { Download, FileSpreadsheet, Grid2X2, Search, TableProperties } from 'lucide-react';
+import { Bot, Download, FileSpreadsheet, Grid2X2, Search, ShieldAlert, TableProperties, UserRound } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import OrdersTable from '../../components/OrdersTable.jsx';
 import PortfolioActionCenter from '../../components/PortfolioActionCenter.jsx';
@@ -7,6 +7,7 @@ import SignalsPanel from '../../components/SignalsPanel.jsx';
 import {
   createPortfolioExport,
   derivePortfolioWorkspace,
+  summarizePositionOwnership,
   PORTFOLIO_PAGE_SIZE,
 } from '../../utils/portfolio.js';
 import { downloadClientFile } from '../../utils/spreadsheet.js';
@@ -19,6 +20,7 @@ function initialViewMode() {
 export default function PortfolioPage({ snapshot, t }) {
   const [query, setQuery] = useState('');
   const [bucket, setBucket] = useState('all');
+  const [ownership, setOwnership] = useState('all');
   const [protection, setProtection] = useState('all');
   const [sort, setSort] = useState('symbol');
   const [viewMode, setViewMode] = useState(initialViewMode);
@@ -27,17 +29,19 @@ export default function PortfolioPage({ snapshot, t }) {
   const [exportStatus, setExportStatus] = useState('');
   const signals = snapshot.signals ?? snapshot.curatorSignals ?? [];
   const valuesMasked = Boolean(snapshot.account?.valuesMasked || snapshot.privacy?.valuesMasked);
+  const ownershipCounts = useMemo(() => summarizePositionOwnership(snapshot.positions), [snapshot.positions]);
   const workspace = useMemo(() => derivePortfolioWorkspace({
     positions: snapshot.positions,
     openOrders: snapshot.openOrders,
     query,
     bucket,
+    ownership,
     protection,
     sort,
     page,
     pageSize: PORTFOLIO_PAGE_SIZE,
     valuesMasked,
-  }), [bucket, page, protection, query, snapshot.openOrders, snapshot.positions, sort, valuesMasked]);
+  }), [bucket, ownership, page, protection, query, snapshot.openOrders, snapshot.positions, sort, valuesMasked]);
   const selectedPosition = workspace.allPositions.find(
     (position) => position.symbol === selectedSymbol,
   );
@@ -57,6 +61,7 @@ export default function PortfolioPage({ snapshot, t }) {
   const clearFilters = () => {
     setQuery('');
     setBucket('all');
+    setOwnership('all');
     setProtection('all');
     setPage(1);
   };
@@ -86,7 +91,7 @@ export default function PortfolioPage({ snapshot, t }) {
     setExportStatus(`${t.exportReady}: ${filename}`);
   };
 
-  const hasFilters = Boolean(query || bucket !== 'all' || protection !== 'all');
+  const hasFilters = Boolean(query || bucket !== 'all' || ownership !== 'all' || protection !== 'all');
   const start = workspace.totalCount
     ? ((workspace.page - 1) * PORTFOLIO_PAGE_SIZE) + 1
     : 0;
@@ -99,6 +104,43 @@ export default function PortfolioPage({ snapshot, t }) {
         openOrders={snapshot.openOrders}
         t={t}
       />
+
+      {snapshot.positions.length ? (
+        <section className="portfolio-ownership-panel" aria-labelledby="portfolio-ownership-heading" data-testid="portfolio-ownership-boxes">
+          <div className="portfolio-ownership-heading">
+            <div>
+              <h2 id="portfolio-ownership-heading">{t.ownershipTitle}</h2>
+              <p>{t.ownershipDescription}</p>
+            </div>
+            <button type="button" className="portfolio-ownership-all" onClick={() => { setOwnership('all'); setPage(1); }}>
+              {t.ownershipAll}
+            </button>
+          </div>
+          <div className="portfolio-ownership-grid">
+            {[
+              { type: 'manual', Icon: UserRound, label: t.ownershipManual, hint: t.ownershipManualHelp },
+              { type: 'ai_managed', Icon: Bot, label: t.ownershipAi, hint: t.ownershipAiHelp },
+              { type: 'unclassified', Icon: ShieldAlert, label: t.ownershipUnclassified, hint: t.ownershipUnclassifiedHelp },
+            ].map(({ type, Icon, label, hint }) => (
+              <button
+                type="button"
+                key={type}
+                className={`portfolio-ownership-box ${ownership === type ? 'selected' : ''}`}
+                data-testid={`ownership-box-${type}`}
+                aria-pressed={ownership === type}
+                onClick={() => { setOwnership(ownership === type ? 'all' : type); setPage(1); }}
+              >
+                <div className="portfolio-ownership-box-title">
+                  <Icon aria-hidden="true" />
+                  <span>{label}</span>
+                </div>
+                <strong>{ownershipCounts[type]}</strong>
+                <small>{hint}</small>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {snapshot.positions.length ? (
         <section className="panel portfolio-toolbar" aria-label={t.portfolioTools}>
