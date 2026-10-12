@@ -30,6 +30,7 @@ export default function PortfolioPage({ snapshot, t }) {
   const signals = snapshot.signals ?? snapshot.curatorSignals ?? [];
   const valuesMasked = Boolean(snapshot.account?.valuesMasked || snapshot.privacy?.valuesMasked);
   const ownershipCounts = useMemo(() => summarizePositionOwnership(snapshot.positions), [snapshot.positions]);
+  const ownershipPublished = snapshot.positions.some((position) => position.ownershipPublished === true);
   const workspace = useMemo(() => derivePortfolioWorkspace({
     positions: snapshot.positions,
     openOrders: snapshot.openOrders,
@@ -105,7 +106,7 @@ export default function PortfolioPage({ snapshot, t }) {
         t={t}
       />
 
-      {snapshot.positions.length ? (
+      {snapshot.positions.length && ownershipPublished ? (
         <section className="portfolio-ownership-panel" aria-labelledby="portfolio-ownership-heading" data-testid="portfolio-ownership-boxes">
           <div className="portfolio-ownership-heading">
             <div>
