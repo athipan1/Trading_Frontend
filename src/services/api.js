@@ -117,6 +117,9 @@ function normalizePosition(position, index) {
     // strategy name or auto-promote an unclassified position to AI-managed.
     ownership: ['manual', 'ai_managed'].includes(row.ownership)
       ? row.ownership : 'unclassified',
+    // Legacy snapshots without ownership metadata retain the old visual layout.
+    // Only an explicit Manager classification enables the ownership UI.
+    ownershipPublished: ['manual', 'ai_managed', 'unclassified'].includes(row.ownership),
     sector: safeText(row.sector, '', 64) || null,
     valuesMasked: booleanValue(row.valuesMasked),
     protection: {
